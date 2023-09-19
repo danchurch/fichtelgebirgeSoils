@@ -13,12 +13,41 @@ git remote set-url origin git@github.com:danchurch/fichtelgebirgeSoils.git
 
 ## for the moment, let's use the lab computer,
 
+## let's look in our files for primers, etc:
+
+conda activate 
+
+readDir="/media/vol1/daniel/sulariArne/illuminaReads/goodReads"
+
+## let's do this old-school:
+
+cd $readDir
+
+gunzip -k *
+
+cat *fq > allSulariArneReads.fq
+
+mkdir /media/vol1/daniel/sulariArne/illuminaReads/fastqcOut
+
+## set variables
+file="/media/vol1/daniel/sulariArne/illuminaReads/goodReads/allSulariArneReads.fq"
+outdir="/media/vol1/daniel/sulariArne/illuminaReads/fastqcOut"
+fastqc -t 10 -o  $outdir $file  &
+
+
+path2put=/home/daniel/Documents/projects/fichtelgebirge_project/sulariArneSoils/readReport/
+path2get="/media/vol1/daniel/sulariArne/illuminaReads/fastqcOut/"
+scp -r -i ~/.ssh/id_ed25519 test@132.180.112.115:$path2get $path2put
+
+## quality looks great. 
+## tomorrow split by direction and check again.
+## look for primers
+
+######################
+
 ## with a specialized environment for dada2.
 ## I remember R with conda package management being kind of 
 ## a pain
-
-## this looks like a good guide for R with conda:
-https://saturncloud.io/blog/installing-conda-for-r-a-guide-for-data-scientists/
 
 conda activate 
 
@@ -40,12 +69,26 @@ conda install -c bioconda bioconductor-dada2
 ## fails
 ## try internal installations:
 
+## in R
+
 install.packages("BiocManager")
 BiocManager::install("dada2")
 
 ## that takes forever.
 
 
+## following these tutorials from the dada2 site:
 
+http://benjjneb.github.io/dada2/bigdata_paired.html
+http://benjjneb.github.io/dada2/bigdata.html
+http://benjjneb.github.io/dada2/tutorial.html
+
+library(dada2); packageVersion("dada2")
+
+
+## will dada2 take our data as is?
+
+path <- "/home/daniel/Documents/projects/fichtelgebirge_project/sulariArneSoils/reads"
 
 :
+

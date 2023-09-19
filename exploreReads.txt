@@ -5,4 +5,47 @@ git remote set-url origin git@github.com:danchurch/fichtelgebirgeSoils.git
 
 ###########################################
 
-git remote -v
+## now, much of this analysis will likely have to be done in R,
+## on a computer with sufficient memory.
+
+## the goal would be to contain this analysis to R
+## so we'll use dada2 in R
+
+## for the moment, let's use the lab computer,
+
+## with a specialized environment for dada2.
+## I remember R with conda package management being kind of 
+## a pain
+
+## this looks like a good guide for R with conda:
+https://saturncloud.io/blog/installing-conda-for-r-a-guide-for-data-scientists/
+
+conda activate 
+
+conda create -n dada2 -c r r-base
+
+## to old
+conda remove -n dada2 --all
+
+## can we force a newer version?
+
+conda create -n dada2 -c r r-base>=4.3.0
+
+conda update -n base -c defaults conda
+
+conda activate dada2
+
+## theoretically, we can install this way:
+conda install -c bioconda bioconductor-dada2
+## fails
+## try internal installations:
+
+install.packages("BiocManager")
+BiocManager::install("dada2")
+
+## that takes forever.
+
+
+
+
+:

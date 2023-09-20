@@ -17,6 +17,8 @@ git remote set-url origin git@github.com:danchurch/fichtelgebirgeSoils.git
 
 conda activate 
 
+conda create -n readQC -c bioconda cutadapt
+
 readDir="/media/vol1/daniel/sulariArne/illuminaReads/goodReads"
 
 ## let's do this old-school:
@@ -40,8 +42,123 @@ path2get="/media/vol1/daniel/sulariArne/illuminaReads/fastqcOut/"
 scp -r -i ~/.ssh/id_ed25519 test@132.180.112.115:$path2get $path2put
 
 ## quality looks great. 
-## tomorrow split by direction and check again.
-## look for primers
+
+## split by direction and check again
+
+## on nanoComp
+
+conda activate 
+
+cd /media/vol1/daniel/sulariArne/illuminaReads
+
+readDir="/media/vol1/daniel/sulariArne/illuminaReads/goodReads"
+
+cat $readDir/*good_1.fq > R1_SulariArneReads.fq &
+cat $readDir/*good_2.fq > R2_SulariArneReads.fq
+
+r1=/media/vol1/daniel/sulariArne/illuminaReads/R1_SulariArneReads.fq
+r2=/media/vol1/daniel/sulariArne/illuminaReads/R2_SulariArneReads.fq
+outdir="/media/vol1/daniel/sulariArne/illuminaReads/fastqcOut"
+fastqc -t 10 -o $outdir $r1 &
+fastqc -t 10 -o $outdir $r2 &
+
+## local machine:
+path2put=/home/daniel/Documents/projects/fichtelgebirge_project/sulariArneSoils/readReport/
+path2get="/media/vol1/daniel/sulariArne/illuminaReads/fastqcOut/"
+scp -r -i ~/.ssh/id_ed25519 test@132.180.112.115:$path2get $path2put
+
+firefox *html
+
+## all looks pretty amazing. For each (R1 and R2) We have 15510344/195 = 79540 reads per sample. 
+## after pairing. 
+## pretty much what they reported. 
+
+## look for primers...the first ten or so basepairs are highly conserved in both
+## are these remnants of the primers? 
+
+## back on nanoComp
+ 
+head R1_SulariArneReads.fq
+
+## here are the primers used as reported by the company.
+GTGYCAGCMGCCGCGGTAA 
+
+len('GTGYCAGCMGCCGCGGTAA') ##19
+
+GGACTACNVGGGTWTCTAAT
+
+len('GGACTACNVGGGTWTCTAAT') ##20
+
+## these look like the latest earth microbiome, parada primers
+
+## 515 forward, parada, in R1?:
+grep -c "^GTG.CAGC.GCCGCGGTAA" R1_SulariArneReads.fq ## 14903512 reads
+grep -c GTG.CAGC.GCCGCGGTAA R1_SulariArneReads.fq ## again 14903512 reads, out of 
+grep -c "@A01720" R1_SulariArneReads.fq ## 15510344
+wc -l R1_SulariArneReads.fq ## 15510344
+## 806R, in R1 reads?:
+grep -c "GGACTAC..GGGT.TCTAAT" R1_SulariArneReads.fq ## 0 reverse primers, that's good
+## reverse complement:
+grep -c "ATTAGA.ACCC.NGTAGTCC" R1_SulariArneReads.fq ## 0 reverse RC primers, that's good
+
+## 515 forward, parada, in R2?:
+grep -c "^GTG.CAGC.GCCGCGGTAA" R2_SulariArneReads.fq ## 0, good
+
+## 806R, in R1 reads?:
+grep -c "GGACTAC..GGGT.TCTAAT" R2_SulariArneReads.fq ## 15170340, out of 15510344
+## reverse complement:
+grep -c "ATTAGA.ACCC.NGTAGTCC" R2_SulariArneReads.fq ## 0, good.
+
+## this looks like really good data. 
+
+## let's clip these primers, and get on to dada2
+
+## make a directories of uncompressed, separated R1/R2 
+
+readDir="/media/vol1/daniel/sulariArne/illuminaReads/goodReads"
+allReadsPrimersClippedDir="/media/vol1/daniel/sulariArne/illuminaReads/goodReads_primerClipped"
+#mkdir $allReadsPrimersClippedDir
+readsPrimersClippedDir="/media/vol1/daniel/sulariArne/illuminaReads/goodReads_primerClipped"
+
+conda activate readQC
+
+cd $readDir
+
+cd $allReadsPrimersClippedDir
+
+## something like this?
+
+for iR1 in *good_1.fq; do
+  iR2=${iR1/_1\.fq/_2\.fq}
+  echo $iR1
+  outR1=${iR1/1\.fq/1_trimmed\.fq}
+  outR2=${iR2/2\.fq/2_trimmed\.fq}
+  cutadapt -g GTGYCAGCMGCCGCGGTAA -G GGACTACNVGGGTWTCTAAT -o $outR1 -p $outR2 $iR1 $iR2 
+done
+
+
+## did that work? 
+
+cd /media/vol1/daniel/sulariArne/illuminaReads/uncompressedReads
+
+head -n4 Bacteria_BM663-01M0087_good_1.fq
+
+head -n4 Bacteria_BM663-01M0087_good_1_trimmed.fq
+
+clear
+tail -n4 Bacteria_BM663-01M0087_good_1.fq
+tail -n4 Bacteria_BM663-01M0087_good_1_trimmed.fq
+
+tail -n4 Bacteria_BM663-01M0087_good_2.fq
+tail -n4 Bacteria_BM663-01M0087_good_2_trimmed.fq
+
+grep "^GTG.CAGC.GCCGCGGTAA" Bacteria_BM663-01M0087_good_1.fq ## lots
+grep "^GTG.CAGC.GCCGCGGTAA" Bacteria_BM663-01M0087_good_1_trimmed.fq ## nada
+
+## looks pretty good, move them to their own directory:
+#mv *trimmed* /media/vol1/daniel/sulariArne/illuminaReads/goodReads_primerClipped/
+
+cd /media/vol1/daniel/sulariArne/illuminaReads/goodReads_primerClipped
 
 ######################
 
@@ -64,31 +181,140 @@ conda update -n base -c defaults conda
 
 conda activate dada2
 
-## theoretically, we can install this way:
+
 conda install -c bioconda bioconductor-dada2
 ## fails
 ## try internal installations:
 
-## in R
 
+## in R
 install.packages("BiocManager")
+
+libary("BiocManager")
 BiocManager::install("dada2")
+
 
 ## that takes forever.
 
-
 ## following these tutorials from the dada2 site:
-
 http://benjjneb.github.io/dada2/bigdata_paired.html
 http://benjjneb.github.io/dada2/bigdata.html
+
+## but start with this:
 http://benjjneb.github.io/dada2/tutorial.html
+
+
+
+#############
+
+## try to get Arne and Sulari to divide up their read directories, to reduce 
+## memory usage?
 
 library(dada2); packageVersion("dada2")
 
-
 ## will dada2 take our data as is?
 
-path <- "/home/daniel/Documents/projects/fichtelgebirge_project/sulariArneSoils/reads"
+## for clipped: 
+#path <- "/media/vol1/daniel/sulariArne/illuminaReads/goodReads_primerClipped"
 
-:
+## sample names are here:
 
+
+
+
+
+
+
+
+
+
+
+sampleNames <- read.csv('sampleName_clientId.txt', 
+                        sep='\t', 
+                        col.names= c('sampleName', 'clientId'))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+head(sampleNames)
+
+
+## for raw: 
+path <- "/media/vol1/daniel/sulariArne/illuminaReads/uncompressedReads"
+
+
+
+
+
+
+list.files(path)
+
+# make two sorted lists, for R1 and R2
+fnFs <- sort(list.files(path, pattern="_1.fq", full.names = TRUE))
+fnRs <- sort(list.files(path, pattern="_2.fq", full.names = TRUE))
+
+plotQualityProfile(fnFs[1:2]) ## kicks error
+
+## does the order of our sampleNames DF fit the order of our file name vectors?
+
+head(sampleNames)
+fnFs[1:6]
+
+tail(sampleNames)
+fnFs[190:195]
+
+## looks good
+## so this should be the vector of sample names:
+
+sample.names <- sampleNames$clientId
+
+filtFs <- file.path(path, "filtered", paste0(sample.names, "_F_filt.fastq.gz"))
+filtRs <- file.path(path, "filtered", paste0(sample.names, "_R_filt.fastq.gz"))
+
+names(filtFs) <- sample.names
+names(filtRs) <- sample.names
+
+out <- filterAndTrim(fnFs, filtFs, fnRs, filtRs, trimLeft=c(19,20), 
+                     maxN=0, maxEE=c(2,2), truncQ=2, rm.phix=TRUE, 
+                     compress=TRUE, multithread=TRUE) # On Windows set multithread=FALSE
+
+head(out)
+
+out
+
+
+## now dada2 needs to model the errors from the sequencing run:
+
+## now this may be to much for laptops:
+errF <- learnErrors(filtFs, multithread=TRUE)
+#save(errF, file='errF.rda')
+
+errR <- learnErrors(filtRs, multithread=TRUE)
+
+#### not run: #####
+plotErrors(errF, nominalQ=TRUE)
+
+dadaFs <- dada(filtFs, err=errF, multithread=TRUE)
+dadaRs <- dada(filtRs, err=errR, multithread=TRUE)
+
+## the object is here:
+Fs[[1]]
+
+mergers <- mergePairs(dadaFs, filtFs, dadaRs, filtRs, verbose=TRUE)
+
+# Inspect the merger data.frame from the first sample
+head(mergers[[1]])

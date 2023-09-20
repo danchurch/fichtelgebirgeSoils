@@ -210,7 +210,9 @@ http://benjjneb.github.io/dada2/tutorial.html
 ## try to get Arne and Sulari to divide up their read directories, to reduce 
 ## memory usage?
 
-library(dada2); packageVersion("dada2")
+library(dada2)
+
+; packageVersion("dada2")
 
 ## will dada2 take our data as is?
 
@@ -220,77 +222,103 @@ library(dada2); packageVersion("dada2")
 ## sample names are here:
 
 
-
-
-
-
-
-
-
-
-
 sampleNames <- read.csv('sampleName_clientId.txt', 
                         sep='\t', 
                         col.names= c('sampleName', 'clientId'))
 
 
+getwd()
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+setwd("/media/vol1/daniel/sulariArne/illuminaReads/")
 
 head(sampleNames)
-
 
 ## for raw: 
 path <- "/media/vol1/daniel/sulariArne/illuminaReads/uncompressedReads"
 
 
-
-
-
-
 list.files(path)
 
+
 # make two sorted lists, for R1 and R2
+
+
+
+
+
 fnFs <- sort(list.files(path, pattern="_1.fq", full.names = TRUE))
+
 fnRs <- sort(list.files(path, pattern="_2.fq", full.names = TRUE))
 
-plotQualityProfile(fnFs[1:2]) ## kicks error
+fnFs
+
+
+
+
+
+#plotQualityProfile(fnFs[1:2]) ## kicks error
 
 ## does the order of our sampleNames DF fit the order of our file name vectors?
 
 head(sampleNames)
+
 fnFs[1:6]
 
 tail(sampleNames)
+
 fnFs[190:195]
 
 ## looks good
 ## so this should be the vector of sample names:
 
+
+
+
 sample.names <- sampleNames$clientId
+
+
+
+
+
 
 filtFs <- file.path(path, "filtered", paste0(sample.names, "_F_filt.fastq.gz"))
 filtRs <- file.path(path, "filtered", paste0(sample.names, "_R_filt.fastq.gz"))
 
+
+
+
 names(filtFs) <- sample.names
 names(filtRs) <- sample.names
+
+
+
+
+
+
+
+
+
 
 out <- filterAndTrim(fnFs, filtFs, fnRs, filtRs, trimLeft=c(19,20), 
                      maxN=0, maxEE=c(2,2), truncQ=2, rm.phix=TRUE, 
                      compress=TRUE, multithread=TRUE) # On Windows set multithread=FALSE
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 head(out)
 

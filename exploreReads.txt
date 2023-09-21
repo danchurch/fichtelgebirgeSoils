@@ -351,14 +351,17 @@ getwd()
 
 plotErrors(errF, nominalQ=TRUE)
 
+## to run dada2 on ALL the reads (Arne, Sulari, Controls)
+dadaFs <- dada(filtFs, err=errR, multithread=TRUE)
+save(dadaFs, file='dadaFs.rda')
 
 dadaRs <- dada(filtRs, err=errR, multithread=TRUE)
-dadaRs <- dada(filtRs, err=errR, multithread=TRUE)
 
-## can we do this with just Sulari's reads
-
+## can we do this with just Sulari's reads (and controls)?
 dadaFs <- dada(justSulariSamplesF, err=errF, multithread=TRUE)
 dadaRs <- dada(justSulariSamplesR, err=errR, multithread=TRUE)
+
+## save these!!!!
 
 ## the object is here:
 dadaFs[[1]]

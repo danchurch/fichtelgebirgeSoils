@@ -5,8 +5,8 @@ git remote set-url origin git@github.com:danchurch/fichtelgebirgeSoils.git
 
 ## might need to grab files quickly between computers. a template
 
-laptopLoc="/home/daniel/Documents/projects/fichtelgebirge_project/"
-nanoCompLoc="/media/vol1/daniel/sulariArne/illuminaReads/"
+laptopLoc="/home/daniel/Desktop"
+nanoCompLoc="/media/vol1/daniel/sulariArne/illuminaReads/dadaFsSulariOnly.rda"
 scp -r -i ~/.ssh/id_ed25519 test@132.180.112.115:$nanoCompLoc $laptopLoc
 
 ## or something like that
@@ -221,6 +221,8 @@ http://benjjneb.github.io/dada2/tutorial.html
 ## try to get Arne and Sulari to divide up their read directories, to reduce 
 ## memory usage?
 
+nanoComp
+
 conda activate dada2
 R
 library(dada2)
@@ -228,6 +230,13 @@ library(dada2)
 packageVersion("dada2")
 
 ## will dada2 take our data as is?
+
+
+## on lab comp
+setwd("/media/vol1/daniel/sulariArne/illuminaReads/")
+
+## on personal comp:
+#setwd("/home/daniel/Documents/projects/fichtelgebirge_project/sulariArneSoils/soilExtractions")
 
 ## for clipped: 
 #path <- "/media/vol1/daniel/sulariArne/illuminaReads/goodReads_primerClipped"
@@ -247,11 +256,6 @@ sampleNames <- read.csv('sampleName_clientId.txt',
 getwd()
 
 
-## on lab comp
-setwd("/media/vol1/daniel/sulariArne/illuminaReads/")
-
-## on personal comp:
-#setwd("/home/daniel/Documents/projects/fichtelgebirge_project/sulariArneSoils/soilExtractions")
 
 head(sampleNames)
 
@@ -303,7 +307,6 @@ onlySulari <- grep("S", filtFs)
 controls <- grep("C", filtFs)
 sulAndCon <- c(onlySulari, controls)
 justSulariSamplesF <- filtFs[sulAndCon]
-
 onlySulari <- grep("S", filtRs)
 controls <- grep("C", filtRs)
 sulAndCon <- c(onlySulari, controls)
@@ -335,12 +338,14 @@ errF <- learnErrors(filtFs, multithread=TRUE)
 
 ## interruptions, so save this to be recovered for tomorrow
 #save(errF, file='errF.rda')
-#load('errF.rda')
+
+load('errF.rda')
 
 
 errR <- learnErrors(filtRs, multithread=TRUE)
 #save(errR, file='errR.rda')
-#load('errR.rda')
+
+load('errR.rda')
 
 getwd()
 
@@ -348,30 +353,50 @@ getwd()
 ## if your computer is overrun at this point (out of RAM)
 ## try script below this one
 
-
 plotErrors(errF, nominalQ=TRUE)
 
 ## to run dada2 on ALL the reads (Arne, Sulari, Controls)
 dadaFs <- dada(filtFs, err=errR, multithread=TRUE)
-save(dadaFs, file='dadaFs.rda')
-
+#save(dadaFs, file='dadaFs.rda')
 dadaRs <- dada(filtRs, err=errR, multithread=TRUE)
 
 ## can we do this with just Sulari's reads (and controls)?
 dadaFs <- dada(justSulariSamplesF, err=errF, multithread=TRUE)
-dadaRs <- dada(justSulariSamplesR, err=errR, multithread=TRUE)
+#save(dadaFs, file="dadaFsSulariOnly.rda")
 
-## save these!!!!
+dadaRs <- dada(justSulariSamplesR, err=errR, multithread=TRUE)
+#save(dadaRs, file="dadaRsSulariOnly.rda")
+
+load("dadaFsSulariOnly.rda")
+load("dadaRsSulariOnly.rda")
+
 
 ## the object is here:
 dadaFs[[1]]
+dadaRs[[1]]
 
+## for just sulari
+mergers <- mergePairs(dadaFs, justSulariSamplesF, dadaRs, justSulariSamplesR, verbose=TRUE)
+
+## for all samples
 mergers <- mergePairs(dadaFs, filtFs, dadaRs, filtRs, verbose=TRUE)
+
+
+
 
 # Inspect the merger data.frame from the first sample
 head(mergers[[1]])
 
-##################### if your laptop can't handle it #################################
+## so now we should have fully denoised, merged sequences
+## this means we can construct ASVs, or zero-radius-OTUs (zOTUs)
+
+
+## after merging, keep following the same tutorial, here:
+## http://benjjneb.github.io/dada2/tutorial.html
+
+
+
+##################### \/ if your laptop can't handle it \/ #################################
 ## if that overwhelms available memory, what do we do?
 ## let's try their pipeline for big data, as found here:
 http://benjjneb.github.io/dada2/bigdata_paired.html
@@ -422,6 +447,8 @@ rm(derepF); rm(derepR)
 # Construct sequence table and remove chimeras
 seqtab <- makeSequenceTable(mergers)
 saveRDS(seqtab, "path/to/run1/output/seqtab.rds") # CHANGE ME to where you want sequence table saved
+
+##################### ^^  if your laptop can't handle it ^^ ##############################
 
 ## see if that works on their machines...
 

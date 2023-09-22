@@ -1,0 +1,32 @@
+## arne and sulari have their data!! 
+## but it is on a crappy AWS server, have to get it off
+
+## on a webbrowser, you have to download files one-at-a-time!
+
+## so let's get the AWS tools, put them on the lab computer. Yuck.
+
+cd /media/vol1/daniel/sulariArne
+
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+
+unzip awscliv2.zip
+
+./install -i ~/.local/aws-cli -b ~/.local/bin
+
+alias aws="/home/test/.local/bin/aws"
+
+aws configure
+
+AWS Access Key ID [None]: AKIA45O7KHZWK67TGJOB
+AWS Secret Access Key [None]: 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
+Default region name [None]: ap-southeast-1
+Default output format [None]: 
+
+## our data is here:
+dataFolder=s3://bmkdatarelease-10/delivery_20230914143543269/BMK230721-BM663-ZX01-0101/BMK_DATA_20230914143543_1/Data/
+aws s3 cp $dataFolder ./ --recursive
+
+/media/vol1/daniel/sulariArne/illuminaReads
+
+## 
+

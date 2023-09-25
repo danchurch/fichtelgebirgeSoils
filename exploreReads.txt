@@ -475,6 +475,15 @@ ps <- phyloseq(otu_table(seqtab.nochim, taxa_are_rows=FALSE),
                tax_table(taxa))
 
 
+dna <- Biostrings::DNAStringSet(taxa_names(ps))
+
+
+
+## let's start with this introductory tutorial,
+
+http://joey711.github.io/phyloseq-demo/phyloseq-demo.html
+
+## start with the section "Basic Interaction with phyloseq Data"
 
 
 

@@ -490,10 +490,12 @@ ps <- phyloseq(otu_table(seqtab.nochim, taxa_are_rows=FALSE),
 
 ## on lab computer
 conda activate dada2
-R
 
+R
 library(dada2)
 library(phyloseq)
+library(readxl)
+
 
 ## try  making a phyloseq object out of just our  
 ## otu table and our taxonomic object:
@@ -508,8 +510,8 @@ ps <- merge_phyloseq(ps, dna)
 taxa_names(ps) <- paste0("ASV", seq(ntaxa(ps)))
 #save(ps, file="sulariPhyloseqObject.rda")
 
-
 ## or if we are coming back from a break  we can start here:
+
 load("sulariPhyloseqObject.rda")
 
 taxa_names(ps)
@@ -527,4 +529,9 @@ nsamples(ps)
 sample_names(ps)[1:10]
 
 taxa_names(ps)[1]
+
+## sulari's environmental data should be here:
+
+aa = read.csv('Envt Matrix.csv')
+
 

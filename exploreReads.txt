@@ -232,6 +232,7 @@ nanoComp
 conda activate dada2
 R
 library(dada2)
+library(phyloseq)
 
 packageVersion("dada2")
 
@@ -435,17 +436,29 @@ sum(seqtab.nochim)/sum(seqtab) ## 99%, good stuff
 
 ## let's get the latest tax training dataset:
 
-wget https://zenodo.org/record/4587955/files/silva_nr99_v138.1_train_set.fa.gz?download=1
+wget https://zenodo.org/record/4587955/files/silva_nr99_v138.1_train_set.fa.gz
 
 taxa <- assignTaxonomy(seqtab.nochim, "silva_nr99_v138.1_train_set.fa.gz", multithread=TRUE)
 
-save(taxa, file ="sulariOnlyTaxa.rda")
+#save(taxa, file ="sulariOnlyTaxa.rda")
+
+load("sulariOnlyTaxa.rda")
+
+
+head(taxa)
+
+taxa.print <- taxa # Removing sequence rownames for display only
+rownames(taxa.print) <- NULL
+head(taxa.print)
+
+
+
 
 ## checking mock communities:
 
 ## first mock community
 
-unqs.mock <- seqtab.nochim['S20',]
+unqs.mock <- seqtab.nochim['S53',]
 
 unqs.mock <- seqtab.nochim['C1.1',]
 
@@ -458,7 +471,6 @@ unqs.mock <- seqtab.nochim['C2.2',]
 unqs.mock <- sort(unqs.mock[unqs.mock>0], decreasing=TRUE) # Drop ASVs absent in the Mock
 cat("DADA2 inferred", length(unqs.mock), "sample sequences present in the Mock community.\n")
 
-
 dim(seqtab.nochim)
 
 seqtab.nochim['C1.1',2:10]
@@ -466,18 +478,41 @@ seqtab.nochim['C1.1',2:10]
 
 tail(seqtab.nochim)[,1:2]
 
-########## phyloseq ###############
 
-## try  making a phyloseq object out of just our  
-## otu table and our taxonomic object:
+## try these out on phyloseq!
+
+library(phyloseq)
 
 ps <- phyloseq(otu_table(seqtab.nochim, taxa_are_rows=FALSE), 
                tax_table(taxa))
 
+########## phyloseq ###############
 
+## on lab computer
+conda activate dada2
+R
+
+library(dada2)
+library(phyloseq)
+
+## try  making a phyloseq object out of just our  
+## otu table and our taxonomic object:
+
+setwd("/media/vol1/daniel/sulariArne/illuminaReads/")
+
+
+## we can move directly from the code 
 dna <- Biostrings::DNAStringSet(taxa_names(ps))
+names(dna) <- taxa_names(ps)
+ps <- merge_phyloseq(ps, dna)
+taxa_names(ps) <- paste0("ASV", seq(ntaxa(ps)))
+#save(ps, file="sulariPhyloseqObject.rda")
 
 
+## or if we are coming back from a break  we can start here:
+load("sulariPhyloseqObject.rda")
+
+taxa_names(ps)
 
 ## let's start with this introductory tutorial,
 
@@ -485,7 +520,11 @@ http://joey711.github.io/phyloseq-demo/phyloseq-demo.html
 
 ## start with the section "Basic Interaction with phyloseq Data"
 
+ntaxa(ps)
 
+nsamples(ps)
 
-ps <- prune_samples(sample_names(ps) != "Mock", ps) # Remove mock sample
+sample_names(ps)[1:10]
+
+taxa_names(ps)[1]
 

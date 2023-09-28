@@ -5,8 +5,8 @@ git remote set-url origin git@github.com:danchurch/fichtelgebirgeSoils.git
 
 ## might need to grab files quickly between computers. a template
 
-laptopLoc="/home/daniel/Desktop"
-nanoCompLoc="/media/vol1/daniel/sulariArne/illuminaReads/dadaFsSulariOnly.rda"
+laptopLoc="/home/daniel/Documents/projects/fichtelgebirge_project/sulariArneSoils/fichtelgebirgeSoils"
+nanoCompLoc="/media/vol1/daniel/sulariArne/illuminaReads/sulariPhyloseqObject.rda"
 scp -r -i ~/.ssh/id_ed25519 test@132.180.112.115:$nanoCompLoc $laptopLoc
 
 ## or something like that
@@ -174,30 +174,8 @@ cd /media/vol1/daniel/sulariArne/illuminaReads/goodReads_primerClipped
 ######################
 
 ## with a specialized environment for dada2.
-## I remember R with conda package management being kind of 
-## a pain
 
 conda activate 
-
-conda create -n dada2 -c r r-base
-
-## to old
-conda remove -n dada2 --all
-
-## can we force a newer version?
-
-conda create -n dada2 -c r r-base>=4.3.0
-
-conda update -n base -c defaults conda
-
-conda activate dada2
-
-
-conda install -c bioconda bioconductor-dada2
-
-## fails
-## try internal installations:
-
 
 ## in R
 install.packages("BiocManager")
@@ -492,6 +470,7 @@ ps <- phyloseq(otu_table(seqtab.nochim, taxa_are_rows=FALSE),
 conda activate dada2
 
 R
+
 library(dada2)
 library(phyloseq)
 
@@ -500,7 +479,6 @@ library(phyloseq)
 ## otu table and our taxonomic object:
 
 setwd("/media/vol1/daniel/sulariArne/illuminaReads/")
-
 
 ## we can move directly from the code 
 dna <- Biostrings::DNAStringSet(taxa_names(ps))
@@ -513,80 +491,49 @@ taxa_names(ps) <- paste0("ASV", seq(ntaxa(ps)))
 
 load("sulariPhyloseqObject.rda")
 
-taxa_names(ps)
-
-## let's start with this introductory tutorial,
-
-http://joey711.github.io/phyloseq-demo/phyloseq-demo.html
-
-## start with the section "Basic Interaction with phyloseq Data"
-
-ntaxa(ps)
-
-nsamples(ps)
-
-sample_names(ps)[1:10]
-
-taxa_names(ps)[1]
-
-
-
-
 
 ## sulari's environmental data should be here:
 
 ## get the latest:
-#download.file(
-#    "https://raw.githubusercontent.com/danchurch/fichtelgebirgeSoils/main/Envt_Matrix.csv",
-#    destfile = "Envt_Matrix.csv", 
-#    method="wget")
+
+download.file(
+    "https://raw.githubusercontent.com/danchurch/fichtelgebirgeSoils/main/Envt_Matrix.csv",
+    destfile = "Envt_Matrix.csv", 
+    method="wget")
 
 env_data = read.csv('Envt_Matrix.csv', row.names=1)
 
-
 sample_data(ps) <- env_data
 
+sample_data(ps)
 
-
-
+sample_names(ps)
 
 tail(env_data)
 
 
-
 ## we also have geographic data we can add to our 
 ## environmental matrix:
+
+
+## now get corresponding physical locations of each sample:
+
+###### this is how dan got lat/lon data from betty's spreadsheet ####
+
+## some horrible data wrangling here follows:
+
+## get our geographic data, a csv made from betty's google doc:
 
 download.file(
     "https://raw.githubusercontent.com/danchurch/fichtelgebirgeSoils/main/carb4D_cleaned.csv", 
     destfile = "carb4D_cleaned.csv",
     method="wget") ## for windows users, don't add method, use default
 
-geoDat <- read.csv("carb4D_cleaned.csv")
-
-## now get corresponding physical locations of each sample:
-
-## do plotIDs match up?
-
-
-env_data[1:8,1:3]
-
-head(geoDat, n=3)
-
-tail(geoDat, n=3)
-
-geoDat[geoDat$plotID == "P0104C",]
-
-geoDat[geoDat$plotID == "P0104",]
-
-
-
-
-###### this is how dan got lat/lon data from betty's spreadsheet ####
 
 env_data <- read.csv('Envt Matrix.csv')
 geoDat <- read.csv("carb4D_cleaned.csv")
 
+## make functions to get latitude and longitude out of the geoDat df:
 getLat <- function(samp){
 bb <- substring(samp, 1, 5)
 cc <- grep(bb, geoDat$plotID, value=TRUE)
@@ -599,7 +546,7 @@ cc <- grep(bb, geoDat$plotID, value=TRUE)
 lon <- as.numeric(geoDat[geoDat$plotID == cc,]["lon"])
 return(lon)
 }
-## 
+## make empty vectors, search for lat/long values, fill vectors
 lats <- vector()
 for (i in env_data$Plot.ID){
   lats <- c(lats,getLat( i))
@@ -615,22 +562,27 @@ for (i in env_data$Plot.ID){
 lons <- c(lons, c(NA,NA,NA,NA))
 env_data["Longitude"] <- lons
 
-
-## get rid of old, empty lattitude and longitude:
-env_data <- env_data[,-9:-10]
-
-head(env_data)
-
-tail(env_data)
-
-
-
-write.csv(env_data, file='Envt_Matrix.csv')
+## update the environmental matrix csv file 
+write.csv(env_data, file='Envt_Matrix.csv', row.names=FALSE)
 
 ## use this now as our latest environmental data
 ## from now on, let's avoid spaces in file names
 
 ###################################################
 
+## and back to the tutorial...
+## let's start with this introductory tutorial,
 
+http://joey711.github.io/phyloseq-demo/phyloseq-demo.html
 
+http://joey711.github.io/phyloseq-demo/phyloseq-demo.html
+
+## start with the section "Basic Interaction with phyloseq Data"
+
+ntaxa(ps)
+
+nsamples(ps)
+
+sample_names(ps)[1:10]
+
+taxa_names(ps)[1]

@@ -72,8 +72,8 @@ fastqc -t 10 -o $outdir $r1 &
 fastqc -t 10 -o $outdir $r2 &
 
 ## local machine:
-path2put=/home/daniel/Documents/projects/fichtelgebirge_project/sulariArneSoils/readReport/
-path2get="/media/vol1/daniel/sulariArne/illuminaReads/fastqcOut/"
+path2put=/home/daniel/Documents/projects/fichtelgebirge_project/sulariArneSoils/fichtelgebirgeSoils
+path2get="/media/vol1/daniel/sulariArne/illuminaReads/Envt Matrix.csv"
 scp -r -i ~/.ssh/id_ed25519 test@132.180.112.115:$path2get $path2put
 
 firefox *html
@@ -529,17 +529,31 @@ sample_names(ps)[1:10]
 
 taxa_names(ps)[1]
 
+
+
+
+
 ## sulari's environmental data should be here:
 
-rm(sample_data)
+
+
+
+
+
 
 ## get the latest:
 download.file(
-    "https://raw.githubusercontent.com/danchurch/fichtelgebirgeSoils/main/Envt Matrix.csv", 
+    "https://raw.githubusercontent.com/danchurch/fichtelgebirgeSoils/main/Envt%20Matrix.csv",
     destfile = "Envt Matrix.csv", 
     method="wget")
 
 env_data = read.csv('Envt Matrix.csv', row.names=1)
+
+list.files()
+
+head(env_data)
+
+
 
 ## we also have geographic data we can add to our 
 ## environmental matrix:
@@ -570,6 +584,8 @@ geoDat[geoDat$plotID == "P0104",]
 
 
 ###### this is how dan got lat/lon data from betty's spreadsheet ####
+
+env_data <- read.csv('Envt Matrix.csv')
 
 getLat <- function(samp){
 bb <- substring(samp, 1, 5)
@@ -602,5 +618,17 @@ for (i in env_data$Plot.ID){
 lons <- c(lons, c(NA,NA,NA,NA))
 env_data["lon"] <- lons
 
-###### this is how dan got lat/lon data from betty's spreadsheet ####
+## get rid of old, empty lattitude and longitude:
+env_data <- env_data[,-9:-10]
+
+env_data
+
+write.csv(env_data, file='Envt_Matrix.csv')
+
+## use this now as our latest environmental data
+## from now on, let's avoid spaces in file names
+
+###################################################
+
+
 

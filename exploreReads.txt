@@ -555,12 +555,6 @@ geoDat <- read.csv("carb4D_cleaned.csv")
 
 ## do plotIDs match up?
 
-env_data[1:3,1:3]
-geoDat[1:3,1:3]
-
-isin <- function(x){ x %in% geoDat$PlotID}
-sapply( env_data$Plot.ID, isin) ## all false, formatting issues
-
 
 env_data[1:8,1:3]
 
@@ -574,6 +568,8 @@ geoDat[geoDat$plotID == "P0104",]
 
 
 
+
+###### this is how dan got lat/lon data from betty's spreadsheet ####
 
 getLat <- function(samp){
 bb <- substring(samp, 1, 5)
@@ -605,4 +601,6 @@ for (i in env_data$Plot.ID){
 ## add the control NAs
 lons <- c(lons, c(NA,NA,NA,NA))
 env_data["lon"] <- lons
+
+###### this is how dan got lat/lon data from betty's spreadsheet ####
 

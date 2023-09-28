@@ -73,7 +73,7 @@ fastqc -t 10 -o $outdir $r2 &
 
 ## local machine:
 path2put=/home/daniel/Documents/projects/fichtelgebirge_project/sulariArneSoils/fichtelgebirgeSoils
-path2get="/media/vol1/daniel/sulariArne/illuminaReads/Envt Matrix.csv"
+path2get="/media/vol1/daniel/sulariArne/illuminaReads/Envt_Matrix.csv"
 scp -r -i ~/.ssh/id_ed25519 test@132.180.112.115:$path2get $path2put
 
 firefox *html
@@ -535,23 +535,22 @@ taxa_names(ps)[1]
 
 ## sulari's environmental data should be here:
 
-
-
-
-
-
-
 ## get the latest:
-download.file(
-    "https://raw.githubusercontent.com/danchurch/fichtelgebirgeSoils/main/Envt%20Matrix.csv",
-    destfile = "Envt Matrix.csv", 
-    method="wget")
+#download.file(
+#    "https://raw.githubusercontent.com/danchurch/fichtelgebirgeSoils/main/Envt_Matrix.csv",
+#    destfile = "Envt_Matrix.csv", 
+#    method="wget")
 
-env_data = read.csv('Envt Matrix.csv', row.names=1)
+env_data = read.csv('Envt_Matrix.csv', row.names=1)
 
-list.files()
 
-head(env_data)
+sample_data(ps) <- env_data
+
+
+
+
+
+tail(env_data)
 
 
 
@@ -586,6 +585,7 @@ geoDat[geoDat$plotID == "P0104",]
 ###### this is how dan got lat/lon data from betty's spreadsheet ####
 
 env_data <- read.csv('Envt Matrix.csv')
+geoDat <- read.csv("carb4D_cleaned.csv")
 
 getLat <- function(samp){
 bb <- substring(samp, 1, 5)
@@ -599,7 +599,6 @@ cc <- grep(bb, geoDat$plotID, value=TRUE)
 lon <- as.numeric(geoDat[geoDat$plotID == cc,]["lon"])
 return(lon)
 }
-
 ## 
 lats <- vector()
 for (i in env_data$Plot.ID){
@@ -607,21 +606,24 @@ for (i in env_data$Plot.ID){
 }
 ## add the control NAs
 lats <- c(lats, c(NA,NA,NA,NA))
-env_data["lat"] <- lats
-
-
+env_data["Latitude"] <- lats
 lons <- vector()
 for (i in env_data$Plot.ID){
   lons <- c(lons,getLon( i))
 }
 ## add the control NAs
 lons <- c(lons, c(NA,NA,NA,NA))
-env_data["lon"] <- lons
+env_data["Longitude"] <- lons
+
 
 ## get rid of old, empty lattitude and longitude:
 env_data <- env_data[,-9:-10]
 
-env_data
+head(env_data)
+
+tail(env_data)
+
+
 
 write.csv(env_data, file='Envt_Matrix.csv')
 

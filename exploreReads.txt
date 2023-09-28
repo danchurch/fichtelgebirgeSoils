@@ -541,17 +541,13 @@ download.file(
 
 env_data = read.csv('Envt Matrix.csv', row.names=1)
 
-library(phyloseq)
-
-sample_data(ps) <- env_data
-
 ## we also have geographic data we can add to our 
 ## environmental matrix:
 
 download.file(
     "https://raw.githubusercontent.com/danchurch/fichtelgebirgeSoils/main/carb4D_cleaned.csv", 
-    destfile = "carb4D_cleaned.csv", 
-    method="wget")
+    destfile = "carb4D_cleaned.csv",
+    method="wget") ## for windows users, don't add method, use default
 
 geoDat <- read.csv("carb4D_cleaned.csv")
 
@@ -566,13 +562,18 @@ isin <- function(x){ x %in% geoDat$PlotID}
 sapply( env_data$Plot.ID, isin) ## all false, formatting issues
 
 
-
-dim(env_data)
-dim(geoDat)
-
 env_data[1:8,1:3]
+
 head(geoDat, n=3)
+
 tail(geoDat, n=3)
+
+geoDat[geoDat$plotID == "P0104C",]
+
+geoDat[geoDat$plotID == "P0104",]
+
+
+
 
 getLat <- function(samp){
 bb <- substring(samp, 1, 5)
@@ -596,8 +597,6 @@ for (i in env_data$Plot.ID){
 lats <- c(lats, c(NA,NA,NA,NA))
 env_data["lat"] <- lats
 
-getLon( env_data[1,1])
-
 
 lons <- vector()
 for (i in env_data$Plot.ID){
@@ -606,5 +605,4 @@ for (i in env_data$Plot.ID){
 ## add the control NAs
 lons <- c(lons, c(NA,NA,NA,NA))
 env_data["lon"] <- lons
-
 

@@ -503,6 +503,8 @@ download.file(
 
 env_data = read.csv('Envt_Matrix.csv', row.names=1)
 
+head(env_data)
+
 sample_data(ps) <- env_data
 
 sample_data(ps)

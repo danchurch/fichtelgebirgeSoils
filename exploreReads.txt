@@ -608,16 +608,47 @@ rank_names(ps)
 
 sample_sums(ps)
 
-barplot(sample_sums(ps))
+
+
+
+(p = plot_richness(ps, x = "pH"))
+
+(p = plot_richness(ps, x = "Land.type"))
+
+p + geom_boxplot(data = p$data, aes(x = "Land.type", y = value, color = NULL), alpha = 0.1)
+
+
+## plot abundances
+
+
+TopNOTUs = names(sort(taxa_sums(ps), TRUE)[1:10])
+
+TopNOTUs = names(sort(taxa_sums(ps), TRUE)[1:10])
+ps10 = prune_taxa(TopNOTUs, ps)
+plot_bar(ps10, "Land.type",  facet_grid = ~Phylum)
+
+## or try:
+plot_bar(ps10, "Land.type",  facet_grid = ~Genus)
+
+## etc, etc
+
+
+
+
+
+
 ## this actually looks very good. only the 1rst sample is lower than the rest, essentially
+
+barplot(sample_sums(ps))
+
+barplot(sort(sample_sums(ps), TRUE))
+
 ## so maybe not a lot of correction for mean depth/variance relationship
 ## especially if we drop singletons.
-
 
 barplot(get_taxa(ps, "C1.1" ))
 
 ## that figure is hard to see/understand. customize a bit:
-
 
 rankAb <- function(sampleName, ylimit=500, ntax=NULL, textatX=100, textatY=(ylimit-40)){
     sampleNo0filter <- get_taxa(ps, sampleName) > 0
@@ -640,6 +671,8 @@ rankAb <- function(sampleName, ylimit=500, ntax=NULL, textatX=100, textatY=(ylim
 ## this lets us look a little closer:
 
 rankAb("C1.1")
+
+rankAb("S1")
 
 ## first control, cutoff graph at 100 observations, 10 most abundant species
 rankAb("C1.1", 100,10, 5)

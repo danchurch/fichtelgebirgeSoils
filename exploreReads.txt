@@ -209,8 +209,12 @@ nanoComp
 
 conda activate dada2
 R
+
 library(dada2)
 library(phyloseq)
+library(ggplot2)
+library(scales)
+library(grid)
 
 packageVersion("dada2")
 
@@ -467,12 +471,15 @@ ps <- phyloseq(otu_table(seqtab.nochim, taxa_are_rows=FALSE),
 ########## phyloseq ###############
 
 ## on lab computer
-conda activate dada2
+#conda activate dada2
 
 R
 
 library(dada2)
 library(phyloseq)
+library(ggplot2)
+library(scales)
+library(grid)
 
 
 ## try  making a phyloseq object out of just our  
@@ -516,7 +523,6 @@ sample_data(ps) <- env_data
 ## update our r data object for this, for next session:
 #save(ps, file="sulariPhyloseqObject.rda")
 
-
 ###### side note this is how dan got lat/lon data from betty's spreadsheet ####
 
 ## we also have geographic data we can add to our 
@@ -551,7 +557,7 @@ lon <- as.numeric(geoDat[geoDat$plotID == cc,]["lon"])
 return(lon)
 }
 
-## make empty vectors, search for lat/long values, fill vectors
+## make empty vectors, search for latitude values, fill vectors
 lats <- vector()
 for (i in env_data$Plot.ID){
   lats <- c(lats,getLat( i))
@@ -559,6 +565,8 @@ for (i in env_data$Plot.ID){
 ## add the control NAs
 lats <- c(lats, c(NA,NA,NA,NA))
 env_data["Latitude"] <- lats
+
+## repeat for longitude
 lons <- vector()
 for (i in env_data$Plot.ID){
   lons <- c(lons,getLon( i))
@@ -588,6 +596,93 @@ ntaxa(ps)
 
 nsamples(ps)
 
+sample_names(ps)
+
 sample_names(ps)[1:10]
 
-taxa_names(ps)[1]
+taxa_names(ps)[1:10]
+
+sample_variables(ps)
+
+rank_names(ps)
+
+sample_sums(ps)
+
+barplot(sample_sums(ps))
+## this actually looks very good. only the 1rst sample is lower than the rest, essentially
+## so maybe not a lot of correction for mean depth/variance relationship
+## especially if we drop singletons.
+
+
+barplot(get_taxa(ps, "C1.1" ))
+
+## that figure is hard to see/understand. customize a bit:
+
+
+rankAb <- function(sampleName, ylimit=500, ntax=NULL, textatX=100, textatY=(ylimit-40)){
+    sampleNo0filter <- get_taxa(ps, sampleName) > 0
+    if(is.null(ntax)) ntax=sum(sampleNo0filter)
+    print(ntax)
+    sampleNo0 <- get_taxa(ps, sampleName)[sampleNo0filter]
+    sampleNo0 <- sort(sampleNo0, decreasing=TRUE)
+    sampleNo0 <- sampleNo0[1:ntax]
+    nuASV <- paste("number of unique ASVs = ",length(sampleNo0), sep="")
+    barplot(sampleNo0, ylim = c(0,ylimit), main=sampleName, cex.main=2 ) 
+    text(textatX, textatY,  nuASV, cex = 2, )
+}
+## this function takes five arguments:
+## sampleName=obvious
+## ylimit= maximum abundance you want to cut the graph off at, default 500
+## ntax= number of taxa you want to look at
+## textatX=if you need to adjust the message about number of ASVs
+## textatY=if you need to adjust the message about number of ASVs
+
+## this lets us look a little closer:
+
+rankAb("C1.1")
+
+## first control, cutoff graph at 100 observations, 10 most abundant species
+rankAb("C1.1", 100,10, 5)
+
+## or taller:
+rankAb("C1.1", 1000,10, 5)
+
+
+## look at the single species control side-by-side:
+
+par(mfrow=c(2,1))
+rankAb("C1.1")
+rankAb("C1.2")
+par(mfrow=c(1,1))
+
+par(mfrow=c(2,1))
+rankAb("C1.1", 1000,10, 5)
+rankAb("C1.2", 1000,10, 5)
+par(mfrow=c(1,1))
+
+## to print it to a file:
+pdf(file='test.pdf', width=200)
+rankAb("C1.1", 500)
+rankAb("C1.2", 500)
+dev.off()
+
+## looking at the mock communities side by side:
+par(mfrow=c(2,1))
+rankAb( "C2.1", 1000)
+rankAb( "C2.2", 1000)
+
+par(mfrow=c(1,1))
+
+barplot(taxa_sums(ps))
+## that is an extreme version of the classic rank abundance curve
+## some correction will be needed.
+
+barplot(taxa_sums(ps))
+
+get_taxa(ps, "C2.2" )
+
+plot_richness(ps, 'sample_names', 'SampleType') 
+## fails. We have two many samples and taxa for these functions to be useful,
+## even when they "work"
+
+##  

@@ -427,6 +427,7 @@ taxa <- assignTaxonomy(seqtab.nochim, "silva_nr99_v138.1_train_set.fa.gz", multi
 load("sulariOnlyTaxa.rda")
 
 
+
 head(taxa)
 
 taxa.print <- taxa # Removing sequence rownames for display only
@@ -622,9 +623,8 @@ p + geom_boxplot(data = p$data, aes(x = "Land.type", y = value, color = NULL), a
 
 
 TopNOTUs = names(sort(taxa_sums(ps), TRUE)[1:10])
-
-TopNOTUs = names(sort(taxa_sums(ps), TRUE)[1:10])
 ps10 = prune_taxa(TopNOTUs, ps)
+
 plot_bar(ps10, "Land.type",  facet_grid = ~Phylum)
 
 ## or try:
@@ -633,20 +633,17 @@ plot_bar(ps10, "Land.type",  facet_grid = ~Genus)
 ## etc, etc
 
 
-
-
-
-
 ## this actually looks very good. only the 1rst sample is lower than the rest, essentially
 
 barplot(sample_sums(ps))
 
-barplot(sort(sample_sums(ps), TRUE))
+barplot(sort(sample_sums(ps), decreasing=TRUE))
 
 ## so maybe not a lot of correction for mean depth/variance relationship
 ## especially if we drop singletons.
 
 barplot(get_taxa(ps, "C1.1" ))
+
 
 ## that figure is hard to see/understand. customize a bit:
 
@@ -661,6 +658,7 @@ rankAb <- function(sampleName, ylimit=500, ntax=NULL, textatX=100, textatY=(ylim
     barplot(sampleNo0, ylim = c(0,ylimit), main=sampleName, cex.main=2 ) 
     text(textatX, textatY,  nuASV, cex = 2, )
 }
+
 ## this function takes five arguments:
 ## sampleName=obvious
 ## ylimit= maximum abundance you want to cut the graph off at, default 500
@@ -672,9 +670,12 @@ rankAb <- function(sampleName, ylimit=500, ntax=NULL, textatX=100, textatY=(ylim
 
 rankAb("C1.1")
 
+rankAb("C1.1", 50000)
+
 rankAb("S1")
 
 ## first control, cutoff graph at 100 observations, 10 most abundant species
+
 rankAb("C1.1", 100,10, 5)
 
 ## or taller:
@@ -689,8 +690,8 @@ rankAb("C1.2")
 par(mfrow=c(1,1))
 
 par(mfrow=c(2,1))
-rankAb("C1.1", 1000,10, 5)
-rankAb("C1.2", 1000,10, 5)
+rankAb("C1.1", 10000,15, 50)
+rankAb("C2.1", 10000,15, 50)
 par(mfrow=c(1,1))
 
 ## to print it to a file:
@@ -719,3 +720,23 @@ plot_richness(ps, 'sample_names', 'SampleType')
 ## even when they "work"
 
 ##  
+S89 S102
+
+
+par(mfrow=c(2,1))
+rankAb( "S89", 10000, 10)
+rankAb( "S102", 10000, 10)
+
+par(mfrow=c(1,1))
+
+
+ntaxa(ps)
+
+
+barplot(taxa_sums(ps))
+
+## let's try an ordination:
+
+ps20 = prune_samples(names(which(sample_sums(ps) >= 20)), ps)
+
+plot_ordination(ps20, ordinate(ps20, "MDS"), color = "Land.type") + geom_point(size = 5)

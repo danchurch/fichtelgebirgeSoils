@@ -478,9 +478,13 @@ library(phyloseq)
 ## try  making a phyloseq object out of just our  
 ## otu table and our taxonomic object:
 
-setwd("/media/vol1/daniel/sulariArne/illuminaReads/")
+## on dan's lab computer
+#setwd("/media/vol1/daniel/sulariArne/illuminaReads/")
 
-## we can move directly from the code 
+## dan's lab comp
+setwd("/home/daniel/Documents/projects/fichtelgebirge_project/sulariArneSoils/fichtelgebirgeSoils")
+
+## we can move directly from the dada2 code block above
 dna <- Biostrings::DNAStringSet(taxa_names(ps))
 names(dna) <- taxa_names(ps)
 ps <- merge_phyloseq(ps, dna)
@@ -505,35 +509,32 @@ env_data = read.csv('Envt_Matrix.csv', row.names=1)
 
 head(env_data)
 
+## add this dataframe to our phyloseq object as sample_data 
+
 sample_data(ps) <- env_data
 
-sample_data(ps)
+## update our r data object for this, for next session:
+#save(ps, file="sulariPhyloseqObject.rda")
 
-sample_names(ps)
 
-tail(env_data)
-
+###### side note this is how dan got lat/lon data from betty's spreadsheet ####
 
 ## we also have geographic data we can add to our 
-## environmental matrix:
-
-
-## now get corresponding physical locations of each sample:
-
-###### this is how dan got lat/lon data from betty's spreadsheet ####
+## environmental matrix
 
 ## some horrible data wrangling here follows:
 
-## get our geographic data, a csv made from betty's google doc:
+## get our geographic data, a csv made from betty's google doc
+## I have kept a slightly cleaned up version here:
 
 download.file(
     "https://raw.githubusercontent.com/danchurch/fichtelgebirgeSoils/main/carb4D_cleaned.csv", 
     destfile = "carb4D_cleaned.csv",
-    method="wget") ## for windows users, don't add method, use default
-
-
-env_data <- read.csv('Envt Matrix.csv')
+    method="wget") ## for windows users, don't add this last "method" line, leave it out and use default
 geoDat <- read.csv("carb4D_cleaned.csv")
+
+## read in the environmental data we have that doesn't yet have lat/long:
+env_data <- read.csv('Envt Matrix.csv')
 
 ## make functions to get latitude and longitude out of the geoDat df:
 getLat <- function(samp){
@@ -542,12 +543,14 @@ cc <- grep(bb, geoDat$plotID, value=TRUE)
 lat <- as.numeric(geoDat[geoDat$plotID == cc,]["lat"])
 return(lat)
 }
+
 getLon <- function(samp){
 bb <- substring(samp, 1, 5)
 cc <- grep(bb, geoDat$plotID, value=TRUE)
 lon <- as.numeric(geoDat[geoDat$plotID == cc,]["lon"])
 return(lon)
 }
+
 ## make empty vectors, search for lat/long values, fill vectors
 lats <- vector()
 for (i in env_data$Plot.ID){
@@ -570,15 +573,15 @@ write.csv(env_data, file='Envt_Matrix.csv', row.names=FALSE)
 ## use this now as our latest environmental data
 ## from now on, let's avoid spaces in file names
 
+## and back to the tutorial...
 ###################################################
 
-## and back to the tutorial...
 ## let's start with this introductory tutorial,
 
-http://joey711.github.io/phyloseq-demo/phyloseq-demo.html
 
 http://joey711.github.io/phyloseq-demo/phyloseq-demo.html
 
+## since we've already imported data to create our 
 ## start with the section "Basic Interaction with phyloseq Data"
 
 ntaxa(ps)

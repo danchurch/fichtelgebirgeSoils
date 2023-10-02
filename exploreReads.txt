@@ -719,7 +719,12 @@ rankAb(ps,"C2.2", 10000,15, 50)
 par(mfrow=c(1,1))
 
 ## consistency is good, indicates low sequencer error,
-## but lots of 
+## but lots of "weeds" in there. 
+## Also E. coli! What is that doing in there?? 
+## it leaked over from our single-species positive control (C1)
+## to 
+
+## tag switching!! 
 
 ## to print it to a file:
 pdf(file='test.pdf', width=200)
@@ -728,11 +733,14 @@ rankAb(ps,"C1.2", 500)
 dev.off()
 
 ## we can explore actual samples, too:
-rankAb( "S2", 10000, 15)
+rankAb(ps, "S2", 10000, 15)
 
 ############# filtering out errors with abundance #############
 
-## we see from our positive control and 
+## we see from our controls that there are a lot of low abundance
+## "weeds", contaminants of some kind
+
+rankAb(ps, "C1.1", 10000, 15)
 
 ## putting aside OTU-splitting, let's try tansforming our 
 ## samples to reduce the big artificial differences in abundances
@@ -752,11 +760,16 @@ minCutoff <- 20
 
 ## change any ASV's abundance to zero 
 ## if it doesn't meet this cutoff:
+
 ot[ot < minCutoff] <- 0
+
 
 ## how many reads do we lose with this?
 sum(ot) ## 6943873 for minCutoff = 20
+
 sum(otu_table(ps)) ## 7944340 for minCutoff = 20
+
+
 
 ## insert this into a new phyloseq object?
 psMinCutoff <- ps
@@ -774,10 +787,70 @@ rankAb(ps,"C2.1", 50000, textatX=50, textatY=10000)
 rankAb(psMinCutoff,"C2.1", 50000, textatX=20, textatY=10000)
 par(mfrow=c(1,1))
 
+## check real samples too!
+par(mfrow=c(2,1))
+rankAb(ps,"S2", 50000, textatX=500, textatY=20000)
+
+rankAb(psMinCutoff,"S2", 50000, textatX=20, textatY=10000)
+par(mfrow=c(1,1))
 ## try running different minimum cutoffs and see how 
 ## they affect your controls and your real samples.  
 
-############# ordination ####################3
+## interestingly, we do not see an ASV with the 
+## taxonomy assigned as Enterobacter (which was in 
+## the mock community). We do see a Klebsiella species...
+
+## maybe this is the Enterobacter? 
+
+## the NCBI accession for the intended Enterobacter is here:
+https://www.ncbi.nlm.nih.gov/nuccore/EU721605.2/
+
+## does our reference sequence for this Klebsiella bast to this?
+
+## what is it called?
+
+par(mfrow = c(1,2))
+rankAb(ps, "C2.1", 10000, 15)
+rankAb(ps, "C2.2", 10000, 15)
+par(mfrow = c(1,1))
+
+## it's the 4th/5th most common taxa in these controls samples
+## which asv is that?
+names(sort(get_taxa(ps, "C2.1"), TRUE)[4]) ## ASV62
+names(sort(get_taxa(ps, "C2.2"), TRUE)[5]) ## ASV62
+
+as.character(refseq(ps)['ASV62'])
+
+## we can blast this sequence quickly on NCBI:
+https://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE=MegaBlast&PROGRAM=blastn&PAGE_TYPE=BlastSearch&BLAST_SPEC=
+## this blasts with 100% to a million different 
+## klebsiellas, enterobacter, and Leclercia species
+## so this is very probably the Enterobacter that 
+## Nico included in our positive controls
+
+
+############# transformation of datai #########
+
+## our sample sizes for this run are actually pretty 
+## even, most of them fall between 60-70,000 reads,
+## with a few exceptions.
+
+## all are between 40,000 and 70,000 I think:
+
+## the sample-mean-variance problem is therefore
+## not much of an issue here. Especially since 
+## we are filtering a lot of the low-abundance
+## observations out. 
+
+## so let's do a simple transformation, as in
+## 1- normalization of ASV abundances by sample read total, 
+## 2 - log-transform of abundances to reduce the effect of
+## high abundance reads. 
+
+## this would look like this:
+
+
+############# ordination ####################
 ## let's try an ordination:
 ## we can filter out low abundance ASVs?
 

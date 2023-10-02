@@ -741,21 +741,41 @@ rankAb( "S2", 10000, 15)
 ## let's say that we don't trust any ASV that isn't 
 ## observed at least 20 times in a sample
 
-barplot(taxa_sums(ps))
+## make a copy of our otu_table from our original phyloseq object:
 
 ot <- otu_table(ps)
-ot[ot < 20] = 0
+
+## set a cutoff
+minCutoff <- 20
+#minCutoff <- 50
+#minCutoff <- 150 ## etc
+
+## change any ASV's abundance to zero 
+## if it doesn't meet this cutoff:
+ot[ot < minCutoff] <- 0
 
 ## how many reads do we lose with this?
-sum(ot) ## 6943873
-sum(otu_table(ps)) ## 7944340
+sum(ot) ## 6943873 for minCutoff = 20
+sum(otu_table(ps)) ## 7944340 for minCutoff = 20
 
-## can we insert this into a new phyloseq object?
+## insert this into a new phyloseq object?
+psMinCutoff <- ps
+otu_table(psMinCutoff) <- ot
 
-psMin20 <- ps
-otu_table(psMin20) <- ot
+## and check, does this change our controls much?
+par(mfrow=c(2,1))
+rankAb(ps,"C1.1", 50000, textatX=50, textatY=10000)
+rankAb(psMinCutoff,"C1.1", 50000, textatX=50, textatY=10000)
+par(mfrow=c(1,1))
 
-## and 
+## and our positive controls?
+par(mfrow=c(2,1))
+rankAb(ps,"C2.1", 50000, textatX=50, textatY=10000)
+rankAb(psMinCutoff,"C2.1", 50000, textatX=20, textatY=10000)
+par(mfrow=c(1,1))
+
+## try running different minimum cutoffs and see how 
+## they affect your controls and your real samples.  
 
 ############# ordination ####################3
 ## let's try an ordination:

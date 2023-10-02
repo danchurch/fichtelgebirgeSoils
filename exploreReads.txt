@@ -232,7 +232,6 @@ setwd("/media/vol1/daniel/sulariArne/illuminaReads/")
 
 ## sample names are here:
 
-
 sampleNames <- read.csv('sampleName_clientId.txt', 
                         sep='\t', 
                         col.names= c('sampleName', 'clientId'))
@@ -481,6 +480,7 @@ library(phyloseq)
 library(ggplot2)
 library(scales)
 library(grid)
+library(vegan)
 
 
 ## try  making a phyloseq object out of just our  
@@ -515,11 +515,27 @@ download.file(
 
 env_data = read.csv('Envt_Matrix.csv', row.names=1)
 
-head(env_data)
+head(env_data) 
+
+##### side note, Sulari found a typo: ####
+grep("w1", env_data) ## column 4...
+grep("w1", env_data$season) ## row 25
+
+## correct it:
+env_data[25,4] <- "W1" 
+## save it:
+write.csv(env_data, 'Envt_Matrix.csv')
+## also correct it in the ps phyloseq object
+sample_data(ps) <- env_data
+#save(ps, file="sulariPhyloseqObject.rda")
+##### side note, Sulari found a typo^^^ ####
+
+
+
+## and resave
 
 ## add this dataframe to our phyloseq object as sample_data 
 
-sample_data(ps) <- env_data
 
 ## update our r data object for this, for next session:
 #save(ps, file="sulariPhyloseqObject.rda")
@@ -708,12 +724,17 @@ rankAb( "C2.2", 1000)
 par(mfrow=c(1,1))
 
 barplot(taxa_sums(ps))
+
 ## that is an extreme version of the classic rank abundance curve
 ## some correction will be needed.
 
-barplot(taxa_sums(ps))
+barplot(sample_sums(ps))
 
-get_taxa(ps, "C2.2" )
+sample_sums(ps)
+
+get_taxa(ps, "C1.1" )
+
+sort(get_taxa(ps, "C1.1" ), TRUE)[1:5]
 
 plot_richness(ps, 'sample_names', 'SampleType') 
 ## fails. We have two many samples and taxa for these functions to be useful,
@@ -737,6 +758,38 @@ barplot(taxa_sums(ps))
 
 ## let's try an ordination:
 
-ps20 = prune_samples(names(which(sample_sums(ps) >= 20)), ps)
 
+
+
+
+
+
+
+
+## we can filter out rare ASVs:
+ps20 = prune_samples(names(which(sample_sums(ps) >= 20)), ps)
 plot_ordination(ps20, ordinate(ps20, "MDS"), color = "Land.type") + geom_point(size = 5)
+## actually, this filters low abundance samples, fix this to 
+
+## or just run it as is:
+plot_ordination(ps, ordinate(ps, "MDS"), color = "Land.type") + geom_point(size = 5)
+
+## changing symbols
+plot_ordination(ps, ordinate(ps, "MDS"), color = "pH") + geom_point(aes(shape = Land.type), size=5)
+
+
+
+## try a statistical test, perMANOVA...
+env_data <- as(sample_data(ps), "data.frame")
+
+adonis(distance(ps, method="bray") ~ Land.type,
+       data = env_data)
+
+metadata <- as(sample_data(ps), "data.frame")
+
+adonis(distance(physeq, method="bray") ~ Treatment,
+       data = metadata)
+
+sample_data(ps)[25,4]  <- "W1"
+## we need to fix the environmental matrix csv to match this
+

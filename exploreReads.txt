@@ -690,29 +690,17 @@ rankAb("C1.1")
 
 rankAb("C1.1", 50000)
 
-rankAb("S1")
+rankAb("S1", 1000, 10)
 
 ## first control, cutoff graph at 100 observations, 10 most abundant species
 
-rankAb("C1.1", 100,10, 5)
+rankAb("C1.1", 1000,10, 5)
 
 ## or taller:
 rankAb("C1.1", 1000,10, 5)
 
 ## how can we get the names of these?
 
-sampleName <- "C1.1"
-sampleNo0filter <- get_taxa(ps, sampleName) > 0
-sampleNo0 <- get_taxa(ps, sampleName)[sampleNo0filter]
-sampleNo0 <- sort(sampleNo0, decreasing=TRUE)
-taxaNames=tax_table(ps)[ names(sampleNo0), "Genus"]
-barplot(sampleNo0, ylim = c(0,1000), names.arg=taxaNames ) 
-
-tax_table(ps)['ASV16666']
-
-
-
-[names(sampleNo0)]
 
 ## look at the single species control side-by-side:
 

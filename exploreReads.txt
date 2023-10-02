@@ -511,9 +511,13 @@ load("sulariPhyloseqObject.rda")
 download.file(
     "https://raw.githubusercontent.com/danchurch/fichtelgebirgeSoils/main/Envt_Matrix.csv",
     destfile = "Envt_Matrix.csv", 
-    method="wget")
+    method="wget") ## remove this last argument if using windows
 
 env_data = read.csv('Envt_Matrix.csv', row.names=1)
+
+## add this dataframe to our phyloseq object as sample_data 
+sample_data(ps) <- env_data
+
 
 head(env_data) 
 
@@ -527,20 +531,13 @@ env_data[25,4] <- "W1"
 write.csv(env_data, 'Envt_Matrix.csv')
 ## also correct it in the ps phyloseq object
 sample_data(ps) <- env_data
+## and resave
 #save(ps, file="sulariPhyloseqObject.rda")
 ##### side note, Sulari found a typo^^^ ####
 
 
 
-## and resave
-
-## add this dataframe to our phyloseq object as sample_data 
-
-
-## update our r data object for this, for next session:
-#save(ps, file="sulariPhyloseqObject.rda")
-
-###### side note this is how dan got lat/lon data from betty's spreadsheet ####
+###### another side note this is how dan got lat/lon data from betty's spreadsheet ####
 
 ## we also have geographic data we can add to our 
 ## environmental matrix
@@ -626,8 +623,6 @@ rank_names(ps)
 sample_sums(ps)
 
 
-
-
 (p = plot_richness(ps, x = "pH"))
 
 (p = plot_richness(ps, x = "Land.type"))
@@ -670,8 +665,15 @@ rankAb <- function(sampleName, ylimit=500, ntax=NULL, textatX=100, textatY=(ylim
     sampleNo0 <- get_taxa(ps, sampleName)[sampleNo0filter]
     sampleNo0 <- sort(sampleNo0, decreasing=TRUE)
     sampleNo0 <- sampleNo0[1:ntax]
+    taxaNames=tax_table(ps)[ names(sampleNo0), "Genus"]
     nuASV <- paste("number of unique ASVs = ",length(sampleNo0), sep="")
-    barplot(sampleNo0, ylim = c(0,ylimit), main=sampleName, cex.main=2 ) 
+    par(cex.axis = .75, mar=c(10,4,4,2))
+    barplot(sampleNo0, 
+        ylim = c(0,ylimit), 
+        main=sampleName, 
+        cex.main=2, 
+        las=2, 
+        names.arg=taxaNames) 
     text(textatX, textatY,  nuASV, cex = 2, )
 }
 
@@ -697,6 +699,20 @@ rankAb("C1.1", 100,10, 5)
 ## or taller:
 rankAb("C1.1", 1000,10, 5)
 
+## how can we get the names of these?
+
+sampleName <- "C1.1"
+sampleNo0filter <- get_taxa(ps, sampleName) > 0
+sampleNo0 <- get_taxa(ps, sampleName)[sampleNo0filter]
+sampleNo0 <- sort(sampleNo0, decreasing=TRUE)
+taxaNames=tax_table(ps)[ names(sampleNo0), "Genus"]
+barplot(sampleNo0, ylim = c(0,1000), names.arg=taxaNames ) 
+
+tax_table(ps)['ASV16666']
+
+
+
+[names(sampleNo0)]
 
 ## look at the single species control side-by-side:
 

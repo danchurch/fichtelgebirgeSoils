@@ -658,14 +658,14 @@ barplot(get_taxa(ps, "C1.1" ))
 
 ## that figure is hard to see/understand. customize a bit:
 
-rankAb <- function(sampleName, ylimit=500, ntax=NULL, textatX=100, textatY=(ylimit-40)){
-    sampleNo0filter <- get_taxa(ps, sampleName) > 0
+rankAb <- function(phyObj, sampleName, ylimit=500, ntax=NULL, textatX=100, textatY=(ylimit-40)){
+    sampleNo0filter <- get_taxa(phyObj, sampleName) > 0
     if(is.null(ntax)) ntax=sum(sampleNo0filter)
     print(ntax)
-    sampleNo0 <- get_taxa(ps, sampleName)[sampleNo0filter]
+    sampleNo0 <- get_taxa(phyObj, sampleName)[sampleNo0filter]
     sampleNo0 <- sort(sampleNo0, decreasing=TRUE)
     sampleNo0 <- sampleNo0[1:ntax]
-    taxaNames=tax_table(ps)[ names(sampleNo0), "Genus"]
+    taxaNames=tax_table(phyObj)[ names(sampleNo0), "Genus"]
     nuASV <- paste("number of unique ASVs = ",length(sampleNo0), sep="")
     par(cex.axis = .75, mar=c(10,4,4,2))
     barplot(sampleNo0, 
@@ -686,91 +686,81 @@ rankAb <- function(sampleName, ylimit=500, ntax=NULL, textatX=100, textatY=(ylim
 
 ## this lets us look a little closer:
 
-rankAb("C1.1")
+rankAb(ps,"C1.1")
 
-rankAb("C1.1", 50000)
+rankAb(ps,"C1.1", 50000)
 
-rankAb("S1", 1000, 10)
+rankAb(ps,"S1", 1000, 10)
 
 ## first control, cutoff graph at 100 observations, 10 most abundant species
+rankAb(ps,"C1.1", 100,10, 5)
 
-rankAb("C1.1", 1000,10, 5)
+## E. coli has at least two ASVs!
+## that is called "OTU-splitting", also in the mock community (C2 controls)
+## also see that a lot of the members in our Mock community (C2 controls)  ended up
+## here in the single species (C1 controls). 
+## the reverse also happens, see below: E. coli is in our mock community??
+## This is called tag-switching!! 
 
 ## or taller:
-rankAb("C1.1", 1000,10, 5)
-
-## how can we get the names of these?
-
+rankAb(ps,"C1.1", 100,10, 5)
 
 ## look at the single species control side-by-side:
 
 par(mfrow=c(2,1))
-rankAb("C1.1")
-rankAb("C1.2")
+rankAb(ps,"C1.1", 10000, 12)
+rankAb(ps,"C1.2", 10000, 12)
 par(mfrow=c(1,1))
-
-par(mfrow=c(2,1))
-rankAb("C1.1", 10000,15, 50)
-rankAb("C2.1", 10000,15, 50)
-par(mfrow=c(1,1))
-
-## to print it to a file:
-pdf(file='test.pdf', width=200)
-rankAb("C1.1", 500)
-rankAb("C1.2", 500)
-dev.off()
 
 ## looking at the mock communities side by side:
 par(mfrow=c(2,1))
-rankAb( "C2.1", 1000)
-rankAb( "C2.2", 1000)
-
+rankAb(ps,"C2.1", 10000,15, 50)
+rankAb(ps,"C2.2", 10000,15, 50)
 par(mfrow=c(1,1))
+
+## consistency is good, indicates low sequencer error,
+## but lots of 
+
+## to print it to a file:
+pdf(file='test.pdf', width=200)
+rankAb(ps,"C1.1", 500)
+rankAb(ps,"C1.2", 500)
+dev.off()
+
+## we can explore actual samples, too:
+rankAb( "S2", 10000, 15)
+
+############# filtering out errors with abundance #############
+
+## we see from our positive control and 
+
+## putting aside OTU-splitting, let's try tansforming our 
+## samples to reduce the big artificial differences in abundances
+## and make samples a little more comparable. 
+
+## let's say that we don't trust any ASV that isn't 
+## observed at least 20 times in a sample
 
 barplot(taxa_sums(ps))
 
-## that is an extreme version of the classic rank abundance curve
-## some correction will be needed.
+ot <- otu_table(ps)
+ot[ot < 20] = 0
 
-barplot(sample_sums(ps))
+## how many reads do we lose with this?
+sum(ot) ## 6943873
+sum(otu_table(ps)) ## 7944340
 
-sample_sums(ps)
+## can we insert this into a new phyloseq object?
 
-get_taxa(ps, "C1.1" )
+psMin20 <- ps
+otu_table(psMin20) <- ot
 
-sort(get_taxa(ps, "C1.1" ), TRUE)[1:5]
+## and 
 
-plot_richness(ps, 'sample_names', 'SampleType') 
-## fails. We have two many samples and taxa for these functions to be useful,
-## even when they "work"
-
-##  
-S89 S102
-
-
-par(mfrow=c(2,1))
-rankAb( "S89", 10000, 10)
-rankAb( "S102", 10000, 10)
-
-par(mfrow=c(1,1))
-
-
-ntaxa(ps)
-
-
-barplot(taxa_sums(ps))
-
+############# ordination ####################3
 ## let's try an ordination:
+## we can filter out low abundance ASVs?
 
-
-
-
-
-
-
-
-
-## we can filter out rare ASVs:
 ps20 = prune_samples(names(which(sample_sums(ps) >= 20)), ps)
 plot_ordination(ps20, ordinate(ps20, "MDS"), color = "Land.type") + geom_point(size = 5)
 ## actually, this filters low abundance samples, fix this to 
@@ -797,3 +787,7 @@ adonis(distance(physeq, method="bray") ~ Treatment,
 sample_data(ps)[25,4]  <- "W1"
 ## we need to fix the environmental matrix csv to match this
 
+taxa_sums(ps)
+
+
+i

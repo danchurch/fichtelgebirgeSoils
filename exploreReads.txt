@@ -468,7 +468,7 @@ library(phyloseq)
 ps <- phyloseq(otu_table(seqtab.nochim, taxa_are_rows=FALSE), 
                tax_table(taxa))
 
-########## phyloseq ###############
+########## step1 get data into phyloseq ###############
 
 ## on lab computer
 #conda activate dada2
@@ -481,6 +481,9 @@ library(ggplot2)
 library(scales)
 library(grid)
 library(vegan)
+library(DESeq2)
+
+packageVersion("DESeq2") ## I'm working with deseq2 version 1.34.0
 
 
 ## try  making a phyloseq object out of just our  
@@ -506,6 +509,7 @@ load("sulariPhyloseqObject.rda")
 
 ## sulari's environmental data should be here:
 
+## if you need to update...
 ## get the latest:
 
 download.file(
@@ -517,7 +521,6 @@ env_data = read.csv('Envt_Matrix.csv', row.names=1)
 
 ## add this dataframe to our phyloseq object as sample_data 
 sample_data(ps) <- env_data
-
 
 head(env_data) 
 
@@ -595,8 +598,9 @@ write.csv(env_data, file='Envt_Matrix.csv', row.names=FALSE)
 ## use this now as our latest environmental data
 ## from now on, let's avoid spaces in file names
 
-## and back to the tutorial...
-###################################################
+## and back to the tutorial and data exploration
+
+############## step2 exploting data, especially controls ################
 
 ## let's start with this introductory tutorial,
 
@@ -605,6 +609,8 @@ http://joey711.github.io/phyloseq-demo/phyloseq-demo.html
 
 ## since we've already imported data to create our 
 ## start with the section "Basic Interaction with phyloseq Data"
+
+## some useful phyloseq commands:
 
 ntaxa(ps)
 
@@ -630,8 +636,7 @@ sample_sums(ps)
 p + geom_boxplot(data = p$data, aes(x = "Land.type", y = value, color = NULL), alpha = 0.1)
 
 
-## plot abundances
-
+## we can plot abundances with their ggplot-based functions:
 
 TopNOTUs = names(sort(taxa_sums(ps), TRUE)[1:10])
 ps10 = prune_taxa(TopNOTUs, ps)
@@ -643,8 +648,9 @@ plot_bar(ps10, "Land.type",  facet_grid = ~Genus)
 
 ## etc, etc
 
-
 ## this actually looks very good. only the 1rst sample is lower than the rest, essentially
+
+## I tend to use base-R plotter, I find it simpler to use:
 
 barplot(sample_sums(ps))
 
@@ -655,18 +661,18 @@ barplot(sort(sample_sums(ps), decreasing=TRUE))
 
 barplot(get_taxa(ps, "C1.1" ))
 
-
-## that figure is hard to see/understand. customize a bit:
+## that figure is hard to see/understand. customize a bit.
+## We'll use the following customized barplotting function a lot:
 
 rankAb <- function(phyObj, sampleName, ylimit=500, ntax=NULL, textatX=100, textatY=(ylimit-40)){
     sampleNo0filter <- get_taxa(phyObj, sampleName) > 0
     if(is.null(ntax)) ntax=sum(sampleNo0filter)
-    print(ntax)
+    print(sum(sampleNo0filter)) ## let user know how many unique taxa are in sample
     sampleNo0 <- get_taxa(phyObj, sampleName)[sampleNo0filter]
     sampleNo0 <- sort(sampleNo0, decreasing=TRUE)
     sampleNo0 <- sampleNo0[1:ntax]
     taxaNames=tax_table(phyObj)[ names(sampleNo0), "Genus"]
-    nuASV <- paste("number of unique ASVs = ",length(sampleNo0), sep="")
+    nuASV <- paste("number of unique ASVs = ",sum(sampleNo0filter), sep="")
     par(cex.axis = .75, mar=c(10,4,4,2))
     barplot(sampleNo0, 
         ylim = c(0,ylimit), 
@@ -677,7 +683,8 @@ rankAb <- function(phyObj, sampleName, ylimit=500, ntax=NULL, textatX=100, texta
     text(textatX, textatY,  nuASV, cex = 2, )
 }
 
-## this function takes five arguments:
+## this function currently takes six arguments:
+## phyObj=the phyloseq object of interest
 ## sampleName=obvious
 ## ylimit= maximum abundance you want to cut the graph off at, default 500
 ## ntax= number of taxa you want to look at
@@ -688,9 +695,9 @@ rankAb <- function(phyObj, sampleName, ylimit=500, ntax=NULL, textatX=100, texta
 
 rankAb(ps,"C1.1")
 
-rankAb(ps,"C1.1", 50000)
+rankAb(ps,"C1.1", 50000, textatX=100, textatY=10000)
 
-rankAb(ps,"S1", 1000, 10)
+rankAb(ps,"S1", 1000, 10, 5, 800)
 
 ## first control, cutoff graph at 100 observations, 10 most abundant species
 rankAb(ps,"C1.1", 100,10, 5)
@@ -722,15 +729,7 @@ par(mfrow=c(1,1))
 ## but lots of "weeds" in there. 
 ## Also E. coli! What is that doing in there?? 
 ## it leaked over from our single-species positive control (C1)
-## to 
-
-## tag switching!! 
-
-## to print it to a file:
-pdf(file='test.pdf', width=200)
-rankAb(ps,"C1.1", 500)
-rankAb(ps,"C1.2", 500)
-dev.off()
+##  = tag switching!! 
 
 ## we can explore actual samples, too:
 rankAb(ps, "S2", 10000, 15)
@@ -747,56 +746,84 @@ rankAb(ps, "C1.1", 10000, 15)
 ## and make samples a little more comparable. 
 
 ## let's say that we don't trust any ASV that isn't 
-## observed at least 20 times in a sample
-
-## make a copy of our otu_table from our original phyloseq object:
-
-ot <- otu_table(ps)
+## observed at least 50 times in a sample
 
 ## set a cutoff
-minCutoff <- 20
-#minCutoff <- 50
+#minCutoff <- 20
+#minCutoff <- 30
+minCutoff <- 50
 #minCutoff <- 150 ## etc
-
+## make a copy of our otu_table from our original phyloseq object:
+ot <- otu_table(ps)
 ## change any ASV's abundance to zero 
 ## if it doesn't meet this cutoff:
-
 ot[ot < minCutoff] <- 0
-
-
-## how many reads do we lose with this?
-sum(ot) ## 6943873 for minCutoff = 20
-
-sum(otu_table(ps)) ## 7944340 for minCutoff = 20
-
-
-
-## insert this into a new phyloseq object?
+## insert this into a new phyloseq object
 psMinCutoff <- ps
 otu_table(psMinCutoff) <- ot
+## how many reads do we lose with this?
+sum(otu_table(ps)) ## 7944340 originally, before cutoff
+sum(otu_table(psMinCutoff)) ## 6943873 after 20 mininum read cutoff
+                            ## 5144801 after 50 mininum read cutoff
 
 ## and check, does this change our controls much?
 par(mfrow=c(2,1))
 rankAb(ps,"C1.1", 50000, textatX=50, textatY=10000)
-rankAb(psMinCutoff,"C1.1", 50000, textatX=50, textatY=10000)
+rankAb(psMinCutoff,"C1.1", 80000, textatX=10, textatY=30000)
 par(mfrow=c(1,1))
+## this C1 control should only have 1 ASV
+## a minimum cutoff of 20 reads leaves 73 ASVs out 216 
+## a minimum cutoff of 30 reads leaves 51 ASVs out 216 
+## a minimum cutoff of 50 reads leaves 29 ASVs out 216 
 
-## and our positive controls?
+## and our mock community controls?
 par(mfrow=c(2,1))
-rankAb(ps,"C2.1", 50000, textatX=50, textatY=10000)
-rankAb(psMinCutoff,"C2.1", 50000, textatX=20, textatY=10000)
+rankAb(ps,"C2.1", 10000, textatX=50, textatY=8000)
+rankAb(psMinCutoff,"C2.1", 10000, textatX=10, textatY=8000)
 par(mfrow=c(1,1))
+## this C2 control should have 11 ASVs
+## a minimum cutoff of 20 reads leaves 36 ASVs out 94 
+## a minimum cutoff of 30 reads leaves 26 ASVs out 94 
+## a minimum cutoff of 50 reads leaves 18 ASVs out 94 
 
 ## check real samples too!
 par(mfrow=c(2,1))
-rankAb(ps,"S2", 50000, textatX=500, textatY=20000)
-
-rankAb(psMinCutoff,"S2", 50000, textatX=20, textatY=10000)
+rankAb(ps,"S2", ylimit=1000, textatX=500, textatY=300)
+rankAb(psMinCutoff,"S2", ylimit=1000, textatX=200, textatY=300)
 par(mfrow=c(1,1))
-## try running different minimum cutoffs and see how 
-## they affect your controls and your real samples.  
+## a minimum cutoff of 20 reads leaves 848 ASVs out of 1796
+## a minimum cutoff of 30 reads leaves 569 ASVs out of 1796
+## a minimum cutoff of 50 reads leaves 322 ASVs out of 1796
 
-## interestingly, we do not see an ASV with the 
+## pretty powerful stuff. We can't really know how many of these
+## are "really there" and how many are contaminants of some kind.
+## our mock community helps us a bit with this, but in ecological
+## samples there are many "real" species that are present in 
+## much lower amounts that the ASVs in our mock controlr.
+## the best we can do is try to find a minimum that removes 
+## most of the noise from our single species control with as 
+## little loss overall in reads and ASVs. It is a somewhat 
+## subjective decision, but record what cutoff you use, and why,
+## for readers.
+
+## For the moment, I will use a minimum cutoff of 50 reads, 
+## it retains all mock community members, and leaves some
+## room for appearance of semi-rare species.
+
+## so my phyloseq object going forward is:
+
+minCutoff <- 50
+ot <- otu_table(ps)
+ot[ot < minCutoff] <- 0
+psMinCutoff <- ps
+otu_table(psMinCutoff) <- ot
+## (code explained above at beginning of this section)
+
+psMinCutoff
+
+###### side note - mystery ASV in C2 controls #####
+## side note - unexpected mystery ASV in our positive control
+## interestingly, with Sulari's data  we do not see an ASV with the 
 ## taxonomy assigned as Enterobacter (which was in 
 ## the mock community). We do see a Klebsiella species...
 
@@ -806,9 +833,9 @@ par(mfrow=c(1,1))
 https://www.ncbi.nlm.nih.gov/nuccore/EU721605.2/
 
 ## does our reference sequence for this Klebsiella bast to this?
-
 ## what is it called?
 
+## look at the barplots:
 par(mfrow = c(1,2))
 rankAb(ps, "C2.1", 10000, 15)
 rankAb(ps, "C2.2", 10000, 15)
@@ -819,6 +846,7 @@ par(mfrow = c(1,1))
 names(sort(get_taxa(ps, "C2.1"), TRUE)[4]) ## ASV62
 names(sort(get_taxa(ps, "C2.2"), TRUE)[5]) ## ASV62
 
+## get the reference 16sV4 sequence for this asv:
 as.character(refseq(ps)['ASV62'])
 
 ## we can blast this sequence quickly on NCBI:
@@ -828,14 +856,12 @@ https://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE=MegaBlast&PROGRAM=blastn&PAGE_TYPE
 ## so this is very probably the Enterobacter that 
 ## Nico included in our positive controls
 
-
-############# transformation of datai #########
+############# step3 transformation of data #########
 
 ## our sample sizes for this run are actually pretty 
 ## even, most of them fall between 60-70,000 reads,
-## with a few exceptions.
-
-## all are between 40,000 and 70,000 I think:
+## with a few exceptions. All are between 40,000 and 
+## 70,000, I think.
 
 ## the sample-mean-variance problem is therefore
 ## not much of an issue here. Especially since 
@@ -847,12 +873,85 @@ https://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE=MegaBlast&PROGRAM=blastn&PAGE_TYPE
 ## 2 - log-transform of abundances to reduce the effect of
 ## high abundance reads. 
 
-## this would look like this:
+## this would look like this, just using our raw, original phyloseq object:
+
+## transform to normalize by abundances
+aa <- transform_sample_counts(ps, function(x) x/sum(x))
+## now log transform. Add 1 to avoid the log giving a non-zero 
+## value to zero abundances
+otu_table(aa) <- otu_table(aa) + 1
+logTransformedPS <- transform_sample_counts(aa, log)
+
+## how does this affect our controls?
+
+## use the custom rankAb plotting function from above
+## if R-studio can't handle two plots at a time, 
+## ignore the "par" command and run one plot a time.
+## since we log transformed, our y-values
+## are now much smaller (<15?), so adjust the settings
+## accordingly
+
+
+## this hopefully dampens radical differences in abundances
+## for the mock community samples
+
+## check our mock community
+par(mfrow=c(2,1))
+rankAb(ps,"C2.1", 10000,ntax=NULL, 6000)
+rankAb(logTransformedPS,"C2.1", 0.2,ntax=NULL,30, 0.1)
+par(mfrow=c(1,1))
+
+## single species:
+par(mfrow=c(2,1))
+rankAb(ps,"C1.1", 10000, ntax=NULL, 100, 2000)
+rankAb(logTransformedPS,"C1.1", 1, ntax=NULL, 100,0.5 )
+par(mfrow=c(1,1))
+
+
+## we can combine these two steps 
+## (minimum cutoffs + transformation) 
+## as such:
+ 
+## we start with this as our phyloseq object
+psMinCutoff ## created in step above, 50 read minimum cutoff
+
+## transform to normalize by abundances then log to flatten abundance differences
+aa <- transform_sample_counts(psMinCutoff, function(x) x/sum(x))
+## now log transform. Add 1 to avoid the log giving a non-zero 
+## value to zero abundances
+otu_table(aa) <- otu_table(aa) + 1
+logMin50ps <- transform_sample_counts(aa, log)
+
+## check out the differences.
+## use the "pdf" and "dev.off" commands to save these to files for easier viewing
+
+## single species
+pdf("filteringStepsSingleSpComparison.pdf")
+par(mfrow=c(3,1))
+rankAb(ps,"C1.1", 10000, ntax=NULL, 150, 7000)
+rankAb(psMinCutoff,"C1.1", 10000, ntax=NULL, 20, 7000)
+rankAb(logMin50ps,"C1.1", 1, ntax=NULL, 25, 0.7)
+dev.off()
+## mock community
+pdf("filteringStepsMockComComparison.pdf")
+par(mfrow=c(3,1))
+rankAb(ps,"C2.1", 10000, ntax=NULL, 50, 7000)
+rankAb(psMinCutoff,"C2.1", 10000, ntax=NULL, 15, 7000)
+rankAb(logMin50ps,"C2.1", 0.2, ntax=NULL, 14, 0.1)
+dev.off()
+## real sample
+sample="S100"
+filename=paste0("filteringStepsSample",sample,"Comparison.pdf")
+pdf(filename)
+par(mfrow=c(3,1))
+rankAb(ps, sample, 1000, ntax=NULL, 1000, 500)
+rankAb(psMinCutoff, sample, 1000, ntax=NULL, 200, 500)
+rankAb(logMin50ps, sample, 0.03, ntax=NULL, 200, 0.015)
+dev.off()
 
 
 ############# ordination ####################
 ## let's try an ordination:
-## we can filter out low abundance ASVs?
 
 ps20 = prune_samples(names(which(sample_sums(ps) >= 20)), ps)
 plot_ordination(ps20, ordinate(ps20, "MDS"), color = "Land.type") + geom_point(size = 5)
@@ -863,7 +962,6 @@ plot_ordination(ps, ordinate(ps, "MDS"), color = "Land.type") + geom_point(size 
 
 ## changing symbols
 plot_ordination(ps, ordinate(ps, "MDS"), color = "pH") + geom_point(aes(shape = Land.type), size=5)
-
 
 
 ## try a statistical test, perMANOVA...
@@ -882,5 +980,44 @@ sample_data(ps)[25,4]  <- "W1"
 
 taxa_sums(ps)
 
+############### differential abundances #################
 
-i
+## if we want to look at what species might be most important 
+## for created the community-level differences that we 
+## see with our ordinations, we need to do statistically 
+## sound checks. This is called checking for differential abundance
+
+## we'll use deseq2. There are other packages that can be 
+## used. Other good options include ANCOM-II, and ALDEx2. 
+## A good study to look at for comparison is:
+https://www.nature.com/articles/s41467-022-28034-z
+## despite theoretical critiques (like Gloor et al. 2017),
+## deSeq2 seems to perform fairly well (see Fig. 1 and Fig 3 
+## from above nature paper)
+
+##########################################
+
+## to review, the total pipeline from sulari's
+## dada2 results so far:
+
+library(dada2)
+library(phyloseq)
+library(ggplot2)
+library(scales)
+library(grid)
+library(vegan)
+
+load("sulariPhyloseqObject.rda")
+## institute minimum cutoff
+minCutoff <- 50
+ot <- otu_table(ps)
+ot[ot < minCutoff] <- 0
+psMinCutoff <- ps
+otu_table(psMinCutoff) <- ot
+## transform to normalize by abundances then log to flatten abundance differences
+aa <- transform_sample_counts(psMinCutoff, function(x) x/sum(x))
+## now log transform. Add 1 to avoid the log giving a non-zero 
+## value to zero abundances
+otu_table(aa) <- otu_table(aa) + 1
+logMin50ps <- transform_sample_counts(aa, log)
+

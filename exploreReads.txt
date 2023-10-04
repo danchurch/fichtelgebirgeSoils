@@ -340,11 +340,6 @@ errR <- learnErrors(filtRs, multithread=TRUE)
 
 load('errR.rda')
 
-getwd()
-
-
-## if your computer is overrun at this point (out of RAM)
-## try script below this one
 
 plotErrors(errF, nominalQ=TRUE)
 
@@ -360,9 +355,7 @@ dadaFs <- dada(justSulariSamplesF, err=errF, multithread=TRUE)
 dadaRs <- dada(justSulariSamplesR, err=errR, multithread=TRUE)
 #save(dadaRs, file="dadaRsSulariOnly.rda")
 
-load("dadaFsSulariOnly.rda")
-load("dadaRsSulariOnly.rda")
-
+load("sulariData/dadaFsSulariOnly.rda")
 
 ## the object is here:
 dadaFs[[1]]
@@ -375,7 +368,6 @@ mergers <- mergePairs(dadaFs, justSulariSamplesF, dadaRs, justSulariSamplesR, ve
 #save(mergers, file="sulariMergers.rda")
 
 load("sulariMergers.rda")
-
 
 ## for all samples
 #mergers <- mergePairs(dadaFs, filtFs, dadaRs, filtRs, verbose=TRUE)
@@ -421,7 +413,7 @@ wget https://zenodo.org/record/4587955/files/silva_nr99_v138.1_train_set.fa.gz
 
 taxa <- assignTaxonomy(seqtab.nochim, "silva_nr99_v138.1_train_set.fa.gz", multithread=TRUE)
 
-#save(taxa, file ="sulariOnlyTaxa.rda")
+#save(taxa, file ="sulariData/sulariOnlyTaxa.rda")
 
 load("sulariOnlyTaxa.rda")
 
@@ -500,12 +492,11 @@ dna <- Biostrings::DNAStringSet(taxa_names(ps))
 names(dna) <- taxa_names(ps)
 ps <- merge_phyloseq(ps, dna)
 taxa_names(ps) <- paste0("ASV", seq(ntaxa(ps)))
-#save(ps, file="sulariPhyloseqObject.rda")
+#save(ps, file="sulariData/sulariData/sulariPhyloseqObject.rda")
 
 ## or if we are coming back from a break  we can start here:
 
-load("sulariPhyloseqObject.rda")
-
+load("sulariData/sulariPhyloseqObject.rda")
 
 ## sulari's environmental data should be here:
 
@@ -535,7 +526,7 @@ write.csv(env_data, 'Envt_Matrix.csv')
 ## also correct it in the ps phyloseq object
 sample_data(ps) <- env_data
 ## and resave
-#save(ps, file="sulariPhyloseqObject.rda")
+#save(ps, file="sulariData/sulariPhyloseqObject.rda")
 ##### side note, Sulari found a typo^^^ ####
 
 
@@ -1007,7 +998,7 @@ library(scales)
 library(grid)
 library(vegan)
 
-load("sulariPhyloseqObject.rda")
+load("sulariData/sulariPhyloseqObject.rda")
 ## institute minimum cutoff
 minCutoff <- 50
 ot <- otu_table(ps)

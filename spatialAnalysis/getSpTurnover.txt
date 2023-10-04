@@ -1,0 +1,73 @@
+## let's think about spatial turnover in Sulari's community data
+
+## first step would be to get a map. 
+
+## 
+
+python3
+import pandas as pd
+import geopandas as gpd
+import matplotlib.pyplot as plt; plt.ion()
+import os, rasterio
+import rasterio.plot
+
+os.chdir("/home/daniel/Documents/projects/fichtelgebirge_project/"
+          "sulariArneSoils/fichtelgebirgeSoils/spatialAnalysis")
+
+## we just want a map of points right now:
+envData = pd.read_csv("/home/daniel/Documents/projects/fichtelgebirge_project/"
+                      "sulariArneSoils/fichtelgebirgeSoils/"
+                      "sulariData/Envt_Matrix.csv")
+
+envData.rename(columns={"Unnamed: 0":"sample"}, inplace=True)
+## we need to clean up the plot.ID. Sulari recorded season in the plot IDs,
+## using letter codes. Also she has one double sampling, with an underscore
+envData['Plot.ID'] = envData['Plot.ID'].str.slice(0,5)
+
+envData['Plot.ID'].to_list()
+
+
+## the map below looks funny...looks like every forest plot has 
+## a grassland under it...
+
+dupsFilter = envData.Latitude.duplicated()
+dupped = envData[dupsFilter].sort_values(by="Latitude")
+dupped.groupby('Plot.ID').nunique()
+
+## nope...looks okay
+
+
+
+sum(envData.Longitude.duplicated())
+
+
+## we want a geodf...
+plotPoints = gpd.points_from_xy( envData.Longitude, envData.Latitude, crs="EPSG:4326" )
+sulariPlotsDF = gpd.GeoDataFrame(envData[['sample', 'Plot.ID', 'mg.CO2.g.Soil.h.1', 'mg.MBC.g.soil', 'season', 'Land.type', 'pH', 'N.', 'C.',]], geometry=plotPoints)
+## get rid of controls:
+sulariPlotsDF.set_index("sample", inplace=True)
+sulariPlotsDF.drop([ "C1.1", "C1.2", "C2.1", "C2.2"], inplace=True)
+sulariPlotsDF.tail()
+
+## can we import our georeferenced tif of the study area?
+fichtelMap = rasterio.open("studyAreaClipped_modified.tif")
+
+
+## color code our points according to land type?
+cdik={
+"CROP":"y",
+"GRASSLAND":"b",
+"FOREST":"k",
+}
+sulariPlotsDF['landColors'] = [ cdik[i] for i in sulariPlotsDF['Land.type'] ]
+
+sulariPlotsDF.plot(color=sulariPlotsDF['landColors'], ax=ax)
+ 
+
+fig, ax = plt.subplots()
+
+rasterio.plot.show(fichtelMap, ax=ax)
+
+sulariPlotsDF.plot(ax=ax)
+
+

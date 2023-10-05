@@ -466,7 +466,6 @@ ps <- phyloseq(otu_table(seqtab.nochim, taxa_are_rows=FALSE),
 #conda activate dada2
 
 R
-
 library(dada2)
 library(phyloseq)
 library(ggplot2)
@@ -509,10 +508,12 @@ download.file(
     destfile = "Envt_Matrix.csv", 
     method="wget") ## remove this last argument if using windows
 
-env_data = read.csv('Envt_Matrix.csv', row.names=1)
+env_data = read.csv('sulariData/Envt_Matrix.csv', row.names=1)
 
 ## add this dataframe to our phyloseq object as sample_data 
 sample_data(ps) <- env_data
+## save the R data object
+#save(ps, file="sulariData/sulariPhyloseqObject.rda")
 
 head(env_data) 
 
@@ -746,6 +747,7 @@ rankAb(ps, "C1.1", 10000, 15)
 #minCutoff <- 20
 #minCutoff <- 30
 minCutoff <- 50
+
 #minCutoff <- 150 ## etc
 ## make a copy of our otu_table from our original phyloseq object:
 ot <- otu_table(ps)
@@ -756,15 +758,17 @@ ot[ot < minCutoff] <- 0
 psMinCutoff <- ps
 otu_table(psMinCutoff) <- ot
 ## how many reads do we lose with this?
+
 sum(otu_table(ps)) ## 7944340 originally, before cutoff
 sum(otu_table(psMinCutoff)) ## 6943873 after 20 mininum read cutoff
                             ## 5144801 after 50 mininum read cutoff
 
 ## and check, does this change our controls much?
 par(mfrow=c(2,1))
-rankAb(ps,"C1.1", 50000, textatX=50, textatY=10000)
+rankAb(ps,"C1.1", 50000, textatX=100, textatY=20000)
 rankAb(psMinCutoff,"C1.1", 80000, textatX=10, textatY=30000)
 par(mfrow=c(1,1))
+
 ## this C1 control should only have 1 ASV
 ## a minimum cutoff of 20 reads leaves 73 ASVs out 216 
 ## a minimum cutoff of 30 reads leaves 51 ASVs out 216 
@@ -781,10 +785,12 @@ par(mfrow=c(1,1))
 ## a minimum cutoff of 50 reads leaves 18 ASVs out 94 
 
 ## check real samples too!
+
 par(mfrow=c(2,1))
-rankAb(ps,"S2", ylimit=1000, textatX=500, textatY=300)
-rankAb(psMinCutoff,"S2", ylimit=1000, textatX=200, textatY=300)
+rankAb(ps,"S10", ylimit=1000, textatX=500, textatY=300)
+rankAb(psMinCutoff,"S10", ylimit=1000, textatX=200, textatY=300)
 par(mfrow=c(1,1))
+
 ## a minimum cutoff of 20 reads leaves 848 ASVs out of 1796
 ## a minimum cutoff of 30 reads leaves 569 ASVs out of 1796
 ## a minimum cutoff of 50 reads leaves 322 ASVs out of 1796
@@ -832,7 +838,9 @@ https://www.ncbi.nlm.nih.gov/nuccore/EU721605.2/
 ## look at the barplots:
 par(mfrow = c(1,2))
 rankAb(ps, "C2.1", 10000, 15)
+
 rankAb(ps, "C2.2", 10000, 15)
+
 par(mfrow = c(1,1))
 
 ## it's the 4th/5th most common taxa in these controls samples
@@ -851,6 +859,9 @@ https://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE=MegaBlast&PROGRAM=blastn&PAGE_TYPE
 ## Nico included in our positive controls
 
 ############# step3 transformation of data #########
+
+
+barplot(sort(sample_sums(ps), TRUE))
 
 ## our sample sizes for this run are actually pretty 
 ## even, most of them fall between 60-70,000 reads,
@@ -871,6 +882,7 @@ https://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE=MegaBlast&PROGRAM=blastn&PAGE_TYPE
 
 ## transform to normalize by abundances
 aa <- transform_sample_counts(ps, function(x) x/sum(x))
+
 ## now log transform. Add 1 to avoid the log giving a non-zero 
 ## value to zero abundances
 otu_table(aa) <- otu_table(aa) + 1
@@ -890,8 +902,8 @@ logTransformedPS <- transform_sample_counts(aa, log)
 ## for the mock community samples
 
 ## check our mock community
-par(mfrow=c(2,1))
-rankAb(ps,"C2.1", 10000,ntax=NULL, 6000)
+par(mfrow=c(1,2))
+rankAb(ps,"C2.1", 10000,ntax=NULL,30, 6000)
 rankAb(logTransformedPS,"C2.1", 0.2,ntax=NULL,30, 0.1)
 par(mfrow=c(1,1))
 
@@ -925,6 +937,7 @@ rankAb(ps,"C1.1", 10000, ntax=NULL, 150, 7000)
 rankAb(psMinCutoff,"C1.1", 10000, ntax=NULL, 20, 7000)
 rankAb(logMin50ps,"C1.1", 1, ntax=NULL, 25, 0.7)
 dev.off()
+
 ## mock community
 pdf("filteringStepsMockComComparison.pdf")
 par(mfrow=c(3,1))
@@ -932,6 +945,7 @@ rankAb(ps,"C2.1", 10000, ntax=NULL, 50, 7000)
 rankAb(psMinCutoff,"C2.1", 10000, ntax=NULL, 15, 7000)
 rankAb(logMin50ps,"C2.1", 0.2, ntax=NULL, 14, 0.1)
 dev.off()
+
 ## real sample
 sample="S100"
 filename=paste0("filteringStepsSample",sample,"Comparison.pdf")
@@ -964,7 +978,6 @@ bb <- plot_ordination(logmin50ps, ordinate(logmin50ps, "mds"), color = "ph")
       bb <- bb + labs(title="logmin50ps")
 
 ####
-
 
 ## the following only works if you have the patchwork package installed:
 aa + bb
@@ -1005,25 +1018,18 @@ bb + cc
 
 env_data <- as(sample_data(logMin50ps), "data.frame")
 ## get rid of controls:
-env_data <- env_data[row.names(env_data) %in% c("C1.1", "C1.2","C2.1", "C2.2"),]
+env_data <- env_data[!row.names(env_data) %in% c("C1.1", "C1.2","C2.1", "C2.2"),]
 
 comm_data <- as.data.frame(otu_table(logMin50ps))
 ## get rid of controls:
-comm_data <- comm_data[row.names(comm_data) %in% c("C1.1", "C1.2","C2.1", "C2.2"),]
-
-
-adonis(distance(ps, method="bray") ~ land.type,
-       data = env_data)
-
-## format our environmental data
-metadata <- as(sample_data(ps), "data.frame")
+comm_data <- comm_data[!row.names(comm_data) %in% c("C1.1", "C1.2","C2.1", "C2.2"),]
 
 ## make our distance matrix
 vegDistTable <- vegdist(comm_data, method="bray")
 
 ## run the test:
-adonis2(vegDistTable ~ Land.type, data = metadata)
-
+permaNOVAland <- adonis2(vegDistTable ~ Land.type,
+                 data = env_data, na.action = na.omit)
 
 
 
@@ -1068,5 +1074,4 @@ aa <- transform_sample_counts(psMinCutoff, function(x) x/sum(x))
 ## value to zero abundances
 otu_table(aa) <- otu_table(aa) + 1
 logMin50ps <- transform_sample_counts(aa, log)
-
 

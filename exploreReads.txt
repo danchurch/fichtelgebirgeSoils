@@ -985,8 +985,8 @@ aa + bb
 
 ## what if we use a different method, such as non-metric multidimensional scaling?
 
-cc <- plot_ordination(logmin50ps, ordinate(ps, "nmds"), color = "ph") 
-      cc <- cc + geom_point(aes(shape = land.type), size=5)
+cc <- plot_ordination(logMin50ps, ordinate(ps, "NMDS"), color = "pH") 
+      cc <- cc + geom_point(aes(shape = Land.type), size=5)
       cc <- cc + labs(title="ps")
 
 bb + cc 
@@ -1021,6 +1021,7 @@ env_data <- as(sample_data(logMin50ps), "data.frame")
 ## get rid of controls:
 env_data <- env_data[!row.names(env_data) %in% c("C1.1", "C1.2","C2.1", "C2.2"),]
 
+
 comm_data <- as.data.frame(otu_table(logMin50ps))
 ## get rid of controls:
 comm_data <- comm_data[!row.names(comm_data) %in% c("C1.1", "C1.2","C2.1", "C2.2"),]
@@ -1032,6 +1033,13 @@ vegDistTable <- vegdist(comm_data, method="bray")
 permaNOVAland <- adonis2(vegDistTable ~ Land.type,
                  data = env_data, na.action = na.omit)
 
+permaNOVAland <- adonis2(vegDistTable ~ Land.type*pH,
+                 data = env_data, na.action = na.omit)
+
+permaNOVAland <- adonis2(vegDistTable ~ pH*Land.type,
+                 data = env_data, na.action = na.omit)
+
+permaNOVAland
 
 ############################
 
@@ -1043,7 +1051,10 @@ permaNOVAland <- adonis2(vegDistTable ~ Land.type,
 ## see with our ordinations, we need to do statistically 
 ## sound checks. This is called checking for differential abundance
 
-## we'll use deseq2. There are other packages that can be 
+## we'll use deseq2, following this tutorial: 
+https://bioconductor.org/packages/devel/bioc/vignettes/phyloseq/inst/doc/phyloseq-mixture-models.html
+
+##There are other packages that can be 
 ## used. Other good options include ANCOM-II, and ALDEx2. 
 ## A good study to look at for comparison is:
 https://www.nature.com/articles/s41467-022-28034-z

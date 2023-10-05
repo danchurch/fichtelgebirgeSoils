@@ -474,6 +474,7 @@ library(scales)
 library(grid)
 library(vegan)
 library(DESeq2)
+library(patchwork) ## good for ggplot
 
 packageVersion("DESeq2") ## I'm working with deseq2 version 1.34.0
 
@@ -903,7 +904,6 @@ par(mfrow=c(1,1))
 
 ## we can combine these two steps 
 ## (minimum cutoffs + transformation) 
-## as such:
  
 ## we start with this as our phyloseq object
 psMinCutoff ## created in step above, 50 read minimum cutoff
@@ -946,37 +946,91 @@ dev.off()
 ############# ordination ####################
 ## let's try an ordination:
 
-ps20 = prune_samples(names(which(sample_sums(ps) >= 20)), ps)
-plot_ordination(ps20, ordinate(ps20, "MDS"), color = "Land.type") + geom_point(size = 5)
-## actually, this filters low abundance samples, fix this to 
-
 ## or just run it as is:
 plot_ordination(ps, ordinate(ps, "MDS"), color = "Land.type") + geom_point(size = 5)
 
 ## changing symbols
 plot_ordination(ps, ordinate(ps, "MDS"), color = "pH") + geom_point(aes(shape = Land.type), size=5)
 
+## how does this compare to our phyloseq object that has 
+## undergone some filtering?:
 
-## try a statistical test, perMANOVA...
-env_data <- as(sample_data(ps), "data.frame")
+aa <- plot_ordination(ps, ordinate(ps, "mds"), color = "ph") 
+      aa <- aa + geom_point(aes(shape = land.type), size=5)
+      aa <- aa + labs(title="ps")
 
-adonis(distance(ps, method="bray") ~ Land.type,
+bb <- plot_ordination(logmin50ps, ordinate(logmin50ps, "mds"), color = "ph")  
+      bb <- bb + geom_point(aes(shape = land.type), size=5)
+      bb <- bb + labs(title="logmin50ps")
+
+####
+
+
+## the following only works if you have the patchwork package installed:
+aa + bb
+
+## what if we use a different method, such as non-metric multidimensional scaling?
+
+cc <- plot_ordination(logmin50ps, ordinate(ps, "nmds"), color = "ph") 
+      cc <- cc + geom_point(aes(shape = land.type), size=5)
+      cc <- cc + labs(title="ps")
+
+bb + cc 
+
+## that looks pretty different at first glance, but
+## the groupings by land type stay the same
+
+
+######### statistical tests ############
+
+## there are different ways to test the effect 
+## of environmental variables on multivariate
+## community matrices
+
+## probably the easiest to use is the 
+## permanova test. it is not the most 
+## sensitive test, and it is not a true
+## linear model of any kind, so it has
+## severe limitations.
+
+## but it is non-parametric, instead based on 
+## permatutations (randome rearrangements) of  
+## your data to create null hypothesis.
+## because it has so few statistical assumptions,
+## it is the easiest test to implement and often
+## the first test we try.
+
+## so let's try a statistical test, permanova.
+## make sure the vegan package is loaded
+
+env_data <- as(sample_data(logMin50ps), "data.frame")
+## get rid of controls:
+env_data <- env_data[row.names(env_data) %in% c("C1.1", "C1.2","C2.1", "C2.2"),]
+
+comm_data <- as.data.frame(otu_table(logMin50ps))
+## get rid of controls:
+comm_data <- comm_data[row.names(comm_data) %in% c("C1.1", "C1.2","C2.1", "C2.2"),]
+
+
+adonis(distance(ps, method="bray") ~ land.type,
        data = env_data)
 
+## format our environmental data
 metadata <- as(sample_data(ps), "data.frame")
 
-adonis(distance(physeq, method="bray") ~ Treatment,
-       data = metadata)
+## make our distance matrix
+vegDistTable <- vegdist(comm_data, method="bray")
 
-sample_data(ps)[25,4]  <- "W1"
-## we need to fix the environmental matrix csv to match this
+## run the test:
+adonis2(vegDistTable ~ Land.type, data = metadata)
 
-taxa_sums(ps)
+
+
 
 ############### differential abundances #################
 
 ## if we want to look at what species might be most important 
-## for created the community-level differences that we 
+## for explaining the community-level differences that we 
 ## see with our ordinations, we need to do statistically 
 ## sound checks. This is called checking for differential abundance
 
@@ -999,6 +1053,7 @@ library(ggplot2)
 library(scales)
 library(grid)
 library(vegan)
+library(patchwork)
 
 load("sulariData/sulariPhyloseqObject.rda")
 ## institute minimum cutoff
@@ -1007,7 +1062,6 @@ ot <- otu_table(ps)
 ot[ot < minCutoff] <- 0
 psMinCutoff <- ps
 otu_table(psMinCutoff) <- ot
-
 ## transform to normalize by abundances then log to flatten abundance differences
 aa <- transform_sample_counts(psMinCutoff, function(x) x/sum(x))
 ## now log transform. Add 1 to avoid the log giving a non-zero 

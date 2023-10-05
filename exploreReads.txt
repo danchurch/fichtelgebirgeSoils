@@ -969,17 +969,18 @@ plot_ordination(ps, ordinate(ps, "MDS"), color = "pH") + geom_point(aes(shape = 
 ## how does this compare to our phyloseq object that has 
 ## undergone some filtering?:
 
-aa <- plot_ordination(ps, ordinate(ps, "mds"), color = "ph") 
-      aa <- aa + geom_point(aes(shape = land.type), size=5)
+aa <- plot_ordination(ps, ordinate(ps, "MDS"), color = "pH") 
+      aa <- aa + geom_point(aes(shape = Land.type), size=5)
       aa <- aa + labs(title="ps")
 
-bb <- plot_ordination(logmin50ps, ordinate(logmin50ps, "mds"), color = "ph")  
-      bb <- bb + geom_point(aes(shape = land.type), size=5)
+bb <- plot_ordination(logMin50ps, ordinate(logMin50ps, "MDS"), color = "pH")  
+      bb <- bb + geom_point(aes(shape = Land.type), size=5)
       bb <- bb + labs(title="logmin50ps")
 
 ####
 
 ## the following only works if you have the patchwork package installed:
+
 aa + bb
 
 ## what if we use a different method, such as non-metric multidimensional scaling?
@@ -1032,6 +1033,8 @@ permaNOVAland <- adonis2(vegDistTable ~ Land.type,
                  data = env_data, na.action = na.omit)
 
 
+############################
+
 
 ############### differential abundances #################
 
@@ -1070,6 +1073,7 @@ psMinCutoff <- ps
 otu_table(psMinCutoff) <- ot
 ## transform to normalize by abundances then log to flatten abundance differences
 aa <- transform_sample_counts(psMinCutoff, function(x) x/sum(x))
+
 ## now log transform. Add 1 to avoid the log giving a non-zero 
 ## value to zero abundances
 otu_table(aa) <- otu_table(aa) + 1

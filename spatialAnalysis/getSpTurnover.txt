@@ -10,21 +10,33 @@ import geopandas as gpd
 import matplotlib.pyplot as plt; plt.ion()
 import os, rasterio
 import rasterio.plot
+import scipy.spatial as sp
 
 os.chdir("/home/daniel/Documents/projects/fichtelgebirge_project/"
           "sulariArneSoils/fichtelgebirgeSoils/spatialAnalysis")
-
 ## we just want a map of points right now:
 envData = pd.read_csv("/home/daniel/Documents/projects/fichtelgebirge_project/"
                       "sulariArneSoils/fichtelgebirgeSoils/"
                       "sulariData/Envt_Matrix.csv")
-
 envData.rename(columns={"Unnamed: 0":"sample"}, inplace=True)
 ## we need to clean up the plot.ID. Sulari recorded season in the plot IDs,
 ## using letter codes. Also she has one double sampling, with an underscore
 envData['Plot.ID'] = envData['Plot.ID'].str.slice(0,5)
 
 envData['Plot.ID'].to_list()
+
+## her otu table is really large:
+##### R ###
+##load(file="sulariData/sularilogMin50ps.rda")
+##logMin50ps
+##comdat <- as.data.frame(otu_table(logMin50ps))
+##write.csv(comdat, file="spatialAnalysis/comdat.csv")
+##### R ###
+
+comData = pd.read_csv("comdat.csv", index_col=0)
+
+
+
 
 ## the map below looks funny...looks like every forest plot has 
 ## a grassland under it...
@@ -35,32 +47,19 @@ dupped.groupby('Plot.ID').nunique()
 
 ## nope...looks okay
 
-sum(envData.Longitude.duplicated())
-
-envData.head()
-
-envData.columns
 
 ## we want a geodf...
 plotPoints = gpd.points_from_xy( envData.Longitude, envData.Latitude, crs="EPSG:4326" )
-
 sulariPlotsDF = gpd.GeoDataFrame(envData[[
                     'sample', 'Plot.ID', 'Basal.respiration', 
-                    'MBC', 'season', 'Land.type', 'pH', 'N.', 'C.']])
-
-sulariPlotsDF
-
+                    'MBC', 'season', 'Land.type', 'pH', 'N.', 'C.']], geometry=plotPoints)
 ## get rid of controls:
-
 sulariPlotsDF.set_index("sample", inplace=True)
-
 sulariPlotsDF.drop([ "C1.1", "C1.2", "C2.1", "C2.2"], inplace=True)
 sulariPlotsDF.tail()
 
 ## can we import our georeferenced tif of the study area?
 fichtelMap = rasterio.open("studyAreaClipped_modified.tif")
-
-
 ## color code our points according to land type?
 cdik={
 "CROP":"y",
@@ -68,14 +67,54 @@ cdik={
 "FOREST":"k",
 }
 sulariPlotsDF['landColors'] = [ cdik[i] for i in sulariPlotsDF['Land.type'] ]
-
-sulariPlotsDF.plot(color=sulariPlotsDF['landColors'], ax=ax)
- 
-
 fig, ax = plt.subplots()
-
 rasterio.plot.show(fichtelMap, ax=ax)
 
-sulariPlotsDF.plot(ax=ax)
+sulariPlotsDF.plot(color=sulariPlotsDF['landColors'], 
+    markersize=50, 
+    ax=ax,
+    #style_kwds={'markeredgewidth':1.5, 'markeredgecolor':'k'} ## doesn't work...
+)
+
+
+## oh well. Look at the turnover data:
+
+
+## might be better to convert to UTMs? Monday...
+
+aa = pd.DataFrame({'xx':envData.Longitude, 'yy':envData.Latitude})
+aa = aa.iloc[0:120,:]
+
+physDist = sp.distance.pdist(aa, metric='euclidean')
+bcDist = sp.distance.pdist(comData, metric='brayCurtis')
+
+fig, ax = plt.subplots()
+ax.scatter(physDist, bcDist)
+
+######### how we did it before ############
+
+## get our original in there first:
+specObs = pd.read_csv('specObs.csv', index_col='PsubP').sort_index()
+envOnly = pd.read_csv('envOnly.csv', index_col='PsubP').sort_index()
+subParcelComm = pd.read_csv("subParcelComm.csv", index_col='PsubP')
+pts = ((gpd.read_file('GIS/ana30meterPlots.geojson')
+        .set_index('PsubP')
+        .sort_index())
+        )
+
+
+## sanity check
+(pts.index == envOnly.index).all()
+(pts.index == subParcelComm.index).all()
+fig, axes = plt.subplots(nrows=2, ncols=3, sharey=True, figsize=(12,8))
+axes = axes.flatten()
+
+d = {'X': pts.geometry.x, 'Y': pts.geometry.y}
+physDist = sp.distance.pdist(pd.DataFrame(data=d), metric='euclidean')
+bcDist = sp.distance.pdist(subParcelComm, metric='brayCurtis')
+X, Y = physDist.reshape(-1,1), bcDist.reshape(-1,1)
+axes[0].scatter(physDist, bcDist)
+axes[0].plot( X, LinearRegression().fit(X, Y).predict(X), c='k')
+axes[0].set_title('Overall Turnover')
 
 

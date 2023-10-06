@@ -472,7 +472,6 @@ library(ggplot2)
 library(scales)
 library(grid)
 library(vegan)
-
 library(DESeq2)
 library(patchwork) ## good for ggplot
 library(BiocGenerics) ## might not need to load in newer versions of deseq2?
@@ -1054,7 +1053,6 @@ permaNOVAland
 ## see with our ordinations, we need to do statistically 
 ## sound checks. This is called checking for differential abundance
 
-
 ## we'll use deseq2, following this tutorial: 
 https://bioconductor.org/packages/devel/bioc/vignettes/phyloseq/inst/doc/phyloseq-mixture-models.html
 
@@ -1074,16 +1072,14 @@ https://www.nature.com/articles/s41467-022-28034-z
 ## let's add a new "land type" to our data, so we can keep our controls:
 
 load("sulariData/sulariPhyloseqObject.rda")
+
 psLandCont <- ps ## make a duplicate phyloseq obj to play with
-aa = sample_data(psLandCont) ## pull out our environmental data (hard to edit inside the phyloseq object)
-aa[c('C1.1','C1.2','C2.1','C2.2'),'Land.type']  <- "control" ## add info
-sample_data(psLandCont) <- aa ## put back into our phyloseq object
-tail(sample_data(psLandCont))
+sample_data(psLandCont)[c('C1.1','C1.2','C2.1','C2.2'),'Land.type']  <- "control" ## add info
+tail(sample_data(psLandCont)) ## looks okay
 
 ## okay, now following the tutorial above:
 
 diagdds = phyloseq_to_deseq2(psLandCont, ~ Land.type)
-
 gm_mean = function(x, na.rm=TRUE){
   exp(sum(log(x[x > 0]), na.rm=na.rm) / length(x))
 }
@@ -1098,14 +1094,54 @@ diagdds = DESeq(diagdds, fitType="local")
 
 ## let's see how the results look:
 
-res = results(diagdds)
-res = res[order(res$padj, na.last=NA), ]
+## to see all diff expressed species??:
+res <- results(diagdds)
+
+## or to check a specific contrast:
+res <- results(diagdds, contrast=c("Land.type","FOREST","GRASSLAND"))
+
+## then....
 alpha = 0.01 ## significance cutoff
+res <- res[complete.cases(res),] ## necessary because not all ASVs in all landtypes
 sigtab = res[(res$padj < alpha), ]
 sigtab = cbind(as(sigtab, "data.frame"), as(tax_table(psLandCont)[rownames(sigtab), ], "matrix"))
 
 head(sigtab)
 dim(sigtab)
+
+## still following their tutorial:
+
+theme_set(theme_bw())
+sigtabgen = subset(sigtab, !is.na(Genus))
+
+
+sigtabAcido = sigtab[sigtab$Phylum == "Acidobacteriota",]
+
+sigtabgen = subset(sigtabAcido, !is.na(Genus))
+
+# to sort by Phylum order
+x = tapply(sigtabgen$log2FoldChange, sigtabgen$Phylum, function(x) max(x))
+x = sort(x, TRUE)
+sigtabgen$Phylum = factor(as.character(sigtabgen$Phylum), levels=names(x))
+
+# to sort by Genus order
+x = tapply(sigtabgen$log2FoldChange, sigtabgen$Genus, function(x) max(x))
+x = sort(x, TRUE)
+sigtabgen$Genus = factor(as.character(sigtabgen$Genus), levels=names(x))
+
+ggplot(sigtabgen, aes(y=Genus, x=log2FoldChange, color=Phylum)) + 
+  geom_vline(xintercept = 0.0, color = "gray", linewidth = 0.5) +
+  geom_point(size=6) + 
+  theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5))
+
+
+## if we are interested in a particular land.type versus all others,
+## I think we need to reduce the treatment to a binary variable (yes/no), 
+## then rerun deseq as above.
+
+
+## check out the possible contrasts:
+resultsNames(diagdds)
 
 
 ##########################################
@@ -1119,7 +1155,9 @@ library(ggplot2)
 library(scales)
 library(grid)
 library(vegan)
-library(patchwork)
+library(DESeq2)
+library(patchwork) ## good for ggplot
+library(BiocGenerics) ## might not need to load in newer versions of deseq2?
 
 load("sulariData/sulariPhyloseqObject.rda")
 ## institute minimum cutoff
@@ -1135,5 +1173,3 @@ aa <- transform_sample_counts(psMinCutoff, function(x) x/sum(x))
 otu_table(aa) <- otu_table(aa) + 1
 logMin50ps <- transform_sample_counts(aa, log)
 #save(logMin50ps, file= "sulariData/sularilogMin50ps.rda")
-
-

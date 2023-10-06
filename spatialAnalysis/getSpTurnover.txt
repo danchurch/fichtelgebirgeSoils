@@ -26,7 +26,6 @@ envData['Plot.ID'] = envData['Plot.ID'].str.slice(0,5)
 
 envData['Plot.ID'].to_list()
 
-
 ## the map below looks funny...looks like every forest plot has 
 ## a grassland under it...
 
@@ -36,16 +35,25 @@ dupped.groupby('Plot.ID').nunique()
 
 ## nope...looks okay
 
-
-
 sum(envData.Longitude.duplicated())
 
+envData.head()
+
+envData.columns
 
 ## we want a geodf...
 plotPoints = gpd.points_from_xy( envData.Longitude, envData.Latitude, crs="EPSG:4326" )
-sulariPlotsDF = gpd.GeoDataFrame(envData[['sample', 'Plot.ID', 'mg.CO2.g.Soil.h.1', 'mg.MBC.g.soil', 'season', 'Land.type', 'pH', 'N.', 'C.',]], geometry=plotPoints)
+
+sulariPlotsDF = gpd.GeoDataFrame(envData[[
+                    'sample', 'Plot.ID', 'Basal.respiration', 
+                    'MBC', 'season', 'Land.type', 'pH', 'N.', 'C.']])
+
+sulariPlotsDF
+
 ## get rid of controls:
+
 sulariPlotsDF.set_index("sample", inplace=True)
+
 sulariPlotsDF.drop([ "C1.1", "C1.2", "C2.1", "C2.2"], inplace=True)
 sulariPlotsDF.tail()
 

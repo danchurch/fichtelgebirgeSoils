@@ -472,8 +472,10 @@ library(ggplot2)
 library(scales)
 library(grid)
 library(vegan)
+
 library(DESeq2)
 library(patchwork) ## good for ggplot
+library(BiocGenerics) ## might not need to load in newer versions of deseq2?
 
 packageVersion("DESeq2") ## I'm working with deseq2 version 1.34.0
 
@@ -956,6 +958,7 @@ rankAb(psMinCutoff, sample, 1000, ntax=NULL, 200, 500)
 rankAb(logMin50ps, sample, 0.03, ntax=NULL, 200, 0.015)
 dev.off()
 
+## save out the filtered, transformed phyloseq object
 
 ############# ordination ####################
 ## let's try an ordination:
@@ -993,7 +996,7 @@ bb + cc
 
 ## that looks pretty different at first glance, but
 ## the groupings by land type stay the same
-
+logMin50ps
 
 ######### statistical tests ############
 
@@ -1051,6 +1054,7 @@ permaNOVAland
 ## see with our ordinations, we need to do statistically 
 ## sound checks. This is called checking for differential abundance
 
+
 ## we'll use deseq2, following this tutorial: 
 https://bioconductor.org/packages/devel/bioc/vignettes/phyloseq/inst/doc/phyloseq-mixture-models.html
 
@@ -1061,6 +1065,48 @@ https://www.nature.com/articles/s41467-022-28034-z
 ## despite theoretical critiques (like Gloor et al. 2017),
 ## deSeq2 seems to perform fairly well (see Fig. 1 and Fig 3 
 ## from above nature paper)
+
+## deseq2 acts on raw abundances, not our transformed data
+## (we use the transformed data for other statistical tests)
+
+## in this case, I will focus on land type as a experimental factor
+
+## let's add a new "land type" to our data, so we can keep our controls:
+
+load("sulariData/sulariPhyloseqObject.rda")
+psLandCont <- ps ## make a duplicate phyloseq obj to play with
+aa = sample_data(psLandCont) ## pull out our environmental data (hard to edit inside the phyloseq object)
+aa[c('C1.1','C1.2','C2.1','C2.2'),'Land.type']  <- "control" ## add info
+sample_data(psLandCont) <- aa ## put back into our phyloseq object
+tail(sample_data(psLandCont))
+
+## okay, now following the tutorial above:
+
+diagdds = phyloseq_to_deseq2(psLandCont, ~ Land.type)
+
+gm_mean = function(x, na.rm=TRUE){
+  exp(sum(log(x[x > 0]), na.rm=na.rm) / length(x))
+}
+
+geoMeans = apply(counts(diagdds), 1, gm_mean)
+diagdds = estimateSizeFactors(diagdds, geoMeans = geoMeans)
+diagdds = DESeq(diagdds, fitType="local")
+
+## so that should have adjusted our abundances somewhat
+## to accound for the accidental abundance differences
+## that occur with high-throuput sequencers...
+
+## let's see how the results look:
+
+res = results(diagdds)
+res = res[order(res$padj, na.last=NA), ]
+alpha = 0.01 ## significance cutoff
+sigtab = res[(res$padj < alpha), ]
+sigtab = cbind(as(sigtab, "data.frame"), as(tax_table(psLandCont)[rownames(sigtab), ], "matrix"))
+
+head(sigtab)
+dim(sigtab)
+
 
 ##########################################
 
@@ -1084,9 +1130,10 @@ psMinCutoff <- ps
 otu_table(psMinCutoff) <- ot
 ## transform to normalize by abundances then log to flatten abundance differences
 aa <- transform_sample_counts(psMinCutoff, function(x) x/sum(x))
-
 ## now log transform. Add 1 to avoid the log giving a non-zero 
 ## value to zero abundances
 otu_table(aa) <- otu_table(aa) + 1
 logMin50ps <- transform_sample_counts(aa, log)
+#save(logMin50ps, file= "sulariData/sularilogMin50ps.rda")
+
 

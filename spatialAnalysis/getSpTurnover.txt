@@ -11,17 +11,22 @@ import matplotlib.pyplot as plt; plt.ion()
 import os, rasterio
 import rasterio.plot
 import scipy.spatial as sp
+from sklearn.linear_model import LinearRegression
+import numpy as np
+
 
 os.chdir("/home/daniel/Documents/projects/fichtelgebirge_project/"
           "sulariArneSoils/fichtelgebirgeSoils/spatialAnalysis")
 ## we just want a map of points right now:
 envData = pd.read_csv("/home/daniel/Documents/projects/fichtelgebirge_project/"
                       "sulariArneSoils/fichtelgebirgeSoils/"
-                      "sulariData/Envt_Matrix.csv")
+                      "sulariData/Envt_Matrix.csv", index_col=0)
 envData.rename(columns={"Unnamed: 0":"sample"}, inplace=True)
 ## we need to clean up the plot.ID. Sulari recorded season in the plot IDs,
 ## using letter codes. Also she has one double sampling, with an underscore
 envData['Plot.ID'] = envData['Plot.ID'].str.slice(0,5)
+## drop controls
+envData.drop([ "C1.1", "C1.2", "C2.1", "C2.2"], inplace=True)
 
 envData['Plot.ID'].to_list()
 
@@ -34,9 +39,7 @@ envData['Plot.ID'].to_list()
 ##### R ###
 
 comData = pd.read_csv("comdat.csv", index_col=0)
-
-
-
+comData.drop([ "C1.1", "C1.2", "C2.1", "C2.2"], inplace=True)
 
 ## the map below looks funny...looks like every forest plot has 
 ## a grassland under it...
@@ -49,6 +52,7 @@ dupped.groupby('Plot.ID').nunique()
 
 
 ## we want a geodf...
+
 plotPoints = gpd.points_from_xy( envData.Longitude, envData.Latitude, crs="EPSG:4326" )
 sulariPlotsDF = gpd.GeoDataFrame(envData[[
                     'sample', 'Plot.ID', 'Basal.respiration', 
@@ -66,55 +70,48 @@ cdik={
 "GRASSLAND":"b",
 "FOREST":"k",
 }
+
 sulariPlotsDF['landColors'] = [ cdik[i] for i in sulariPlotsDF['Land.type'] ]
 fig, ax = plt.subplots()
 rasterio.plot.show(fichtelMap, ax=ax)
 
-sulariPlotsDF.plot(color=sulariPlotsDF['landColors'], 
-    markersize=50, 
+sulariPlotsDF.plot(
+    marker="o",
     ax=ax,
-    #style_kwds={'markeredgewidth':1.5, 'markeredgecolor':'k'} ## doesn't work...
-)
+    edgecolor='k',
+    facecolor=sulariPlotsDF['landColors'],
+    markersize=100) 
 
 
-## oh well. Look at the turnover data:
+## Look at the turnover data:
 
 
 ## might be better to convert to UTMs? Monday...
 
 aa = pd.DataFrame({'xx':envData.Longitude, 'yy':envData.Latitude})
 aa = aa.iloc[0:120,:]
-
 physDist = sp.distance.pdist(aa, metric='euclidean')
 bcDist = sp.distance.pdist(comData, metric='brayCurtis')
-
 fig, ax = plt.subplots()
 ax.scatter(physDist, bcDist)
-
-######### how we did it before ############
-
-## get our original in there first:
-specObs = pd.read_csv('specObs.csv', index_col='PsubP').sort_index()
-envOnly = pd.read_csv('envOnly.csv', index_col='PsubP').sort_index()
-subParcelComm = pd.read_csv("subParcelComm.csv", index_col='PsubP')
-pts = ((gpd.read_file('GIS/ana30meterPlots.geojson')
-        .set_index('PsubP')
-        .sort_index())
-        )
-
-
-## sanity check
-(pts.index == envOnly.index).all()
-(pts.index == subParcelComm.index).all()
-fig, axes = plt.subplots(nrows=2, ncols=3, sharey=True, figsize=(12,8))
-axes = axes.flatten()
-
-d = {'X': pts.geometry.x, 'Y': pts.geometry.y}
-physDist = sp.distance.pdist(pd.DataFrame(data=d), metric='euclidean')
-bcDist = sp.distance.pdist(subParcelComm, metric='brayCurtis')
 X, Y = physDist.reshape(-1,1), bcDist.reshape(-1,1)
-axes[0].scatter(physDist, bcDist)
-axes[0].plot( X, LinearRegression().fit(X, Y).predict(X), c='k')
-axes[0].set_title('Overall Turnover')
+ax.plot( X, LinearRegression().fit(X, Y).predict(X), c='k')
 
+## subset by landtype
+#lt="CROP"
+#lt="GRASSLAND"
+lt="FOREST"
+edf = envData[envData['Land.type'] == lt]
+cdf = comData.loc[edf.index]
+aa = pd.DataFrame({'xx':edf.Longitude, 'yy':edf.Latitude})
+aa = aa.iloc[0:120,:]
+physDist = sp.distance.pdist(aa, metric='euclidean')
+bcDist = sp.distance.pdist(cdf, metric='brayCurtis')
+fig, ax = plt.subplots()
+ax.scatter(physDist, bcDist)
+ax.set_title(label=lt, loc='center')
+X, Y = physDist.reshape(-1,1), bcDist.reshape(-1,1)
+ax.plot( X, LinearRegression().fit(X, Y).predict(X), c='k')
 
+## well that looks pretty much like I hypothesized
+## good stuff.

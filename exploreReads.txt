@@ -183,11 +183,20 @@ install.packages("BiocManager")
 
 
 library("BiocManager")
+
 BiocManager::install("dada2")
 
 BiocManager::install("phyloseq")
 
+
+
+BiocManager::install("DESeq2")
+
+
+library(DESeq2)
+
 library("phyloseq")
+
 
 
 ## that takes forever.
@@ -514,7 +523,7 @@ env_data = read.csv('sulariData/Envt_Matrix.csv', row.names=1)
 ## add this dataframe to our phyloseq object as sample_data 
 sample_data(ps) <- env_data
 ## save the R data object
-#save(ps, file="sulariData/sulariPhyloseqObject.rda")
+save(ps, file="sulariData/sulariPhyloseqObject.rda")
 
 head(env_data) 
 
@@ -1075,6 +1084,7 @@ load("sulariData/sulariPhyloseqObject.rda")
 
 psLandCont <- ps ## make a duplicate phyloseq obj to play with
 sample_data(psLandCont)[c('C1.1','C1.2','C2.1','C2.2'),'Land.type']  <- "control" ## add info
+
 tail(sample_data(psLandCont)) ## looks okay
 
 ## okay, now following the tutorial above:
@@ -1083,48 +1093,70 @@ diagdds = phyloseq_to_deseq2(psLandCont, ~ Land.type)
 gm_mean = function(x, na.rm=TRUE){
   exp(sum(log(x[x > 0]), na.rm=na.rm) / length(x))
 }
-
 geoMeans = apply(counts(diagdds), 1, gm_mean)
 diagdds = estimateSizeFactors(diagdds, geoMeans = geoMeans)
 diagdds = DESeq(diagdds, fitType="local")
 
 ## so that should have adjusted our abundances somewhat
-## to accound for the accidental abundance differences
-## that occur with high-throuput sequencers...
+## to account for the accidental abundance differences
+## that occur with high-throuput sequencers, pcr, etc...
+
+## check out the possible contrasts:
+
+resultsNames(diagdds) ## Forest vs. Grassland not mentioned, but still possible
 
 ## let's see how the results look:
+res <- results(diagdds, contrast=c("Land.type","Forest","Arable Land"))
 
-## to see all diff expressed species??:
-res <- results(diagdds)
+## this gives a results table:
 
-## or to check a specific contrast:
-res <- results(diagdds, contrast=c("Land.type","FOREST","GRASSLAND"))
+head(res)
 
-## then....
-alpha = 0.01 ## significance cutoff
+## the log2FoldChange columns is the log2 of the ratio of
+## counts in our second argument in the "contrast" setting above
+## (in this case "Forest") over the other group ("Arable Land"):
+
+## log2(forest/Arable land)
+
+## so a positive number in this column indicates that this 
+## ASV is more abundant in the Forest than in Arable Land.
+
+## we can flip the positive/negative sign by changing the 
+## order of the groups in our "results" command above
+
+## this matrix gives us all results, which is huge. We can 
+## summarize:
+
+summary(res) 
+
+## this tells me that there are 542 ASVs that are more 
+## abundant in forests that are not in Arable Land, and 
+## 1669 that are abundant in Arable Land that are not 
+## in Forests
+
+
+alpha = 0.1 ## significance cutoff
 res <- res[complete.cases(res),] ## necessary because not all ASVs in all landtypes
-sigtab = res[(res$padj < alpha), ]
+sigtab = res[(res$padj < alpha), ] ## cut off below the alpha using adjusted pvalues
+## add taxonomy:
 sigtab = cbind(as(sigtab, "data.frame"), as(tax_table(psLandCont)[rownames(sigtab), ], "matrix"))
 
-head(sigtab)
-dim(sigtab)
 
-## still following their tutorial:
-
+## still following their tutorial, we can visualize a bit::
 theme_set(theme_bw())
-sigtabgen = subset(sigtab, !is.na(Genus))
 
-
+## say we just want to look at Acidobacter:
+sigtabgen = subset(sigtab, !is.na(Genus)) ## get things id'd to genus
 sigtabAcido = sigtab[sigtab$Phylum == "Acidobacteriota",]
-
 sigtabgen = subset(sigtabAcido, !is.na(Genus))
 
-# to sort by Phylum order
+## to sort by Phylum order, meaningless if we have subsetted
+## already by phylum to "Acidobacter"...but it's in the tutorial
 x = tapply(sigtabgen$log2FoldChange, sigtabgen$Phylum, function(x) max(x))
 x = sort(x, TRUE)
 sigtabgen$Phylum = factor(as.character(sigtabgen$Phylum), levels=names(x))
 
-# to sort by Genus order
+## or we can sort by Genus, makes more sense for us when subsetted to Acidobacter
 x = tapply(sigtabgen$log2FoldChange, sigtabgen$Genus, function(x) max(x))
 x = sort(x, TRUE)
 sigtabgen$Genus = factor(as.character(sigtabgen$Genus), levels=names(x))
@@ -1139,12 +1171,86 @@ ggplot(sigtabgen, aes(y=Genus, x=log2FoldChange, color=Phylum)) +
 ## I think we need to reduce the treatment to a binary variable (yes/no), 
 ## then rerun deseq as above.
 
+## for instance, if I want to find ASVs that are unique to forests:
 
-## check out the possible contrasts:
-resultsNames(diagdds)
+psForestVsEverybodyElse <- ps ## make a duplicate phyloseq obj 
+## add control as a land type:
+sample_data(psForestVsEverybodyElse)[c('C1.1','C1.2','C2.1','C2.2'),'Land.type']  <- "control" 
+
+## make a function that relables Arable land and grassland to notForest:
+lumpNonForest = function(landt){
+  if (landt %in% c("Arable Land","Grassland")){newLandt <- "notForest"}
+  else {newLandt <- landt}
+  return (newLandt)
+}
+
+## run this over our landtype data:
+newComboLandTypes = sapply(sample_data(psForestVsEverybodyElse)$Land.type, lumpNonForest, USE.NAMES=TRUE)
+
+## check it:
+print( newComboLandTypes)
+
+## let's use this as our new landtype data:
+sample_data(psForestVsEverybodyElse)$Land.type
+
+## rerun the above pipeline to get asvs that were
+## generally important to forests vs. notForest:
+
+diagdds = phyloseq_to_deseq2(psForestVsEverybodyElse, ~ Land.type)
+gm_mean = function(x, na.rm=TRUE){
+  exp(sum(log(x[x > 0]), na.rm=na.rm) / length(x))
+}
+geoMeans = apply(counts(diagdds), 1, gm_mean)
+diagdds = estimateSizeFactors(diagdds, geoMeans = geoMeans)
+diagdds = DESeq(diagdds, fitType="local")
+
+res <- results(diagdds, contrast=c("Land.type","Forest","notForest"))
+
+summary(res) 
+## very similar to our contrast above, between forests and croplands
+
+alpha = 0.1 ## significance cutoff
+res <- res[complete.cases(res),] ## necessary because not all ASVs in all landtypes
+sigtab = res[(res$padj < alpha), ] ## cut off below the alpha using adjusted pvalues
+## let's get just the species that seem to be more abundant 
+## in forests:
+forestASVs = sigtab[(sigtab$log2FoldChange > 0), ] 
+
+## add taxonomy:
+forestASVs = cbind(as(forestASVs, "data.frame"), as(tax_table(psLandCont)[rownames(forestASVs), ], "matrix"))
+
+
+dim(sigtab)
+
+## what phyla seem to most importa for forests?
+table(forestASVs$Phylum)
+## most look like Acidobacteriota and Actinobacteriota
+
+## plot it
+par(mar=c(10, 4, 4, 2)) ## need a bigger margin on the bottom  for names
+barplot(sort(table(forestASVs$Phylum), TRUE), las=2, )
+
+## if we want to track the (normalized) counts of a particular ASV:
+
+## sort by log fold change
+forestASVsorted <- (forestASVs[order(forestASVs$log2FoldChange, decreasing=TRUE),])
+
+tail(forestASVs[order(forestASVs$log2FoldChange),])
+
+plotCounts(diagdds, gene="ASV1", intgroup="Land.type")
+
+## you can repeat the above for other land uses, cropland, arable land, etc
+
+## and if we want to look at a single, non-categorical variable?
+
 
 
 ##########################################
+
+
+
+
+## let's make a map
 
 ## to review, the total pipeline from sulari's
 ## dada2 results so far:
@@ -1173,3 +1279,5 @@ aa <- transform_sample_counts(psMinCutoff, function(x) x/sum(x))
 otu_table(aa) <- otu_table(aa) + 1
 logMin50ps <- transform_sample_counts(aa, log)
 #save(logMin50ps, file= "sulariData/sularilogMin50ps.rda")
+
+

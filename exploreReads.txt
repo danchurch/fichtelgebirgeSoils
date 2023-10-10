@@ -486,7 +486,7 @@ library(patchwork) ## good for ggplot
 library(BiocGenerics) ## might not need to load in newer versions of deseq2?
 
 packageVersion("DESeq2") ## I'm working with deseq2 version 1.34.0
-
+## sulari has v1.40.2, try to update to this
 
 ## try  making a phyloseq object out of just our  
 ## otu table and our taxonomic object:
@@ -1082,6 +1082,7 @@ https://www.nature.com/articles/s41467-022-28034-z
 
 load("sulariData/sulariPhyloseqObject.rda")
 
+
 psLandCont <- ps ## make a duplicate phyloseq obj to play with
 sample_data(psLandCont)[c('C1.1','C1.2','C2.1','C2.2'),'Land.type']  <- "control" ## add info
 
@@ -1109,6 +1110,8 @@ resultsNames(diagdds) ## Forest vs. Grassland not mentioned, but still possible
 res <- results(diagdds, contrast=c("Land.type","Forest","Arable Land"))
 
 ## this gives a results table:
+
+dim(res)
 
 head(res)
 
@@ -1177,7 +1180,7 @@ psForestVsEverybodyElse <- ps ## make a duplicate phyloseq obj
 ## add control as a land type:
 sample_data(psForestVsEverybodyElse)[c('C1.1','C1.2','C2.1','C2.2'),'Land.type']  <- "control" 
 
-## make a function that relables Arable land and grassland to notForest:
+## make a function that relabels Arable land and grassland to notForest:
 lumpNonForest = function(landt){
   if (landt %in% c("Arable Land","Grassland")){newLandt <- "notForest"}
   else {newLandt <- landt}
@@ -1188,9 +1191,11 @@ lumpNonForest = function(landt){
 newComboLandTypes = sapply(sample_data(psForestVsEverybodyElse)$Land.type, lumpNonForest, USE.NAMES=TRUE)
 
 ## check it:
-print( newComboLandTypes)
+print(newComboLandTypes)
 
 ## let's use this as our new landtype data:
+sample_data(psForestVsEverybodyElse)$Land.type <- newComboLandTypes 
+
 sample_data(psForestVsEverybodyElse)$Land.type
 
 ## rerun the above pipeline to get asvs that were
@@ -1206,7 +1211,10 @@ diagdds = DESeq(diagdds, fitType="local")
 
 res <- results(diagdds, contrast=c("Land.type","Forest","notForest"))
 
+head(res) 
+
 summary(res) 
+
 ## very similar to our contrast above, between forests and croplands
 
 alpha = 0.1 ## significance cutoff
@@ -1214,21 +1222,30 @@ res <- res[complete.cases(res),] ## necessary because not all ASVs in all landty
 sigtab = res[(res$padj < alpha), ] ## cut off below the alpha using adjusted pvalues
 ## let's get just the species that seem to be more abundant 
 ## in forests:
+
 forestASVs = sigtab[(sigtab$log2FoldChange > 0), ] 
 
 ## add taxonomy:
 forestASVs = cbind(as(forestASVs, "data.frame"), as(tax_table(psLandCont)[rownames(forestASVs), ], "matrix"))
 
 
-dim(sigtab)
+## what phyla seem to most important for forests?
 
-## what phyla seem to most importa for forests?
+forestASVs$Phylum
+
 table(forestASVs$Phylum)
+
+table(forestASVs$Genus)
+
 ## most look like Acidobacteriota and Actinobacteriota
 
 ## plot it
+
 par(mar=c(10, 4, 4, 2)) ## need a bigger margin on the bottom  for names
+
 barplot(sort(table(forestASVs$Phylum), TRUE), las=2, )
+
+barplot(sort(table(forestASVs$Genus), TRUE), las=2, )
 
 ## if we want to track the (normalized) counts of a particular ASV:
 
@@ -1247,10 +1264,10 @@ plotCounts(diagdds, gene="ASV1", intgroup="Land.type")
 
 ##########################################
 
-
-
-
 ## let's make a map
+
+
+
 
 ## to review, the total pipeline from sulari's
 ## dada2 results so far:

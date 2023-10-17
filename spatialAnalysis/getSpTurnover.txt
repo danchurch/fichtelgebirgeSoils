@@ -76,14 +76,12 @@ sulariPlot_utm.tail()
 ## can we import our georeferenced tif of the study area?
 fichtelMap = rasterio.open("studyAreaClipped_modified.tif")
 ## color code our points according to land type?
-
 cdik={
 "Arable Land":"b",
 "Grassland":"y",
 "Forest":"g",
 }
 sulariPlotsDF['landColors'] = [ cdik[i] for i in sulariPlotsDF['Land.type'] ]
-
 fig, ax = plt.subplots()
 rasterio.plot.show(fichtelMap, ax=ax)
 sulariPlotsDF.plot(
@@ -91,7 +89,15 @@ sulariPlotsDF.plot(
     ax=ax,
     edgecolor='k',
     facecolor=sulariPlotsDF['landColors'],
-    markersize=100) 
+    markersize=400) 
+
+grassPatch = Patch(color='y', label='grassland',)
+forestPatch = Patch(color='g', label='forest')
+farmPatch = Patch(color='b', label='arable land')
+ax.legend(handles=[grassPatch, forestPatch, farmPatch], 
+          loc="lower left",
+          fontsize=15,
+)
 
 ## if we want to compare just grassland and forest
 

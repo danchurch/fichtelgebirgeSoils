@@ -1260,13 +1260,56 @@ plotCounts(diagdds, gene="ASV1", intgroup="Land.type")
 
 ## and if we want to look at a single, non-categorical variable?
 
+## this is going to give us the logfoldchange per unit of
+## of basal respiration as per here: 
+https://www.bioconductor.org/packages/devel/bioc/vignettes/DESeq2/inst/doc/DESeq2.html#how-can-i-include-a-continuous-covariate-in-the-design-formula
 
+#########################################################################33
+
+## let's try looking for ASVs that seem important for predicting 
+## respiration. 
+
+## I will look for ASVs whose abundances seem to correlated with 
+## increasing respiration.
+
+## so this is going to give us the logfoldchange per unit of
+## of basal respiration as per here: 
+https://www.bioconductor.org/packages/devel/bioc/vignettes/DESeq2/inst/doc/DESeq2.html#how-can-i-include-a-continuous-covariate-in-the-design-formula
+
+## just like before make a duplicate phyloseq obj to play with
+## and get rid of controls while we're at it
+psNoControl = prune_samples(!(rownames(sample_data(ps)) %in% c("C1.1","C1.2","C2.1","C2.2")), ps)
+## get rid of NAs in basalResp
+basalRespNotNA <- !is.na(sample_data(psNoControl)$Basal.respiration)
+psNoControl = prune_samples(basalRespNotNA, psNoControl)
+
+## okay, same old code as before:
+diagdds = phyloseq_to_deseq2(psNoControl, ~ Basal.respiration) ## set "treatment" of interest
+gm_mean = function(x, na.rm=TRUE){
+  exp(sum(log(x[x > 0]), na.rm=na.rm) / length(x))
+}
+geoMeans = apply(counts(diagdds), 1, gm_mean)
+diagdds = estimateSizeFactors(diagdds, geoMeans = geoMeans)
+diagdds = DESeq(diagdds, fitType="local")
+resultsNames(diagdds) 
+res <- results(diagdds)
+alpha = 0.1 ## significance cutoff
+res <- res[complete.cases(res),] ## necessary because not all ASVs in all landtypes
+sigtab = res[(res$padj < alpha), ] ## cut off below the alpha using adjusted pvalues
+
+## of interest to us are those species that have the positive log fold change:
+posRespASVs = sigtab[(sigtab$log2FoldChange > 0), ] 
+
+## sort this dataframe by log fold change
+posRespASVsorted <- (posRespASVs[order(posRespASVs$log2FoldChange, decreasing=TRUE),])
+## this gives us a list of species whose abundances seem to be 
+## very positively correlated with respiration...
+
+## do any of these match with the ASVs that were associated with grasslands?
+
+## positive correlation with respiration
 
 ##########################################
-
-## let's make a map
-
-
 
 
 ## to review, the total pipeline from sulari's

@@ -1305,9 +1305,31 @@ posRespASVsorted <- (posRespASVs[order(posRespASVs$log2FoldChange, decreasing=TR
 ## this gives us a list of species whose abundances seem to be 
 ## very positively correlated with respiration...
 
+## if you like, you can attach taxonomy data and look at the phyla or genus names
+## associated with these ASVs as we did above. 
+
 ## do any of these match with the ASVs that were associated with grasslands?
 
-## positive correlation with respiration
+## if we want to pull these out of our data to use as a variable in our 
+## model of respiration: 
+
+## taking the 5 most common:
+
+posRespASVtop5 <- rownames(posRespASVsorted)[1:5]
+
+posRespASVtop5
+
+## let's get the abundances from our phyloseq object that has been 
+## normalized, log transformed, and had minimum cutoffs enforced,
+## in the code above:
+
+load(file="sulariData/sularilogMin50ps.rda")
+logMin50ps
+
+## if we want to remove the controls:
+
+
+
 
 ##########################################
 

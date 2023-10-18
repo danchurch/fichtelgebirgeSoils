@@ -1326,6 +1326,10 @@ posRespASVsorted <- (posRespASVs[order(posRespASVs$log2FoldChange, decreasing=TR
 
 posRespASVtop5 <- rownames(posRespASVsorted)[1:5]
 
+## what are these? taxanomy:
+
+tax_table(ps)[posRespASVtop5,]
+
 ## let's get the abundances from our phyloseq object that has been 
 ## normalized, log transformed, and had minimum cutoffs enforced,
 ## in the code above:
@@ -1351,7 +1355,29 @@ otu_table(psLogMin50NoControl)[,posRespASVtop5]
 
 ## let's make a regression model of respiration 
 
+load("sulariData/sulariPhyloseqObject.rda") ## sulari original "raw" phyloseq output from dada2
+load("sulariData/sularilogMin50ps.rda")  ## sulari's transformed, cutoffs enforeced, etc
 
+## to remove the controls:
+psLogMin50NoControl = prune_samples(!(rownames(sample_data(logMin50ps)) %in% c("C1.1","C1.2","C2.1","C2.2")), logMin50ps)
+
+head(sample_data(psLogMin50NoControl))
+tail(sample_data(psLogMin50NoControl))
+
+## we also have, for instance, our most sensitive ASV, in terms of 
+## increasing abundance with increasing soil 
+
+Plot.ID
+
+otu_table(psLogMin50NoControl)[,"ASV621"]
+
+env_data = sample_data(ps)
+
+aa  <- glm(env_data$soil.respiration ~ env_data$pH + env_data$MBC + env_data$CNR + env_data$Land.type)
+
+bb  <- glm(env_data$soil.respiration ~ env_data$pH + env_data$MBC + env_data$CNR)
+
+aa  <- glm(env_data$soil.respiration ~ env_data$pH + env_data$MBC + env_data$CNR + env_data$Land.type)
 
 
 ##########################################
@@ -1385,3 +1411,13 @@ logMin50ps <- transform_sample_counts(aa, log)
 #save(logMin50ps, file= "sulariData/sularilogMin50ps.rda")
 
 
+
+
+
+
+
+
+
+psOnlyGrass = prune_samples(sample_data(ps)$Land.type == "Grassland", ps)
+
+psLogMin50NoControl = prune_samples(!(rownames(sample_data(logMin50ps)) %in% c("C1.1","C1.2","C2.1","C2.2")), logMin50ps)

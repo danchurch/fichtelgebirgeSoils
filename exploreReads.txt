@@ -1317,8 +1317,6 @@ posRespASVsorted <- (posRespASVs[order(posRespASVs$log2FoldChange, decreasing=TR
 
 posRespASVtop5 <- rownames(posRespASVsorted)[1:5]
 
-posRespASVtop5
-
 ## let's get the abundances from our phyloseq object that has been 
 ## normalized, log transformed, and had minimum cutoffs enforced,
 ## in the code above:
@@ -1326,7 +1324,20 @@ posRespASVtop5
 load(file="sulariData/sularilogMin50ps.rda")
 logMin50ps
 
-## if we want to remove the controls:
+## to remove the controls:
+psLogMin50NoControl = prune_samples(!(rownames(sample_data(logMin50ps)) %in% c("C1.1","C1.2","C2.1","C2.2")), logMin50ps)
+
+## look at our list again:
+print(posRespASVtop5)
+
+## look at the most responsive ASV:
+otu_table(psLogMin50NoControl)[,"ASV621"]
+
+## or look at all 5:
+otu_table(psLogMin50NoControl)[,posRespASVtop5]
+
+## how do we incorporate these into our models? 
+
 
 
 

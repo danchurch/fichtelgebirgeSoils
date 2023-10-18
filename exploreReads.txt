@@ -514,16 +514,21 @@ load("sulariData/sulariPhyloseqObject.rda")
 ## get the latest:
 
 download.file(
-    "https://raw.githubusercontent.com/danchurch/fichtelgebirgeSoils/main/Envt_Matrix.csv",
-    destfile = "Envt_Matrix.csv", 
+    "https://raw.githubusercontent.com/danchurch/fichtelgebirgeSoils/main/sulariData/Envt_Matrix.csv",
+    destfile = "sulariData/Envt_Matrix.csv", 
     method="wget") ## remove this last argument if using windows
 
 env_data = read.csv('sulariData/Envt_Matrix.csv', row.names=1)
 
 ## add this dataframe to our phyloseq object as sample_data 
 sample_data(ps) <- env_data
+
+## and our transformed, min-cutoff, etc ps created below:
+sample_data(logMin50ps) <- env_data
+
 ## save the R data object
-save(ps, file="sulariData/sulariPhyloseqObject.rda")
+#save(ps, file="sulariData/sulariPhyloseqObject.rda")
+#save(logMin50ps, file= "sulariData/sularilogMin50ps.rda")
 
 head(env_data) 
 
@@ -1258,27 +1263,31 @@ plotCounts(diagdds, gene="ASV1", intgroup="Land.type")
 
 ## you can repeat the above for other land uses, cropland, arable land, etc
 
-## and if we want to look at a single, non-categorical variable?
+
+#########################################################################33
+
+## and if we want to look at a single, non-categorical (continuous) variable?
+## let's try looking for ASVs that seem important for predicting 
+## respiration. 
 
 ## this is going to give us the logfoldchange per unit of
 ## of basal respiration as per here: 
 https://www.bioconductor.org/packages/devel/bioc/vignettes/DESeq2/inst/doc/DESeq2.html#how-can-i-include-a-continuous-covariate-in-the-design-formula
 
-#########################################################################33
-
-## let's try looking for ASVs that seem important for predicting 
-## respiration. 
 
 ## I will look for ASVs whose abundances seem to correlated with 
 ## increasing respiration.
 
-## so this is going to give us the logfoldchange per unit of
-## of basal respiration as per here: 
-https://www.bioconductor.org/packages/devel/bioc/vignettes/DESeq2/inst/doc/DESeq2.html#how-can-i-include-a-continuous-covariate-in-the-design-formula
+load("sulariData/sulariPhyloseqObject.rda") ## sulari original "raw" phyloseq output from dada2
+load("sulariData/sularilogMin50ps.rda")  ## sulari's transformed, cutoffs enforeced, etc
+
+ps 
+logMin50ps
 
 ## just like before make a duplicate phyloseq obj to play with
 ## and get rid of controls while we're at it
 psNoControl = prune_samples(!(rownames(sample_data(ps)) %in% c("C1.1","C1.2","C2.1","C2.2")), ps)
+
 ## get rid of NAs in basalResp
 basalRespNotNA <- !is.na(sample_data(psNoControl)$Basal.respiration)
 psNoControl = prune_samples(basalRespNotNA, psNoControl)
@@ -1321,7 +1330,6 @@ posRespASVtop5 <- rownames(posRespASVsorted)[1:5]
 ## normalized, log transformed, and had minimum cutoffs enforced,
 ## in the code above:
 
-load(file="sulariData/sularilogMin50ps.rda")
 logMin50ps
 
 ## to remove the controls:
@@ -1339,11 +1347,14 @@ otu_table(psLogMin50NoControl)[,posRespASVtop5]
 ## how do we incorporate these into our models? 
 
 
+####################################################
+
+## let's make a regression model of respiration 
+
 
 
 
 ##########################################
-
 
 ## to review, the total pipeline from sulari's
 ## dada2 results so far:

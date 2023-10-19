@@ -1413,7 +1413,7 @@ gg = glm(soil.respiration ~ pH + MBC + CNR + Land.type*CNR + mostRespyAsv)
 ## particularly interesting is when we examine the interaction of 
 ## our two strong predictors, microbial biomass and Land.type
 
-interactLTmbc = glm(soil.respiration ~ pH + MBC + CNR + Land.type*MBC + mostRespyAsv)
+bigModel = glm(soil.respiration ~ pH + MBC + CNR + Land.type*MBC + mostRespyAsv)
 
 ## we lose some degrees of freedom, so our pvalues in our main predictors 
 ## drop a bit, but we see that something interesting is going on within 
@@ -1422,14 +1422,18 @@ interactLTmbc = glm(soil.respiration ~ pH + MBC + CNR + Land.type*MBC + mostResp
 ## to me this implies that forest soils are particularly sensitive to 
 ## microbial biomass as an indicator of resipiration. 
 
-simplifyModel <- step(interactLTmbc)
+simplifyModel <- step(bigModel)
 
 ## if you look at the results with summary(), you see that the model moves
 ## from all terms (top) and stepwise reduces the terms in model until 
 ## it gets to the simplest models at the bottom. In that last model, 
 ## they show that a simplified model with MBC and Land.type and the interaction
-## between these two, as including CNR doesn't seem to change the deviance
-## or AIC much at all.
+## between these two, as removing CNR doesn't seem to change the deviance
+## or AIC much at all, meaning that it's not that useful to the model.
+
+## so the simplest possible model would be
+
+interactLTmbc = glm(soil.respiration ~ Land.type*MBC )
 
 ## from the rsq library, we can get a r-squared. It is somewhat controversial,
 ## as r-squared of generalized models with categorical variables, etc, are a 
@@ -1438,19 +1442,10 @@ simplifyModel <- step(interactLTmbc)
 library(rsq) 
 rsq(aa)## 0.53, pretty strong, lots of variance explained. some warnings, probably due to missing values.
 
-rsq(interactLTmbc)## 0.61, stronger, more variance explained, lots of variance explained. still some warnings, probably due to missing values.
+## and with the interaction effect 
+rsq(bigModel)## 0.617, stronger, more variance explained, lots of variance explained. still some warnings, probably due to missing values.
 
-
-
-
-
-
-
-
-
-
-
-
+rsq(interactLTmbc)## 0.606, just a litter weaker than the full model, but much simpler, which is usually a better model
 
 ##########################################
 

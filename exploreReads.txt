@@ -484,6 +484,7 @@ library(vegan)
 library(DESeq2)
 library(patchwork) ## good for ggplot
 library(BiocGenerics) ## might not need to load in newer versions of deseq2?
+library(rsq)
 
 packageVersion("DESeq2") ## I'm working with deseq2 version 1.34.0
 ## sulari has v1.40.2, try to update to this
@@ -1345,12 +1346,16 @@ print(posRespASVtop5)
 ## look at the most responsive ASV:
 otu_table(psLogMin50NoControl)[,"ASV621"]
 
+
 ## or look at all 5:
 otu_table(psLogMin50NoControl)[,posRespASVtop5]
 
 ## how do we incorporate these into our models? 
+mostRespyAsv <- otu_table(psLogMin50NoControl)[,"ASV621"]
+## use this below as one our predictor variables in a GLM
 
 
+mostRespyAsv
 ####################################################
 
 ## let's make a regression model of respiration 
@@ -1371,13 +1376,80 @@ Plot.ID
 
 otu_table(psLogMin50NoControl)[,"ASV621"]
 
-env_data = sample_data(ps)
 
-aa  <- glm(env_data$soil.respiration ~ env_data$pH + env_data$MBC + env_data$CNR + env_data$Land.type)
+## because phyloseq won't let us export a clean data frame 
+## from their phyloseq object, I'll pull out the variables
+## one-by-one for use with the model.
 
-bb  <- glm(env_data$soil.respiration ~ env_data$pH + env_data$MBC + env_data$CNR)
+env_data = sample_data(psLogMin50NoControl)
+## remove controls
+env_data <- env_data[0:120,]
 
-aa  <- glm(env_data$soil.respiration ~ env_data$pH + env_data$MBC + env_data$CNR + env_data$Land.type)
+soil.respiration <- env_data$soil.respiration
+pH <- env_data$pH
+MBC <- env_data$MBC
+CNR <- env_data$CNR
+Land.type <- env_data$Land.type
+
+## try out some models:
+
+aa = glm(soil.respiration ~ pH + MBC + CNR + Land.type + mostRespyAsv)
+bb = glm(soil.respiration ~ pH + MBC + Land.type)
+cc = glm(soil.respiration ~ pH + MBC + CNR)
+dd = glm(soil.respiration ~ pH + CNR + Land.type)
+ee = glm(soil.respiration ~ pH + CNR )
+
+## any one of these can be examined using the summary command:
+summary(ee)
+
+## if we want to include interatction terms:
+
+## land type and pH
+ff = glm(soil.respiration ~ pH + MBC + CNR + Land.type*pH + mostRespyAsv)
+## land type and CNR
+gg = glm(soil.respiration ~ pH + MBC + CNR + Land.type*CNR + mostRespyAsv)
+## etc
+
+## particularly interesting is when we examine the interaction of 
+## our two strong predictors, microbial biomass and Land.type
+
+interactLTmbc = glm(soil.respiration ~ pH + MBC + CNR + Land.type*MBC + mostRespyAsv)
+
+## we lose some degrees of freedom, so our pvalues in our main predictors 
+## drop a bit, but we see that something interesting is going on within 
+## forests - there is a strong interaction between forest land type and 
+## microbial biomass, taken together they are a strong predictor 
+## to me this implies that forest soils are particularly sensitive to 
+## microbial biomass as an indicator of resipiration. 
+
+simplifyModel <- step(interactLTmbc)
+
+## if you look at the results with summary(), you see that the model moves
+## from all terms (top) and stepwise reduces the terms in model until 
+## it gets to the simplest models at the bottom. In that last model, 
+## they show that a simplified model with MBC and Land.type and the interaction
+## between these two, as including CNR doesn't seem to change the deviance
+## or AIC much at all.
+
+## from the rsq library, we can get a r-squared. It is somewhat controversial,
+## as r-squared of generalized models with categorical variables, etc, are a 
+## little weird, but it is the best available metric I see:
+
+library(rsq) 
+rsq(aa)## 0.53, pretty strong, lots of variance explained. some warnings, probably due to missing values.
+
+rsq(interactLTmbc)## 0.61, stronger, more variance explained, lots of variance explained. still some warnings, probably due to missing values.
+
+
+
+
+
+
+
+
+
+
+
 
 
 ##########################################
@@ -1394,6 +1466,7 @@ library(vegan)
 library(DESeq2)
 library(patchwork) ## good for ggplot
 library(BiocGenerics) ## might not need to load in newer versions of deseq2?
+library(rsq)
 
 load("sulariData/sulariPhyloseqObject.rda")
 ## institute minimum cutoff
@@ -1411,13 +1484,10 @@ logMin50ps <- transform_sample_counts(aa, log)
 #save(logMin50ps, file= "sulariData/sularilogMin50ps.rda")
 
 
-
-
-
-
-
-
+tax_table(ps)[posRespASVtop5]
 
 psOnlyGrass = prune_samples(sample_data(ps)$Land.type == "Grassland", ps)
 
 psLogMin50NoControl = prune_samples(!(rownames(sample_data(logMin50ps)) %in% c("C1.1","C1.2","C2.1","C2.2")), logMin50ps)
+
+

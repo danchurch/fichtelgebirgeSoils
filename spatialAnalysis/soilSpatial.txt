@@ -167,8 +167,6 @@ axes = axes.flatten()
 #lts = [ "Arable Land" ,"Grassland" ,"Forest"]
 lts = [ "Grassland" ,"Forest"]
 for nu,lt in enumerate(lts):
-    print(lt)
-    print(nu)
     edf = sulariPlot_utm[sulariPlot_utm['Land.type'] == lt]
     cdf = comData.loc[edf.index]
     aa = pd.DataFrame({'xx':edf.geometry.x, 'yy':edf.geometry.y})
@@ -213,4 +211,9 @@ plt.subplots_adjust(wspace = 0)
 ######################################
 
 ## add in the correlation coefficients and pvalues to grant app graphic. 
+
+###### SAC curves ##########
+
+## we have to stop avoiding gamma diversity calculations...
+
 

@@ -520,10 +520,8 @@ download.file(
     method="wget") ## remove this last argument if using windows
 
 env_data = read.csv('sulariData/Envt_Matrix.csv', row.names=1)
-
 ## add this dataframe to our phyloseq object as sample_data 
 sample_data(ps) <- env_data
-
 ## and our transformed, min-cutoff, etc ps created below:
 sample_data(logMin50ps) <- env_data
 
@@ -663,7 +661,20 @@ plot_bar(ps10, "Land.type",  facet_grid = ~Genus)
 
 ## I tend to use base-R plotter, I find it simpler to use:
 
-barplot(sample_sums(ps))
+summary(sample_sums(ps))
+
+quantile(sample_sums(ps))
+
+quantile(sample_sums(ps), probs=c(.50,.60,.70,.80,.90,1))
+
+quantile(sample_sums(ps), probs=c(0.05,.1,.2,.3,.4,.50,.60,.70,.80,.90,0.95,1))
+
+summary(sample_sums(ps), quantile.type=90)
+
+png(file='sulariReadDepths.png')
+barplot(sample_sums(ps), main="Read depth by sample")
+dev.off()
+
 
 barplot(sort(sample_sums(ps), decreasing=TRUE))
 

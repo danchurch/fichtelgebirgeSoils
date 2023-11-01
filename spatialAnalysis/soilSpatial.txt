@@ -15,6 +15,7 @@ from sklearn.linear_model import LinearRegression
 import numpy as np
 from scipy import stats
 from matplotlib.patches import Patch
+from matplotlib_scalebar.scalebar import ScaleBar
 
 
 os.chdir("/home/daniel/Documents/projects/fichtelgebirge_project/"
@@ -29,10 +30,10 @@ envData = pd.read_csv("/home/daniel/Documents/projects/fichtelgebirge_project/"
 
 ## we need to clean up the plot.ID. Sulari recorded season in the plot IDs,
 ## using letter codes. Also she has one double sampling, with an underscore
+
 envData['Plot.ID'] = envData['Plot.ID'].str.slice(0,5)
 ## drop controls
 envData.drop([ "C1.1", "C1.2", "C2.1", "C2.2"], inplace=True)
-
 envData['Plot.ID'].to_list()
 
 ## her otu table is really large:
@@ -44,7 +45,6 @@ envData['Plot.ID'].to_list()
 ##### R ###
 
 comData = pd.read_csv("comdat.csv", index_col=0)
-
 comData.drop([ "C1.1", "C1.2", "C2.1", "C2.2"], inplace=True)
 
 ## the map below looks funny...looks like every forest plot has 
@@ -57,11 +57,11 @@ envData.iloc[0:5,0:8]
 
 ## nope...looks okay
 
-
 ## we want a geodf...
 
 plotPoints = gpd.points_from_xy( envData.Longitude, envData.Latitude, crs="EPSG:4326" )
-sulariPlotsDF = gpd.GeoDataFrame(envData[[ 'Plot.ID', 'Basal.respiration', 
+
+sulariPlotsDF = gpd.GeoDataFrame(envData[[ 'Plot.ID', 'soil.respiration', 
                     'MBC', 'season', 'Land.type', 'pH', 'N', 'C']], geometry=plotPoints)
 
 ## to convert to UTM? looks like we are in zone 33
@@ -70,26 +70,33 @@ sulariPlotsDF = gpd.GeoDataFrame(envData[[ 'Plot.ID', 'Basal.respiration',
 
 sulariPlot_utm = sulariPlotsDF.to_crs('EPSG:32633')
 
-sulariPlotsDF.tail()
 sulariPlot_utm.tail()
 
 ## can we import our georeferenced tif of the study area?
-fichtelMap = rasterio.open("studyAreaClipped_modified.tif")
+## lat/lon
+#fichtelMap = rasterio.open("studyAreaClipped_modified.tif")
+## UTM
+
+fichtelMap = rasterio.open("studyAreaClipped_UTM.tif")
+
 ## color code our points according to land type?
 cdik={
-"Arable Land":"b",
+"Arableland":"b",
 "Grassland":"y",
 "Forest":"g",
 }
 sulariPlotsDF['landColors'] = [ cdik[i] for i in sulariPlotsDF['Land.type'] ]
+sulariPlot_utm['landColors'] = [ cdik[i] for i in sulariPlotsDF['Land.type'] ]
+
 fig, ax = plt.subplots()
 rasterio.plot.show(fichtelMap, ax=ax)
-sulariPlotsDF.plot(
+sulariPlot_utm.plot(
     marker="o",
     ax=ax,
     edgecolor='k',
     facecolor=sulariPlotsDF['landColors'],
     markersize=400) 
+
 
 grassPatch = Patch(color='y', label='grassland',)
 forestPatch = Patch(color='g', label='forest')
@@ -101,28 +108,29 @@ ax.legend(handles=[grassPatch, forestPatch, farmPatch],
 
 ## if we want to compare just grassland and forest
 
-onlyGrassForest = sulariPlotsDF[sulariPlotsDF['Land.type'].apply(lambda x: x in ["Forest", "Grassland"])]
+plt.close('all')
+onlyGrassForest = sulariPlot_utm[sulariPlot_utm['Land.type'].apply(lambda x: x in ["Forest", "Grassland"])]
 fig, ax = plt.subplots()
 rasterio.plot.show(fichtelMap, ax=ax)
 onlyGrassForest.plot(
     marker="o",
     ax=ax,
     edgecolor='k',
-    linewidths=3,
+    linewidths=2,
     facecolor=onlyGrassForest['landColors'],
-    markersize=400) 
+    markersize=300) 
 
-#from matplotlib_scalebar.scalebar import ScaleBar
-#ax.add_artist(ScaleBar(1)) ## nope. We need to reproject the raster
-## do this some other time. 
-
+ax.ticklabel_format(style='plain', axis='y', useOffset=False)
 grassPatch = Patch(color='y', label='grassland',)
 forestPatch = Patch(color='g', label='forest')
-ax.legend(handles=[grassPatch, forestPatch])
+ax.legend(handles=[grassPatch, forestPatch], loc='lower left')
+ax.add_artist(ScaleBar(1, location='lower right')) 
+ax.set_xlim([265500, 286930])
+ax.set_ylim([5547227, 5570000])
 
 ## Look at the turnover data:
-## might be better to convert to UTMs? Monday...
 
+## lat/long
 aa = pd.DataFrame({'xx':envData.Longitude, 'yy':envData.Latitude})
 physDist = sp.distance.pdist(aa, metric='euclidean')
 bcDist = sp.distance.pdist(comData, metric='brayCurtis')
@@ -132,8 +140,7 @@ X, Y = physDist.reshape(-1,1), bcDist.reshape(-1,1)
 ax.plot( X, LinearRegression().fit(X, Y).predict(X), c='k')
 ax.set_title(label="Turnover with Lat/Lon", loc='center')
 
-## how do we get our our points out of the geometry: 
-
+## utms
 aa = pd.DataFrame({'xx':sulariPlot_utm.geometry.x, 'yy':sulariPlot_utm.geometry.y})
 physDist = sp.distance.pdist(aa, metric='euclidean')
 bcDist = sp.distance.pdist(comData, metric='brayCurtis')
@@ -162,6 +169,8 @@ for lt in [ "Arable Land" ,"Grassland" ,"Forest"]:
 ## good stuff.
 
 plt.close('all')
+plt.rc('ytick', labelsize=15)
+plt.rc('xtick', labelsize=15)
 fig, axes = plt.subplots(nrows=1, ncols=2, sharey=True)
 axes = axes.flatten()
 #lts = [ "Arable Land" ,"Grassland" ,"Forest"]
@@ -177,14 +186,20 @@ for nu,lt in enumerate(lts):
     linMod =  LinearRegression().fit(X, Y)
     axes[nu].plot( X, linMod.predict(X), c='k')
     axes[nu].set_title(label=lt, size=20, loc='center')
-    axes[nu].set_xlabel('meters')
+    axes[nu].set_xlabel('meters', size=20)
+
 
 fig.suptitle("Turnover in prokaryotic community", size=40)
-axes[0].set_ylabel('Bray-Curtis dissimilarity')
+axes[0].set_ylabel('Bray-Curtis dissimilarity', size=20)
 axes[1].tick_params(left=False, labelleft=False, right=True, labelright=True, color='red', axis='y')
 plt.subplots_adjust(wspace = 0)
 
+
+
 ###################################
+##
+## outputs from stats.regress:
+##
 ## Arable Land
 ## slope=2.810886008879358e-06
 ## intercept=0.5742255266887248

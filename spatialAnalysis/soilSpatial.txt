@@ -118,8 +118,7 @@ onlyGrassForest.plot(
     edgecolor='k',
     linewidths=2,
     facecolor=onlyGrassForest['landColors'],
-    markersize=300) 
-
+    markersize=200) 
 ax.ticklabel_format(style='plain', axis='y', useOffset=False)
 grassPatch = Patch(color='y', label='grassland',)
 forestPatch = Patch(color='g', label='forest')
@@ -127,6 +126,7 @@ ax.legend(handles=[grassPatch, forestPatch], loc='lower left')
 ax.add_artist(ScaleBar(1, location='lower right')) 
 ax.set_xlim([265500, 286930])
 ax.set_ylim([5547227, 5570000])
+plt.savefig('forestVsGrasslandMapUTM.png', dpi=600, format='png')
 
 ## Look at the turnover data:
 

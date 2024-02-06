@@ -1,0 +1,318 @@
+## time to get real with the soil samples.
+
+## let's start by uploading reads to SRA.
+
+## have them stored on the nanopore computer at:
+
+cd /media/vol1/daniel/sulariArne/illuminaReads/goodReads
+
+## to start, let's try good old fashioned FTP
+
+## following: https://submit.ncbi.nlm.nih.gov/subs/sra/#files_upload_ftp
+
+ftp ftp-private.ncbi.nlm.nih.gov
+
+## or 
+
+open ftp-private.ncbi.nlm.nih.gov
+
+## although this changes regularly, on 26.1.24,
+## the password info was:
+## Username: subftp
+
+subftp
+
+## Password: HiomCukJophtEet3
+
+HiomCukJophtEet3
+
+cd uploads/danchurchthomas_gmail.com_Esoux2k8
+
+#mkdir fichtelGebirgeSoils
+cd fichtelGebirgeSoils
+
+cd uploads/danchurchthomas_gmail.com_Esoux2k8/fichtelGebirgeSoils
+
+lcd /media/vol1/daniel/sulariArne/illuminaReads/goodReads
+
+prompt
+mput *
+
+
+ls 
+
+## metadata...we have 390 samples...
+
+## forward and reverse reads are coupled as 1/2. We need 
+## to combine Arne and Sulari data I think...
+
+## this may be best done with pandas
+python3
+
+import pandas as pd
+import numpy as np
+import os
+## arne's data is here:
+arneEnv = pd.read_csv("/home/daniel/Documents/projects/fichtelgebirge_project/sulariArneSoils/fichtelgebirgeSoils/arneData/envmat_arne.csv", index_col=0)
+arneEnv.set_index('plotID', inplace=True)
+## 
+## sulari's data is here
+sulEnv = pd.read_csv("/home/daniel/Documents/projects/fichtelgebirge_project/sulariArneSoils/fichtelgebirgeSoils/sulariData/Envt_Matrix.csv", index_col=0)
+## sampleNames/filename map:
+sampleNames = pd.read_csv('/home/daniel/Documents/projects/fichtelgebirge_project/sulariArneSoils/readReport/sampleName_clientId.txt', sep="\t")
+## this cleaned up lat/lon info might be useful:
+latlonAll = pd.read_csv("/home/daniel/Documents/projects/fichtelgebirge_project/sulariArneSoils/fichtelgebirgeSoils/carb4D_cleaned.csv")
+## and the best file for date-of-collection is from the google sheet "Auger_weight"
+## https://docs.google.com/spreadsheets/d/1e66VrRBtOk_ctDYhqQ9Xlpx2X7zDCcYb_c2Sc30d4L0/edit?usp=sharing
+## locally here:
+dates = pd.read_csv("/home/daniel/Documents/projects/fichtelgebirge_project/sulariArneSoils/sraSubmission/Carbon4D_DB-Auger_weight.csv")[['plotID','date','depth']]
+dates.date = pd.to_datetime(dates.date, dayfirst=True)
+
+## this should serve as a good start for our metadata
+## start by getting a lat column and a long column:
+
+lat = []
+for i in sampleNames['clientId']: 
+  try:
+    lat.append(sulEnv.loc[i]['Latitude'])
+  except KeyError:
+    try:
+      lat.append(arneEnv.loc[i]['lat'])
+    except KeyError:
+      lat.append(i)
+
+lon = []
+for i in sampleNames['clientId']: 
+  try:
+    lon.append(sulEnv.loc[i]['Longitude'])
+  except KeyError:
+    try:
+      lon.append(arneEnv.loc[i]['lon'])
+    except KeyError:
+      lon.append(i)
+
+## descriptions of the columns here:
+https://submit.ncbi.nlm.nih.gov/biosample/template/?package-0=Metagenome.environmental.1.0&action=definition
+
+## start making a data frame 
+aa = pd.DataFrame({'lat':lat,'lon':lon})
+aa['sampleName'] = sampleNames['clientId'] 
+aa['filePrefix'] = sampleNames['#sampleName']
+aa['ControlEco'] = "ecological" ## except
+pattern=r"C[1-2]\.[1-2]"
+aa.loc[aa['sampleName'].str.contains(pattern),'ControlEco'] = "control"
+## as per NCBI documentation: https://www.ncbi.nlm.nih.gov/biosample/docs/organism/#metagenomes
+aa['organism'] = "soil metagenome"
+## except controls:
+aa.loc[aa["ControlEco"] == "control", "organism"] = "synthetic metagenome"
+## fix the missing lat/lons:
+latlonAll.loc[latlonAll.plotID.str.contains('113')] ## 50.097088  11.928197
+latlonAll.loc[latlonAll.plotID.str.contains('161')] ## 50.119883  11.952959
+aa.loc[aa['sampleName'].str.contains('113-'),['lat', 'lon']] = 50.097088,11.928197
+aa.loc[aa['sampleName']=='161-1', ["lat","lon"]] =  50.11988,11.95296
+## we can fill in the controls with the BayCEER lat lon
+aa.loc[aa['ControlEco']=='control', ["lat","lon"]] =  49.960110,11.594677
+## to make a column that fits the formatting for NCBI SRA, 
+## we need four sig digits:
+aa["lat_lon"] = (aa["lat"].astype(float).round(4).astype('str') + " N " 
+                 + aa["lon"].astype(float).round(4).astype('str') + " E ")
+
+## get land use:
+landUse = []
+for i in sampleNames['clientId']: 
+  try:
+    landUse.append(sulEnv.loc[i,'Land.type'])
+  except KeyError:
+    try:
+      landUse.append(arneEnv.loc[i,'land.use'])
+    except KeyError:
+      landUse.append(i)
+
+aa["landUse"] = landUse
+## fill in some of the missing info, as per Arne pers. com.
+aa.loc[aa['sampleName'].str.contains(r"113-"),"landUse"] = 1
+aa.loc[aa['sampleName'] == "161-1", "landUse"] = 2
+## arne's codes and sularis need to match up  
+## this column will probably become "isolation source" in the final form
+aa.loc[aa['landUse'] == 1, 'landUse'] = "Arable land"
+aa.loc[aa['landUse'] == 2, 'landUse'] = "Grassland"
+aa.loc[aa['landUse'] == 3, 'landUse'] = "Forest"
+aa.loc[aa['ControlEco'] == "control", 'landUse'] = "control"
+## fill in as many of the other columns as we can:
+## geographic location
+aa["geo_loc_name"] = "Germany: Fichtelgebirge region"
+aa.loc[aa["ControlEco"] == "control","geo_loc_name"] = "Germany: University of Bayreuth"
+## oxygen. Most were aerobic, start with that:
+aa["rel_to_oxygen"] = "aerobe"
+aa.loc[aa["ControlEco"] == "control","rel_to_oxygen"] = "not applicable"
+## it would also be useful to denote who processed the sample
+aa['owner'] = 'Arne'
+aa.loc[aa['sampleName'].str.contains('S'), 'owner'] = 'Sulari'
+aa.loc[aa['sampleName'].str.contains('C'), 'owner'] = 'control'
+## we need to get information about which samples
+## were actually saturated with water
+aa["samp_collect_device"] = "soil corer"
+aa.loc[aa["ControlEco"] == "control","samp_collect_device"] = "not applicable"
+aa["samp_mat_process"] = "sieved 2mm, frozen, DNA extraction"
+aa.loc[aa["ControlEco"] == "control","samp_mat_process"] = "combined equimolar DNA samples"
+aa["samp_size"] = "250 mg Soil" ## but I think Arne had to use more:
+aa.loc[aa['owner'] == "Arne", "samp_size"] = "500 mg Soil"
+## change the controls to NG dna??:
+aa.loc[aa["sampleName"].str.contains("C1\."),"samp_size"] = "300 ng DNA"
+aa.loc[aa["sampleName"].str.contains("C2\."),"samp_size"] = "235 ng DNA"
+## it is useful to get a standardized plotID 
+aa['plotID'] = pd.Series(dtype="string")
+aa.loc[aa['owner'] == "Arne", 'plotID'] = "P0" + aa.loc[aa['owner'] == "Arne", 'sampleName'].str[0:3]
+sulPlotNames=[]
+for i in aa.loc[aa['owner'] == "Sulari", 'sampleName']: 
+  sulPlotNames.append(sulEnv.loc[i, "Plot.ID"][0:5])
+
+aa.loc[aa['owner'] == "Sulari", 'plotID'] = sulPlotNames
+aa.loc[aa['owner'] == "control", 'plotID'] = "control"
+## what other information do we need? 
+## depth
+## all of sularis are depth 0:
+aa['depth'] = pd.Series(dtype='string')
+aa.loc[aa['owner'] == "Sulari", "depth"] = "0"
+## Arnes are more complex:
+arnDepth = aa.loc[aa['owner'] == "Arne", "sampleName"].str.split(pat="-", expand=True).astype('int')[1]*10
+aa.loc[aa['owner'] == "Arne", "depth"] = arnDepth.astype('str')
+aa.loc[aa['owner'] == "control", "depth"] = "control"
+## in host I guess would be soil? let's see if we can sneak in the land use information here:
+aa['host'] = "soil core from " + aa['landUse']
+aa.loc[aa["ControlEco"] == "control", 'host'] = "control"
+## let's include the depth information on the isolation source
+aa["isolation_source"] = "soil depth " + aa['depth'] + " cm"
+## we have to differentiate the controls somewhere from each other, do it here:
+aa.loc[aa["sampleName"] == "C1.1", "isolation_source"] = "singles species control, repetition 1"
+aa.loc[aa["sampleName"] == "C1.2", "isolation_source"] = "singles species control, repetition 2"
+aa.loc[aa["sampleName"] == "C2.1", "isolation_source"] = "mock community control, repetition 1"
+aa.loc[aa["sampleName"] == "C2.2", "isolation_source"] = "mock community control, repetition 2"
+## date collected...hmm...tricky...
+## sulari's are in there: 
+suSamp = aa.loc[aa['owner'] == "Sulari","sampleName"]
+sulDate = pd.to_datetime(sulEnv.loc[suSamp,'Date'])
+## arnes? Sulari says these are all in spring 2022:
+## are Arne's samples from non repeated soil cores?
+arneplots = aa.loc[aa['owner'] == "Arne","plotID"].unique()
+for i in arneplots:
+  bb = dates.loc[dates.plotID == i,"date"].unique() ## sampled three times. 
+  if len(bb) > 1 :
+    print(i)
+    print(bb)
+
+## arne says he only work on plots taken between 
+## beginning of march and end of may
+## this gives us the following dates:
+arneMultiDates = {
+                   'P0103' : '2022-05-05',
+                   'P0104' : '2022-04-25',
+                   'P0105' : '2022-05-12',
+                   'P0156' : '2022-04-26',
+                   'P0203' : '2022-05-04',
+                   'P0204' : '2022-04-28',
+                   'P0205' : '2022-05-10'
+}
+## the rest should have a single date associated:
+arneplots = pd.Series(aa.loc[aa['owner'] == "Arne","plotID"].unique())
+def getFirstDay(x):
+  return(dates.loc[dates.plotID == x,"date"].iloc[0])
+
+arneDates = arneplots.apply(getFirstDay)
+arneDates.index=arneplots
+for i in arneMultiDates.keys():
+  arneDates.loc[i] = arneMultiDates[i]
+
+arneDates = pd.to_datetime(arneDates)
+allArneDates = aa.loc[aa['owner'] == 'Arne','plotID'].apply(lambda x: arneDates[x])
+allArneDates.index = aa.loc[aa['owner'] == 'Arne','sampleName']
+## controls were created ~ the day of shipping to sequencer, I think:
+controlDates = pd.Series({
+     "C1.1": "2023-07-30",
+     "C1.2": "2023-07-30",
+     "C2.1": "2023-07-30",
+     "C2.2": "2023-07-30"
+})
+controlDates = pd.to_datetime(controlDates)
+sulArnConDates = pd.concat([allArneDates, 
+                            sulDate, 
+                            controlDates
+                           ])
+(sulArnConDates.index == aa.sampleName).all() ## okay, looks good
+aa.set_index('sampleName', drop=True, inplace=True)
+aa["date"] = sulArnConDates
+aa.reset_index(drop=False, inplace=True)
+aa.drop(columns=['lat','lon'], inplace=True)
+## we want our headers to match the template exactly:
+aa.rename(columns={"sampleName":"sample_name", "date":"collection_date"}, inplace=True)
+
+## at this point, this spreadsheet is a lot of things at once
+## not sure exactly they want on this form.
+## I assumed they wanted filenames but don't 
+## see the column for it. 
+
+## let's make a new df just to match their requirements more exactly
+
+bb = aa.copy()
+## add following column not yet filled:
+bb[["sample_title","bioproject_accession","ref_biomaterial",
+                 "samp_collect_device","source_material_id",
+                 "description","sample_title"]] = ""
+## get rid of non-suggested columns
+bb.drop(columns=[ 'filePrefix', 'ControlEco', 'landUse', 'owner', 'plotID'], inplace=True)
+## match order of the suggested columns
+bb = bb[["sample_name","sample_title","bioproject_accession","organism","host","isolation_source","collection_date","geo_loc_name","lat_lon","ref_biomaterial","rel_to_oxygen","samp_collect_device","samp_mat_process","samp_size","source_material_id","description"]]
+
+bb.to_csv('carbon4dMicrobialSamples.tsv',index=False, sep="\t")
+
+#######
+
+## now we need to fill out an SRA metadata sheet. ugh
+
+cc = aa.copy()
+cc.rename(columns={'filePrefix':'library_ID'}, inplace=True)
+cc['title'] = "16S metabarcoding of soil in " + cc['landUse'] + " at depth of " + cc['depth'] + " cm"
+cc['library_strategy'] = "AMPLICON" 
+cc['library_source'] = "METAGENOMIC" 
+cc['library_selection'] = "PCR" 
+cc['library_layout'] = "paired" 
+cc['platform'] = "ILLUMINA" 
+cc['instrument_model'] = "Illumina NovaSeq 6000" 
+cc['design_description'] = "DNA extracted from soil using column extraction kits, DNA concentrations diluted to 2ng before PCR, amplified with 16S 515F-Y/806R primers, PCR product diluted to 3 ng for sequencing."
+cc['filetype'] = "fastq"
+cc['filename'] = cc['library_ID'] + "_good_1" + ".fq.gz"
+cc['filename2'] = cc['library_ID'] + "_good_2" + ".fq.gz"
+cc[["filename3","filename4","assembly","fasta_file"]] = ""
+## so to make file names that match ours:
+## do all of these exist?
+os.chdir("/home/daniel/Documents/projects/fichtelgebirge_project/sulariArneSoils/reads")
+cc['filename'].apply(os.path.isfile).all() ## looks good. 
+cc['filename2'].apply(os.path.isfile).all() ## looks good. 
+os.chdir("/home/daniel/Documents/projects/fichtelgebirge_project/sulariArneSoils/sraSubmission")
+## drop the custom columns we made:
+cc.drop(columns=[
+            'ControlEco',
+            'organism',
+            'lat_lon',
+            'landUse',
+            'geo_loc_name',
+            'rel_to_oxygen',
+            'owner',
+            'samp_collect_device',
+            'samp_mat_process',
+            'samp_size',
+            'plotID',
+            'depth',
+            'host',
+            'isolation_source',
+            'collection_date'], inplace=True)
+## make sure order is right:
+cc = cc[["sample_name","library_ID","title","library_strategy","library_source","library_selection","library_layout","platform","instrument_model","design_description","filetype","filename","filename2","filename3","filename4","assembly","fasta_file"]]
+
+cc.to_csv('carbon4dMetadata.tsv',index=False, sep="\t")
+
+
+## do all of these exist?
+
+
+

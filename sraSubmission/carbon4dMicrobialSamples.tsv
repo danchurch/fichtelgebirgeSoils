@@ -1,0 +1,196 @@
+sample_name	sample_title	bioproject_accession	organism	host	isolation_source	collection_date	geo_loc_name	lat_lon	ref_biomaterial	rel_to_oxygen	samp_collect_device	samp_mat_process	samp_size	source_material_id	description
+103-1			soil metagenome	soil core from Arable land	soil depth 10 cm	2022-05-05	Germany: Fichtelgebirge region	50.0985 N 11.797 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+103-2			soil metagenome	soil core from Arable land	soil depth 20 cm	2022-05-05	Germany: Fichtelgebirge region	50.0985 N 11.797 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+103-3			soil metagenome	soil core from Arable land	soil depth 30 cm	2022-05-05	Germany: Fichtelgebirge region	50.0985 N 11.797 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+103-4			soil metagenome	soil core from Arable land	soil depth 40 cm	2022-05-05	Germany: Fichtelgebirge region	50.0985 N 11.797 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+104-1			soil metagenome	soil core from Arable land	soil depth 10 cm	2022-04-25	Germany: Fichtelgebirge region	50.1051 N 11.9225 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+104-2			soil metagenome	soil core from Arable land	soil depth 20 cm	2022-04-25	Germany: Fichtelgebirge region	50.1051 N 11.9225 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+104-3			soil metagenome	soil core from Arable land	soil depth 30 cm	2022-04-25	Germany: Fichtelgebirge region	50.1051 N 11.9225 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+104-4			soil metagenome	soil core from Arable land	soil depth 40 cm	2022-04-25	Germany: Fichtelgebirge region	50.1051 N 11.9225 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+105-1			soil metagenome	soil core from Arable land	soil depth 10 cm	2022-05-12	Germany: Fichtelgebirge region	50.1763 N 11.8401 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+105-2			soil metagenome	soil core from Arable land	soil depth 20 cm	2022-05-12	Germany: Fichtelgebirge region	50.1763 N 11.8401 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+105-3			soil metagenome	soil core from Arable land	soil depth 30 cm	2022-05-12	Germany: Fichtelgebirge region	50.1763 N 11.8401 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+105-4			soil metagenome	soil core from Arable land	soil depth 40 cm	2022-05-12	Germany: Fichtelgebirge region	50.1763 N 11.8401 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+110-1			soil metagenome	soil core from Arable land	soil depth 10 cm	2022-03-18	Germany: Fichtelgebirge region	50.161 N 11.7684 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+110-2			soil metagenome	soil core from Arable land	soil depth 20 cm	2022-03-18	Germany: Fichtelgebirge region	50.161 N 11.7684 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+110-3			soil metagenome	soil core from Arable land	soil depth 30 cm	2022-03-18	Germany: Fichtelgebirge region	50.161 N 11.7684 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+110-4			soil metagenome	soil core from Arable land	soil depth 40 cm	2022-03-18	Germany: Fichtelgebirge region	50.161 N 11.7684 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+113-1			soil metagenome	soil core from Arable land	soil depth 10 cm	2022-04-08	Germany: Fichtelgebirge region	50.0971 N 11.9282 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+113-2			soil metagenome	soil core from Arable land	soil depth 20 cm	2022-04-08	Germany: Fichtelgebirge region	50.0971 N 11.9282 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+113-3			soil metagenome	soil core from Arable land	soil depth 30 cm	2022-04-08	Germany: Fichtelgebirge region	50.0971 N 11.9282 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+113-4			soil metagenome	soil core from Arable land	soil depth 40 cm	2022-04-08	Germany: Fichtelgebirge region	50.0971 N 11.9282 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+114-1			soil metagenome	soil core from Arable land	soil depth 10 cm	2022-05-19	Germany: Fichtelgebirge region	50.2141 N 11.7738 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+114-2			soil metagenome	soil core from Arable land	soil depth 20 cm	2022-05-19	Germany: Fichtelgebirge region	50.2141 N 11.7738 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+114-3			soil metagenome	soil core from Arable land	soil depth 30 cm	2022-05-19	Germany: Fichtelgebirge region	50.2141 N 11.7738 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+114-4			soil metagenome	soil core from Arable land	soil depth 40 cm	2022-05-19	Germany: Fichtelgebirge region	50.2141 N 11.7738 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+156-1			soil metagenome	soil core from Grassland	soil depth 10 cm	2022-04-26	Germany: Fichtelgebirge region	50.0737 N 11.9542 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+156-2			soil metagenome	soil core from Grassland	soil depth 20 cm	2022-04-26	Germany: Fichtelgebirge region	50.0737 N 11.9542 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+156-3			soil metagenome	soil core from Grassland	soil depth 30 cm	2022-04-26	Germany: Fichtelgebirge region	50.0737 N 11.9542 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+156-4			soil metagenome	soil core from Grassland	soil depth 40 cm	2022-04-26	Germany: Fichtelgebirge region	50.0737 N 11.9542 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+157-1			soil metagenome	soil core from Grassland	soil depth 10 cm	2022-03-07	Germany: Fichtelgebirge region	50.0938 N 11.8002 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+157-2			soil metagenome	soil core from Grassland	soil depth 20 cm	2022-03-07	Germany: Fichtelgebirge region	50.0938 N 11.8002 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+157-3			soil metagenome	soil core from Grassland	soil depth 30 cm	2022-03-07	Germany: Fichtelgebirge region	50.0938 N 11.8002 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+157-4			soil metagenome	soil core from Grassland	soil depth 40 cm	2022-03-07	Germany: Fichtelgebirge region	50.0938 N 11.8002 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+158-1			soil metagenome	soil core from Grassland	soil depth 10 cm	2022-03-14	Germany: Fichtelgebirge region	50.2088 N 11.9266 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+158-2			soil metagenome	soil core from Grassland	soil depth 20 cm	2022-03-14	Germany: Fichtelgebirge region	50.2088 N 11.9266 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+158-3			soil metagenome	soil core from Grassland	soil depth 30 cm	2022-03-14	Germany: Fichtelgebirge region	50.2088 N 11.9266 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+158-4			soil metagenome	soil core from Grassland	soil depth 40 cm	2022-03-14	Germany: Fichtelgebirge region	50.2088 N 11.9266 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+159-1			soil metagenome	soil core from Grassland	soil depth 10 cm	2022-03-21	Germany: Fichtelgebirge region	50.2204 N 11.8386 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+159-2			soil metagenome	soil core from Grassland	soil depth 20 cm	2022-03-21	Germany: Fichtelgebirge region	50.2204 N 11.8386 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+159-3			soil metagenome	soil core from Grassland	soil depth 30 cm	2022-03-21	Germany: Fichtelgebirge region	50.2204 N 11.8386 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+159-4			soil metagenome	soil core from Grassland	soil depth 40 cm	2022-03-21	Germany: Fichtelgebirge region	50.2204 N 11.8386 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+160-1			soil metagenome	soil core from Grassland	soil depth 10 cm	2022-03-25	Germany: Fichtelgebirge region	50.0743 N 11.9666 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+160-2			soil metagenome	soil core from Grassland	soil depth 20 cm	2022-03-25	Germany: Fichtelgebirge region	50.0743 N 11.9666 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+160-3			soil metagenome	soil core from Grassland	soil depth 30 cm	2022-03-25	Germany: Fichtelgebirge region	50.0743 N 11.9666 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+160-4			soil metagenome	soil core from Grassland	soil depth 40 cm	2022-03-25	Germany: Fichtelgebirge region	50.0743 N 11.9666 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+161-1			soil metagenome	soil core from Grassland	soil depth 10 cm	2022-03-28	Germany: Fichtelgebirge region	50.1199 N 11.953 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+161-2			soil metagenome	soil core from Grassland	soil depth 20 cm	2022-03-28	Germany: Fichtelgebirge region	50.1199 N 11.953 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+161-3			soil metagenome	soil core from Grassland	soil depth 30 cm	2022-03-28	Germany: Fichtelgebirge region	50.1199 N 11.953 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+161-4			soil metagenome	soil core from Grassland	soil depth 40 cm	2022-03-28	Germany: Fichtelgebirge region	50.1199 N 11.953 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+203-1			soil metagenome	soil core from Forest	soil depth 10 cm	2022-05-04	Germany: Fichtelgebirge region	50.1366 N 11.8469 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+203-2			soil metagenome	soil core from Forest	soil depth 20 cm	2022-05-04	Germany: Fichtelgebirge region	50.1366 N 11.8469 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+203-3			soil metagenome	soil core from Forest	soil depth 30 cm	2022-05-04	Germany: Fichtelgebirge region	50.1366 N 11.8469 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+204-1			soil metagenome	soil core from Forest	soil depth 10 cm	2022-04-28	Germany: Fichtelgebirge region	50.0556 N 11.9529 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+204-2			soil metagenome	soil core from Forest	soil depth 20 cm	2022-04-28	Germany: Fichtelgebirge region	50.0556 N 11.9529 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+204-3			soil metagenome	soil core from Forest	soil depth 30 cm	2022-04-28	Germany: Fichtelgebirge region	50.0556 N 11.9529 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+204-4			soil metagenome	soil core from Forest	soil depth 40 cm	2022-04-28	Germany: Fichtelgebirge region	50.0556 N 11.9529 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+205-1			soil metagenome	soil core from Forest	soil depth 10 cm	2022-05-10	Germany: Fichtelgebirge region	50.2137 N 11.7545 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+205-2			soil metagenome	soil core from Forest	soil depth 20 cm	2022-05-10	Germany: Fichtelgebirge region	50.2137 N 11.7545 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+205-3			soil metagenome	soil core from Forest	soil depth 30 cm	2022-05-10	Germany: Fichtelgebirge region	50.2137 N 11.7545 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+205-4			soil metagenome	soil core from Forest	soil depth 40 cm	2022-05-10	Germany: Fichtelgebirge region	50.2137 N 11.7545 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+209-1			soil metagenome	soil core from Forest	soil depth 10 cm	2022-03-17	Germany: Fichtelgebirge region	50.2017 N 11.9516 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+209-2			soil metagenome	soil core from Forest	soil depth 20 cm	2022-03-17	Germany: Fichtelgebirge region	50.2017 N 11.9516 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+209-3			soil metagenome	soil core from Forest	soil depth 30 cm	2022-03-17	Germany: Fichtelgebirge region	50.2017 N 11.9516 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+209-4			soil metagenome	soil core from Forest	soil depth 40 cm	2022-03-17	Germany: Fichtelgebirge region	50.2017 N 11.9516 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+213-1			soil metagenome	soil core from Forest	soil depth 10 cm	2022-05-18	Germany: Fichtelgebirge region	50.2201 N 11.8123 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+213-2			soil metagenome	soil core from Forest	soil depth 20 cm	2022-05-18	Germany: Fichtelgebirge region	50.2201 N 11.8123 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+213-3			soil metagenome	soil core from Forest	soil depth 30 cm	2022-05-18	Germany: Fichtelgebirge region	50.2201 N 11.8123 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+213-4			soil metagenome	soil core from Forest	soil depth 40 cm	2022-05-18	Germany: Fichtelgebirge region	50.2201 N 11.8123 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+214-1			soil metagenome	soil core from Forest	soil depth 10 cm	2022-05-25	Germany: Fichtelgebirge region	50.178 N 11.927 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+214-2			soil metagenome	soil core from Forest	soil depth 20 cm	2022-05-25	Germany: Fichtelgebirge region	50.178 N 11.927 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+214-3			soil metagenome	soil core from Forest	soil depth 30 cm	2022-05-25	Germany: Fichtelgebirge region	50.178 N 11.927 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+214-4			soil metagenome	soil core from Forest	soil depth 40 cm	2022-05-25	Germany: Fichtelgebirge region	50.178 N 11.927 E 		aerobe		sieved 2mm, frozen, DNA extraction	500 mg Soil		
+S1			soil metagenome	soil core from Arableland	soil depth 0 cm	2022-04-07	Germany: Fichtelgebirge region	50.1051 N 11.9225 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S2			soil metagenome	soil core from Grassland	soil depth 0 cm	2022-06-07	Germany: Fichtelgebirge region	50.0737 N 11.9542 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S3			soil metagenome	soil core from Forest	soil depth 0 cm	2022-05-07	Germany: Fichtelgebirge region	50.0556 N 11.9529 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S4			soil metagenome	soil core from Arableland	soil depth 0 cm	2022-07-25	Germany: Fichtelgebirge region	50.1763 N 11.8401 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S5			soil metagenome	soil core from Grassland	soil depth 0 cm	2022-07-14	Germany: Fichtelgebirge region	50.1293 N 11.8084 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S6			soil metagenome	soil core from Arableland	soil depth 0 cm	2022-03-08	Germany: Fichtelgebirge region	50.1772 N 11.898 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S7			soil metagenome	soil core from Forest	soil depth 0 cm	2022-02-08	Germany: Fichtelgebirge region	50.2137 N 11.7545 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S8			soil metagenome	soil core from Arableland	soil depth 0 cm	2022-01-06	Germany: Fichtelgebirge region	50.0934 N 11.8537 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S9			soil metagenome	soil core from Arableland	soil depth 0 cm	2022-08-24	Germany: Fichtelgebirge region	50.0799 N 11.9667 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S10			soil metagenome	soil core from Forest	soil depth 0 cm	2022-06-17	Germany: Fichtelgebirge region	50.0931 N 11.8119 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S11			soil metagenome	soil core from Arableland	soil depth 0 cm	2022-07-07	Germany: Fichtelgebirge region	50.0985 N 11.797 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S12			soil metagenome	soil core from Arableland	soil depth 0 cm	2022-07-22	Germany: Fichtelgebirge region	50.2288 N 11.9249 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S13			soil metagenome	soil core from Grassland	soil depth 0 cm	2022-12-08	Germany: Fichtelgebirge region	50.2073 N 11.8857 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S14			soil metagenome	soil core from Grassland	soil depth 0 cm	2022-02-06	Germany: Fichtelgebirge region	50.1269 N 11.9228 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S15			soil metagenome	soil core from Forest	soil depth 0 cm	2022-08-22	Germany: Fichtelgebirge region	50.2147 N 11.9845 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S16			soil metagenome	soil core from Forest	soil depth 0 cm	2022-08-25	Germany: Fichtelgebirge region	50.1491 N 11.8698 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S17			soil metagenome	soil core from Grassland	soil depth 0 cm	2022-07-21	Germany: Fichtelgebirge region	50.1206 N 11.7435 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S18			soil metagenome	soil core from Forest	soil depth 0 cm	2022-03-03	Germany: Fichtelgebirge region	50.0649 N 11.8159 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S19			soil metagenome	soil core from Arableland	soil depth 0 cm	2022-04-03	Germany: Fichtelgebirge region	50.1476 N 11.9427 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S20			soil metagenome	soil core from Arableland	soil depth 0 cm	2022-08-03	Germany: Fichtelgebirge region	50.1208 N 11.7538 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S21			soil metagenome	soil core from Arableland	soil depth 0 cm	2022-08-04	Germany: Fichtelgebirge region	50.0971 N 11.9282 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S22			soil metagenome	soil core from Forest	soil depth 0 cm	2021-12-16	Germany: Fichtelgebirge region	50.0751 N 11.8289 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S23			soil metagenome	soil core from Forest	soil depth 0 cm	2021-06-12	Germany: Fichtelgebirge region	50.1611 N 11.7578 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S24			soil metagenome	soil core from Arableland	soil depth 0 cm	2021-02-12	Germany: Fichtelgebirge region	50.2083 N 11.7471 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S25			soil metagenome	soil core from Forest	soil depth 0 cm	2022-01-13	Germany: Fichtelgebirge region	50.2023 N 11.8525 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S26			soil metagenome	soil core from Arableland	soil depth 0 cm	2022-01-28	Germany: Fichtelgebirge region	50.1763 N 11.8401 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S27			soil metagenome	soil core from Arableland	soil depth 0 cm	2021-09-12	Germany: Fichtelgebirge region	50.1087 N 11.8552 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S28			soil metagenome	soil core from Arableland	soil depth 0 cm	2021-12-17	Germany: Fichtelgebirge region	50.2119 N 11.8877 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S29			soil metagenome	soil core from Arableland	soil depth 0 cm	2022-07-12	Germany: Fichtelgebirge region	50.201 N 11.7882 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S30			soil metagenome	soil core from Forest	soil depth 0 cm	2022-09-28	Germany: Fichtelgebirge region	50.1591 N 11.8727 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S31			soil metagenome	soil core from Forest	soil depth 0 cm	2022-02-12	Germany: Fichtelgebirge region	50.1171 N 11.8341 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S32			soil metagenome	soil core from Grassland	soil depth 0 cm	2022-12-16	Germany: Fichtelgebirge region	50.1319 N 11.7511 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S33			soil metagenome	soil core from Arableland	soil depth 0 cm	2022-12-14	Germany: Fichtelgebirge region	50.1352 N 11.7807 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S34			soil metagenome	soil core from Grassland	soil depth 0 cm	2022-05-24	Germany: Fichtelgebirge region	50.1641 N 11.7446 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S35			soil metagenome	soil core from Forest	soil depth 0 cm	2022-03-24	Germany: Fichtelgebirge region	50.1413 N 11.9175 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S36			soil metagenome	soil core from Grassland	soil depth 0 cm	2022-07-09	Germany: Fichtelgebirge region	50.2148 N 11.7752 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S37			soil metagenome	soil core from Forest	soil depth 0 cm	2022-10-02	Germany: Fichtelgebirge region	50.1213 N 11.9663 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S38			soil metagenome	soil core from Arableland	soil depth 0 cm	2022-09-09	Germany: Fichtelgebirge region	50.1758 N 11.9012 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S39			soil metagenome	soil core from Arableland	soil depth 0 cm	2022-09-21	Germany: Fichtelgebirge region	50.2214 N 11.8272 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S40			soil metagenome	soil core from Forest	soil depth 0 cm	2022-03-02	Germany: Fichtelgebirge region	50.2137 N 11.7545 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S41			soil metagenome	soil core from Grassland	soil depth 0 cm	2022-07-02	Germany: Fichtelgebirge region	50.1293 N 11.8084 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S42			soil metagenome	soil core from Grassland	soil depth 0 cm	2022-09-29	Germany: Fichtelgebirge region	50.075 N 11.9505 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S43			soil metagenome	soil core from Forest	soil depth 0 cm	2022-05-04	Germany: Fichtelgebirge region	50.1493 N 11.9251 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S44			soil metagenome	soil core from Forest	soil depth 0 cm	2022-08-09	Germany: Fichtelgebirge region	50.0783 N 11.9013 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S45			soil metagenome	soil core from Grassland	soil depth 0 cm	2021-12-20	Germany: Fichtelgebirge region	50.087 N 11.8487 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S46			soil metagenome	soil core from Arableland	soil depth 0 cm	2022-11-02	Germany: Fichtelgebirge region	50.1204 N 11.9923 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S47			soil metagenome	soil core from Forest	soil depth 0 cm	2022-01-20	Germany: Fichtelgebirge region	50.1366 N 11.8469 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S48			soil metagenome	soil core from Arableland	soil depth 0 cm	2022-02-21	Germany: Fichtelgebirge region	50.182 N 11.7408 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S49			soil metagenome	soil core from Forest	soil depth 0 cm	2022-01-27	Germany: Fichtelgebirge region	50.0556 N 11.9529 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S50			soil metagenome	soil core from Grassland	soil depth 0 cm	2022-11-18	Germany: Fichtelgebirge region	50.1628 N 11.9569 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S51			soil metagenome	soil core from Forest	soil depth 0 cm	2022-10-19	Germany: Fichtelgebirge region	50.1366 N 11.8469 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S52			soil metagenome	soil core from Forest	soil depth 0 cm	2022-11-17	Germany: Fichtelgebirge region	50.1154 N 11.9546 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S53			soil metagenome	soil core from Arableland	soil depth 0 cm	2022-08-11	Germany: Fichtelgebirge region	50.0985 N 11.797 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S54			soil metagenome	soil core from Arableland	soil depth 0 cm	2022-10-28	Germany: Fichtelgebirge region	50.1051 N 11.9225 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S55			soil metagenome	soil core from Forest	soil depth 0 cm	2022-10-26	Germany: Fichtelgebirge region	50.2137 N 11.7545 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S56			soil metagenome	soil core from Forest	soil depth 0 cm	2022-02-11	Germany: Fichtelgebirge region	50.0556 N 11.9529 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S57			soil metagenome	soil core from Grassland	soil depth 0 cm	2022-10-13	Germany: Fichtelgebirge region	50.1293 N 11.8084 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S58			soil metagenome	soil core from Grassland	soil depth 0 cm	2022-10-20	Germany: Fichtelgebirge region	50.2239 N 11.8233 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S59			soil metagenome	soil core from Grassland	soil depth 0 cm	2022-10-27	Germany: Fichtelgebirge region	50.0737 N 11.9542 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S60			soil metagenome	soil core from Grassland	soil depth 0 cm	2022-06-10	Germany: Fichtelgebirge region	50.1591 N 11.7713 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S61			soil metagenome	soil core from Grassland	soil depth 0 cm	2022-07-11	Germany: Fichtelgebirge region	50.2118 N 11.9254 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S62			soil metagenome	soil core from Arableland	soil depth 0 cm	2022-07-10	Germany: Fichtelgebirge region	50.0958 N 11.7856 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S63			soil metagenome	soil core from Arableland	soil depth 0 cm	2022-09-30	Germany: Fichtelgebirge region	50.167 N 11.7444 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S64			soil metagenome	soil core from Forest	soil depth 0 cm	2022-05-10	Germany: Fichtelgebirge region	50.1617 N 12.0032 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S65			soil metagenome	soil core from Forest	soil depth 0 cm	2022-12-10	Germany: Fichtelgebirge region	50.1046 N 11.8008 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S66			soil metagenome	soil core from Arableland	soil depth 0 cm	2022-11-16	Germany: Fichtelgebirge region	50.1021 N 11.7812 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S67			soil metagenome	soil core from Forest	soil depth 0 cm	2022-11-24	Germany: Fichtelgebirge region	50.2202 N 11.796 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S68			soil metagenome	soil core from Arableland	soil depth 0 cm	2022-11-25	Germany: Fichtelgebirge region	50.0735 N 11.966 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S69			soil metagenome	soil core from Arableland	soil depth 0 cm	2022-11-23	Germany: Fichtelgebirge region	50.1273 N 11.7459 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S70			soil metagenome	soil core from Grassland	soil depth 0 cm	2022-11-15	Germany: Fichtelgebirge region	50.1623 N 11.7573 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S71			soil metagenome	soil core from Forest	soil depth 0 cm	2022-12-15	Germany: Fichtelgebirge region	50.0818 N 11.8713 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S72			soil metagenome	soil core from Arableland	soil depth 0 cm	2022-06-15	Germany: Fichtelgebirge region	50.0823 N 11.9562 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S73			soil metagenome	soil core from Arableland	soil depth 0 cm	2022-07-04	Germany: Fichtelgebirge region	50.1321 N 11.9498 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S74			soil metagenome	soil core from Forest	soil depth 0 cm	2022-06-14	Germany: Fichtelgebirge region	50.0569 N 11.9704 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S75			soil metagenome	soil core from Grassland	soil depth 0 cm	2022-04-08	Germany: Fichtelgebirge region	50.1311 N 11.7608 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S76			soil metagenome	soil core from Grassland	soil depth 0 cm	2022-07-27	Germany: Fichtelgebirge region	50.0967 N 11.7861 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S77			soil metagenome	soil core from Forest	soil depth 0 cm	2022-06-23	Germany: Fichtelgebirge region	50.2279 N 11.8374 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S78			soil metagenome	soil core from Grassland	soil depth 0 cm	2022-06-20	Germany: Fichtelgebirge region	50.1091 N 11.9169 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S79			soil metagenome	soil core from Arableland	soil depth 0 cm	2022-06-21	Germany: Fichtelgebirge region	50.1226 N 11.9283 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S80			soil metagenome	soil core from Forest	soil depth 0 cm	2022-10-08	Germany: Fichtelgebirge region	50.0757 N 11.902 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S81			soil metagenome	soil core from Grassland	soil depth 0 cm	2022-08-18	Germany: Fichtelgebirge region	50.1125 N 11.9247 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S82			soil metagenome	soil core from Arableland	soil depth 0 cm	2022-08-17	Germany: Fichtelgebirge region	50.2055 N 11.9231 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S83			soil metagenome	soil core from Arableland	soil depth 0 cm	2022-10-14	Germany: Fichtelgebirge region	50.1763 N 11.8401 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S84			soil metagenome	soil core from Grassland	soil depth 0 cm	2022-01-12	Germany: Fichtelgebirge region	50.1879 N 11.8639 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S85			soil metagenome	soil core from Arableland	soil depth 0 cm	2022-11-08	Germany: Fichtelgebirge region	50.0752 N 11.9357 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S86			soil metagenome	soil core from Forest	soil depth 0 cm	2022-08-16	Germany: Fichtelgebirge region	50.1693 N 11.9878 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S87			soil metagenome	soil core from Grassland	soil depth 0 cm	2022-04-04	Germany: Fichtelgebirge region	50.1743 N 11.895 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S88			soil metagenome	soil core from Arableland	soil depth 0 cm	2022-01-14	Germany: Fichtelgebirge region	50.0985 N 11.797 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S89			soil metagenome	soil core from Arableland	soil depth 0 cm	2022-11-30	Germany: Fichtelgebirge region	50.2043 N 12.0001 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S90			soil metagenome	soil core from Arableland	soil depth 0 cm	2022-02-18	Germany: Fichtelgebirge region	50.1016 N 11.9062 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S91			soil metagenome	soil core from Grassland	soil depth 0 cm	2021-03-12	Germany: Fichtelgebirge region	50.1 N 11.8443 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S92			soil metagenome	soil core from Grassland	soil depth 0 cm	2021-10-12	Germany: Fichtelgebirge region	50.2085 N 11.8395 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S93			soil metagenome	soil core from Grassland	soil depth 0 cm	2022-01-17	Germany: Fichtelgebirge region	50.2119 N 11.8876 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S94			soil metagenome	soil core from Grassland	soil depth 0 cm	2022-04-02	Germany: Fichtelgebirge region	50.2239 N 11.8233 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S95			soil metagenome	soil core from Grassland	soil depth 0 cm	2022-02-14	Germany: Fichtelgebirge region	50.0737 N 11.9542 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S96			soil metagenome	soil core from Forest	soil depth 0 cm	2022-11-04	Germany: Fichtelgebirge region	50.0963 N 11.7808 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S97			soil metagenome	soil core from Grassland	soil depth 0 cm	2022-11-05	Germany: Fichtelgebirge region	50.2239 N 11.8233 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S98			soil metagenome	soil core from Grassland	soil depth 0 cm	2022-06-16	Germany: Fichtelgebirge region	50.2114 N 11.752 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S99			soil metagenome	soil core from Forest	soil depth 0 cm	2022-07-28	Germany: Fichtelgebirge region	50.1884 N 11.7358 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S100			soil metagenome	soil core from Forest	soil depth 0 cm	2022-07-20	Germany: Fichtelgebirge region	50.1366 N 11.8469 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S101			soil metagenome	soil core from Grassland	soil depth 0 cm	2022-09-13	Germany: Fichtelgebirge region	50.1842 N 11.8553 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S102			soil metagenome	soil core from Forest	soil depth 0 cm	2022-11-30	Germany: Fichtelgebirge region	50.2043 N 12.0001 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S103			soil metagenome	soil core from Arableland	soil depth 0 cm	2022-04-25	Germany: Fichtelgebirge region	50.1051 N 11.9225 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S104			soil metagenome	soil core from Grassland	soil depth 0 cm	2022-04-26	Germany: Fichtelgebirge region	50.0737 N 11.9542 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S105			soil metagenome	soil core from Arableland	soil depth 0 cm	2022-05-05	Germany: Fichtelgebirge region	50.0985 N 11.797 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S106			soil metagenome	soil core from Forest	soil depth 0 cm	2022-10-05	Germany: Fichtelgebirge region	50.2137 N 11.7545 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S107			soil metagenome	soil core from Arableland	soil depth 0 cm	2022-03-18	Germany: Fichtelgebirge region	50.161 N 11.7684 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S108			soil metagenome	soil core from Arableland	soil depth 0 cm	2022-01-04	Germany: Fichtelgebirge region	50.2178 N 11.9644 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S109			soil metagenome	soil core from Arableland	soil depth 0 cm	2022-05-19	Germany: Fichtelgebirge region	50.2141 N 11.7738 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S110			soil metagenome	soil core from Grassland	soil depth 0 cm	2022-07-29	Germany: Fichtelgebirge region	50.2239 N 11.8233 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S111			soil metagenome	soil core from Grassland	soil depth 0 cm	2022-07-03	Germany: Fichtelgebirge region	50.0938 N 11.8002 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S112			soil metagenome	soil core from Grassland	soil depth 0 cm	2022-03-14	Germany: Fichtelgebirge region	50.2088 N 11.9266 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S113			soil metagenome	soil core from Grassland	soil depth 0 cm	2022-03-21	Germany: Fichtelgebirge region	50.2204 N 11.8387 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S114			soil metagenome	soil core from Grassland	soil depth 0 cm	2022-03-25	Germany: Fichtelgebirge region	50.0743 N 11.9666 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S115			soil metagenome	soil core from Grassland	soil depth 0 cm	2022-03-28	Germany: Fichtelgebirge region	50.1199 N 11.953 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S116			soil metagenome	soil core from Forest	soil depth 0 cm	2022-04-05	Germany: Fichtelgebirge region	50.1366 N 11.8469 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S117			soil metagenome	soil core from Forest	soil depth 0 cm	2022-03-17	Germany: Fichtelgebirge region	50.2017 N 11.9516 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S118			soil metagenome	soil core from Arableland	soil depth 0 cm	2022-12-05	Germany: Fichtelgebirge region	50.1763 N 11.8401 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S119			soil metagenome	soil core from Forest	soil depth 0 cm	2022-04-28	Germany: Fichtelgebirge region	50.0556 N 11.9529 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+S120			soil metagenome	soil core from Forest	soil depth 0 cm	2022-05-18	Germany: Fichtelgebirge region	50.2201 N 11.8123 E 		aerobe		sieved 2mm, frozen, DNA extraction	250 mg Soil		
+C1.1			synthetic metagenome	control	singles species control, repetition 1	2023-07-30	Germany: University of Bayreuth	49.9601 N 11.5947 E 		not applicable		combined equimolar DNA samples	300 ng DNA		
+C1.2			synthetic metagenome	control	singles species control, repetition 2	2023-07-30	Germany: University of Bayreuth	49.9601 N 11.5947 E 		not applicable		combined equimolar DNA samples	300 ng DNA		
+C2.1			synthetic metagenome	control	mock community control, repetition 1	2023-07-30	Germany: University of Bayreuth	49.9601 N 11.5947 E 		not applicable		combined equimolar DNA samples	235 ng DNA		
+C2.2			synthetic metagenome	control	mock community control, repetition 2	2023-07-30	Germany: University of Bayreuth	49.9601 N 11.5947 E 		not applicable		combined equimolar DNA samples	235 ng DNA		

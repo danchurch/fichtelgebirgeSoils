@@ -1,10 +1,102 @@
+## git our local copy of the repo in order for office comp.
+## working off the work tower, so need to get git synced up now to
+## avoid confusion.
+
+## we need RSA with SHA-2 signature algorithm
+
+man ssh-keygen
+ssh-keygen -t rsa -f fuj2git
+
+## now, what do we need to get the push functionality...
+
+git clone https://github.com/danchurch/fichtelgebirgeSoils.git
+
+## test
+
+touch thisIsNotReal.txt
+
+## and of course can't push
+
+git config --global user.email "danchurchthomas@gmail.com"
+git config --global user.name "danchurch"
+
+git remote add origin https://github.com/danchurch/fichtelgebirgeSoils.git
+git branch -M main
+git remote set-url origin git@github.com:danchurch/fichtelgebirgeSoils.git
+git push -u origin main
+
+## and we're in business with github
+
+## maybe let's get a conda environment going for this.
+
+wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+
+mkdir -p ~/miniconda3
+wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda3/miniconda.sh
+bash ~/miniconda3/miniconda.sh -b -u -p ~/miniconda3
+rm -rf ~/miniconda3/miniconda.sh
+~/miniconda3/bin/conda init bash
+
+conda config --set auto_activate_base false
+
+## get the mamba solver:
+
+conda update -n base conda
+conda install -n base conda-libmamba-solver
+conda config --set solver libmamba
+
+## get the standard channels
+conda config --add channels defaults
+conda config --add channels bioconda
+conda config --add channels conda-forge
+
+## this new conda env comes with python3.12
+
+## let's see if this works for our spatial analysis
+
+
+conda activate
+conda create -n "spatialDirt" 
+ 
 ## let's think about spatial turnover in Sulari's community data
 
 ## first step would be to get a map. 
 
-## 
+## we want to see where we sample, and visualize respiration 
+## values across the landscape
 
-python3
+conda deactivate
+
+conda remove -n spatialDirt --all
+
+conda create -n "spatialDirt" 
+
+conda activate "spatialDirt" 
+conda config --env --add channels conda-forge
+conda config --env --set channel_priority strict
+
+conda install python=3 geopandas
+
+conda activate spatialDirt 
+
+pip install rasterio
+
+## we also need to be R up to speed...
+## maybe do this outside of conda
+
+conda deactivate
+
+sudo R 
+
+install.packages("BiocManager")
+BiocManager::install("phyloseq")
+
+
+## I think that took care of most of the complex installs
+
+conda activate spatialDirt 
+
+python
 import pandas as pd
 import geopandas as gpd
 import matplotlib.pyplot as plt; plt.ion()
@@ -18,15 +110,18 @@ from matplotlib.patches import Patch
 from matplotlib_scalebar.scalebar import ScaleBar
 
 
-os.chdir("/home/daniel/Documents/projects/fichtelgebirge_project/"
-          "sulariArneSoils/fichtelgebirgeSoils/spatialAnalysis")
+spatDir="/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis"
+## ^different on laptop
+os.chdir(spatDir)
 
 ## we just want a map of points right now:
 
-envData = pd.read_csv("/home/daniel/Documents/projects/fichtelgebirge_project/"
-                      "sulariArneSoils/fichtelgebirgeSoils/"
-                      "sulariData/Envt_Matrix.csv", index_col=0)
-
+## on officeComp
+sulariEnvCSV="/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/Envt_Matrix.csv"
+## on laptop
+#sulariEnvCSV="/home/daniel/Documents/projects/fichtelgebirge_project/sulariArneSoils/fichtelgebirgeSoils/sulariData/Envt_Matrix.csv"
+envData = pd.read_csv(sulariEnvCSV, index_col=0)
+                     
 
 ## we need to clean up the plot.ID. Sulari recorded season in the plot IDs,
 ## using letter codes. Also she has one double sampling, with an underscore
@@ -34,18 +129,25 @@ envData = pd.read_csv("/home/daniel/Documents/projects/fichtelgebirge_project/"
 envData['Plot.ID'] = envData['Plot.ID'].str.slice(0,5)
 ## drop controls
 envData.drop([ "C1.1", "C1.2", "C2.1", "C2.2"], inplace=True)
+
 envData['Plot.ID'].to_list()
 
 ## her otu table is really large:
 ##### R ###
-##load(file="sulariData/sularilogMin50ps.rda")
-##logMin50ps
-##comdat <- as.data.frame(otu_table(logMin50ps))
-##write.csv(comdat, file="spatialAnalysis/comdat.csv")
-##### R ###
 
-comData = pd.read_csv("comdat.csv", index_col=0)
+library('phyloseq')
+load("/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/sularilogMin50ps.rda")
+logMin50ps
+comdat <- as.data.frame(otu_table(logMin50ps))
+write.csv(comdat, file="/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/comdat.csv")
+
+## back in python
+
+comData = pd.read_csv("/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/comdat.csv", index_col=0)
+
 comData.drop([ "C1.1", "C1.2", "C2.1", "C2.2"], inplace=True)
+
+comData.head()
 
 ## the map below looks funny...looks like every forest plot has 
 ## a grassland under it...

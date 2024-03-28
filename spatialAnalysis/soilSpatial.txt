@@ -94,9 +94,32 @@ BiocManager::install("phyloseq")
 
 ## I think that took care of most of the complex installs
 
+## oh wait, let's get the jupyter notebook setup going...
+
+## how do we make sure that the jupyter behaves, stays in the 
+## right python?
+
 conda activate spatialDirt 
 
+pip install notebook 
+
+which jupyter ## looks like that work. Gets easier every year.
+
+## and it looks like it is even keeping the R kernel from 
+## my general environment. 
+
+## to get a bash kernel on there? https://github.com/takluyver/bash_kernel
+
+pip install bash_kernel
+python -m bash_kernel.install
+
+
+## okay, push through the old code. 
+## put it on the jupyter notebook if it works
+
+conda activate spatialDirt 
 python
+
 import pandas as pd
 import geopandas as gpd
 import matplotlib.pyplot as plt; plt.ion()
@@ -121,7 +144,6 @@ sulariEnvCSV="/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/s
 ## on laptop
 #sulariEnvCSV="/home/daniel/Documents/projects/fichtelgebirge_project/sulariArneSoils/fichtelgebirgeSoils/sulariData/Envt_Matrix.csv"
 envData = pd.read_csv(sulariEnvCSV, index_col=0)
-                     
 
 ## we need to clean up the plot.ID. Sulari recorded season in the plot IDs,
 ## using letter codes. Also she has one double sampling, with an underscore
@@ -134,12 +156,12 @@ envData['Plot.ID'].to_list()
 
 ## her otu table is really large:
 ##### R ###
-
 library('phyloseq')
 load("/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/sularilogMin50ps.rda")
 logMin50ps
 comdat <- as.data.frame(otu_table(logMin50ps))
 write.csv(comdat, file="/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/comdat.csv")
+############
 
 ## back in python
 
@@ -252,8 +274,9 @@ X, Y = physDist.reshape(-1,1), bcDist.reshape(-1,1)
 ax.plot( X, LinearRegression().fit(X, Y).predict(X), c='k')
 ax.set_title(label="Turnover with UTM", loc='center')
 
+plt.close('all')
 ## subset by landtype
-for lt in [ "Arable Land" ,"Grassland" ,"Forest"]: 
+for lt in [ "Arableland" ,"Grassland" ,"Forest"]: 
     print(lt)
     edf = envData[envData['Land.type'] == lt]
     cdf = comData.loc[edf.index]
@@ -263,9 +286,11 @@ for lt in [ "Arable Land" ,"Grassland" ,"Forest"]:
     bcDist = sp.distance.pdist(cdf, metric='brayCurtis')
     fig, ax = plt.subplots()
     ax.scatter(physDist, bcDist)
+    ax.set_title(lt)
     ax.set_title(label= (lt + " in degrees"), loc='center')
     X, Y = physDist.reshape(-1,1), bcDist.reshape(-1,1)
     ax.plot( X, LinearRegression().fit(X, Y).predict(X), c='k')
+
 
 ## well that looks pretty much like I hypothesized
 ## good stuff.

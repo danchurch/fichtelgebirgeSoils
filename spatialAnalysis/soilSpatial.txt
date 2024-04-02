@@ -291,17 +291,18 @@ for lt in [ "Arableland" ,"Grassland" ,"Forest"]:
     X, Y = physDist.reshape(-1,1), bcDist.reshape(-1,1)
     ax.plot( X, LinearRegression().fit(X, Y).predict(X), c='k')
 
-
 ## well that looks pretty much like I hypothesized
 ## good stuff.
+
+sulariPlot_utm.head()
 
 plt.close('all')
 plt.rc('ytick', labelsize=15)
 plt.rc('xtick', labelsize=15)
-fig, axes = plt.subplots(nrows=1, ncols=2, sharey=True)
+lts = [ "Arableland" ,"Grassland" ,"Forest"]
+#lts = [ "Grassland" ,"Forest"]
+fig, axes = plt.subplots(nrows=1, ncols=len(lts), sharey=True)
 axes = axes.flatten()
-#lts = [ "Arable Land" ,"Grassland" ,"Forest"]
-lts = [ "Grassland" ,"Forest"]
 for nu,lt in enumerate(lts):
     edf = sulariPlot_utm[sulariPlot_utm['Land.type'] == lt]
     cdf = comData.loc[edf.index]
@@ -314,13 +315,12 @@ for nu,lt in enumerate(lts):
     axes[nu].plot( X, linMod.predict(X), c='k')
     axes[nu].set_title(label=lt, size=20, loc='center')
     axes[nu].set_xlabel('meters', size=20)
-
+    print(lt, stats.linregress(physDist,bcDist))
 
 fig.suptitle("Turnover in prokaryotic community", size=40)
 axes[0].set_ylabel('Bray-Curtis dissimilarity', size=20)
 axes[1].tick_params(left=False, labelleft=False, right=True, labelright=True, color='red', axis='y')
 plt.subplots_adjust(wspace = 0)
-
 
 
 ###################################
@@ -358,4 +358,34 @@ plt.subplots_adjust(wspace = 0)
 
 ## we have to stop avoiding gamma diversity calculations...
 
+## do this in vegan? why not.
 
+R
+library(vegan)
+
+comM <- read.csv('subParcelComm.csv', row.names='PsubP')
+
+data(BCI)
+
+sp1 <- specaccum(BCI)
+sp2 <- specaccum(BCI, "random")
+sp2
+summary(sp2)
+plot(sp1, ci.type="poly", col="blue", lwd=2, ci.lty=0, ci.col="lightblue")
+boxplot(sp2, col="yellow", add=TRUE, pch="+")
+## Fit Lomolino model to the exact accumulation
+mod1 <- fitspecaccum(sp1, "lomolino")
+coef(mod1)
+fitted(mod1)
+plot(sp1)
+ 
+
+aa <- specaccum(comM, method = "exact")
+
+?specaccum
+
+anaSAC <- data.frame(aa$richness, aa$sd)
+colnames(anaSAC) <- c('richness', 'sd')
+anaSpeciesEstimators = specpool(comM)
+print(anaSpeciesEstimators)
+ 

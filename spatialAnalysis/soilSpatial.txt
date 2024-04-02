@@ -119,7 +119,6 @@ python -m bash_kernel.install
 
 conda activate spatialDirt 
 python
-
 import pandas as pd
 import geopandas as gpd
 import matplotlib.pyplot as plt; plt.ion()
@@ -140,19 +139,36 @@ os.chdir(spatDir)
 ## we just want a map of points right now:
 
 ## on officeComp
-sulariEnvCSV="/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/Envt_Matrix.csv"
+#sulariEnvCSV="/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/Envt_Matrix.csv"
 ## on laptop
 #sulariEnvCSV="/home/daniel/Documents/projects/fichtelgebirge_project/sulariArneSoils/fichtelgebirgeSoils/sulariData/Envt_Matrix.csv"
-envData = pd.read_csv(sulariEnvCSV, index_col=0)
 
+envData = pd.read_csv(sulariEnvCSV)
+## get rid of spaces
+envData.rename({"Sample ID":"SampleID"}, axis="columns", inplace=True)
 ## we need to clean up the plot.ID. Sulari recorded season in the plot IDs,
 ## using letter codes. Also she has one double sampling, with an underscore
-
 envData['Plot.ID'] = envData['Plot.ID'].str.slice(0,5)
-## drop controls
-envData.drop([ "C1.1", "C1.2", "C2.1", "C2.2"], inplace=True)
 
-envData['Plot.ID'].to_list()
+## let's get rid of decimals in the names, weird for python work:
+envData.rename({"Plot.ID":"PlotID", 
+       "soil.respiration":"soil_respiration",
+              "Land.type":"Land_type"}, 
+                axis="columns", inplace=True)
+
+envData.head()
+
+## so we don't have to repeat:
+envData.to_csv('/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis/sulariEnv.csv', index=False)
+
+envData.head()
+
+
+envData = pd.read_csv('/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis/sulariEnv.csv', index_col='SampleID')
+ 
+
+## if we need to drop controls
+envData.drop([ "C1.1", "C1.2", "C2.1", "C2.2"], inplace=True)
 
 ## her otu table is really large:
 ##### R ###
@@ -185,8 +201,8 @@ envData.iloc[0:5,0:8]
 
 plotPoints = gpd.points_from_xy( envData.Longitude, envData.Latitude, crs="EPSG:4326" )
 
-sulariPlotsDF = gpd.GeoDataFrame(envData[[ 'Plot.ID', 'soil.respiration', 
-                    'MBC', 'season', 'Land.type', 'pH', 'N', 'C']], geometry=plotPoints)
+sulariPlotsDF = gpd.GeoDataFrame(envData[[ 'PlotID', 'soil_respiration', 
+                    'MBC', 'season', 'Land_type', 'pH', 'N', 'C']], geometry=plotPoints)
 
 ## to convert to UTM? looks like we are in zone 33
 ## looks like:
@@ -209,8 +225,8 @@ cdik={
 "Grassland":"y",
 "Forest":"g",
 }
-sulariPlotsDF['landColors'] = [ cdik[i] for i in sulariPlotsDF['Land.type'] ]
-sulariPlot_utm['landColors'] = [ cdik[i] for i in sulariPlotsDF['Land.type'] ]
+sulariPlotsDF['landColors'] = [ cdik[i] for i in sulariPlotsDF['Land_type'] ]
+sulariPlot_utm['landColors'] = [ cdik[i] for i in sulariPlotsDF['Land_type'] ]
 
 fig, ax = plt.subplots()
 rasterio.plot.show(fichtelMap, ax=ax)
@@ -361,16 +377,65 @@ plt.subplots_adjust(wspace = 0)
 ## do this in vegan? why not.
 
 R
-library(vegan)
 
-comM <- read.csv('subParcelComm.csv', row.names='PsubP')
+spatDir <- "/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis"
+setwd(spatDir)
+
+
+library(vegan)
+library(phyloseq)
+
+comM <- read.csv('/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/comdat.csv', 
+                    row.names=1)
+
+## why is this so big, btw?
+
+sum(colSums(comM) > 0) ## 4363. Why do we have a bunch of empty colums? I think these were low abundance ASVs, below our cutoffs.
+
+## get rid of them to save memory:
+
+library('phyloseq')
+load("/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/sularilogMin50ps.rda")
+
+logMin50ps
+
+comdat <- as.data.frame(otu_table(logMin50ps))
+comdat = comdat[,colSums(comdat) > 0] 
+
+write.csv(comdat, file="/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/comdat.csv")
+
+
+## get rid of controls
+notControls=!(row.names(comM) %in% c("C1.1", "C1.2", "C2.1", "C2.2"))
+comM = comM[notControls,]
+
+comM[1:4,1:4]
+
+
+sp1 <- specaccum(comM)
+
+plot(sp1, ci.type="poly", col="blue", lwd=2, ci.lty=0, ci.col="lightblue")
+
+specpool(comM)
+
+sp2 <- specaccum(comM, "random")
+
+summary(sp2)
+
+plot(sp2, ci.type="poly", col="red", lwd=2, ci.lty=0, ci.col="pink")
+
 
 data(BCI)
 
 sp1 <- specaccum(BCI)
+
+
 sp2 <- specaccum(BCI, "random")
+
 sp2
+
 summary(sp2)
+
 plot(sp1, ci.type="poly", col="blue", lwd=2, ci.lty=0, ci.col="lightblue")
 boxplot(sp2, col="yellow", add=TRUE, pch="+")
 ## Fit Lomolino model to the exact accumulation
@@ -378,7 +443,6 @@ mod1 <- fitspecaccum(sp1, "lomolino")
 coef(mod1)
 fitted(mod1)
 plot(sp1)
- 
 
 aa <- specaccum(comM, method = "exact")
 
@@ -389,3 +453,129 @@ colnames(anaSAC) <- c('richness', 'sd')
 anaSpeciesEstimators = specpool(comM)
 print(anaSpeciesEstimators)
  
+## okay, but we need to separate out by land types.
+## wish we were in python...
+
+spatDir <- "/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis"
+setwd(spatDir)
+library(vegan)
+library(phyloseq)
+
+comData=read.csv("/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/comdat.csv", row.names=1)
+envData=read.csv("/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis/sulariEnv.csv", row.names=1)
+
+all(row.names(comData) == row.names(envData))
+
+lt <- 'Forest'
+justThisLandtype=row.names(envData[envData['Land_type'] == lt,])
+aa <- comData[ justThisLandtype,]
+sp1 <- specaccum(aa)
+plot(sp1, ci.type="poly", col="blue", lwd=2, ci.lty=0, ci.col="lightblue")
+
+
+## so loop this:
+
+for (lt in c('Arableland','Grassland', 'Forest')){
+    print(lt)
+    justThisLandtype=row.names(envData[envData['Land_type'] == lt,])
+    comm.i <- comData[ justThisLandtype,]
+    specAccum.i <- specaccum(comm.i)
+    SACdf.i <- data.frame(specAccum.i$richness, specAccum.i$sd)
+    colnames(SACdf.i) <- c('richness', 'sd')
+    speciesEstimators.i = specpool(comm.i)
+    print(speciesEstimators.i)
+    write.csv(SACdf.i, file=paste(lt, "SAC.csv", sep="_"))
+    write.csv(speciesEstimators.i, file=paste(lt, "specEst.csv", sep="_"))
+}
+
+## interesting, this is pretty much exactly what Brendan found
+## in the amazon. Despite lower alpha diversity, higher beta 
+## diversity in forest soils. 
+## and this equates to a higher total diversity across the
+## survey (gamma). 
+
+## take over to python for plotting
+
+## we have an old function for this, wonder if it still works:
+
+######## original #######
+def plotSACs(habtype, color='black',
+                xUnits='ha', printChao=False,
+                printTitle=False, ax=None):
+    if ax is None: fig, ax = plt.subplots()
+    sacName = (habtype +'_SAC.csv')
+    specEstName = (habtype + "_specEst.csv")
+    sacs = [ i for i in os.listdir() if "_SAC.csv" in i  ]
+    assert( (habtype +'_SAC.csv') in sacs)
+    assert( xUnits in ['ha','plots'])
+    sac_i = pd.read_csv(sacName, index_col=0)
+    pArea = np.pi * (30/2)**2 / 10000
+    sac_i['areaSampled'] = (sac_i.index * pArea).to_list()
+    if xUnits == 'ha': X = sac_i['areaSampled']
+    elif xUnits == 'plots': X = sac_i.index.to_list()
+    specEst_i = pd.read_csv(specEstName, index_col=0).loc['All']
+    specEst_i.index = specEst_i.index.str.replace(".","_")
+    ax.plot(X, sac_i['richness'], color=color)
+    ax.fill_between(x=X,
+                     y1=sac_i.richness - sac_i.sd,
+                     y2=sac_i.richness + sac_i.sd,
+                    alpha=0.4,
+                    color=color,
+                    )
+    if printTitle: ax.set_title(f'{habtype}')
+    if printChao:
+        ax.text(1, (sac_i['richness'].max()-3),
+                    f'Expected species richness = {specEst_i.chao.round()} +/- {specEst_i.chao_se.round()}',
+            )
+###########################################################3
+
+os.chdir("/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis")
+
+sacs = [ i for i in os.listdir() if "_SAC.csv" in i  ]
+
+def plotSACs(habtype, color='black', ax=None):
+    if ax is None: fig, ax = plt.subplots()
+    sacs = [ i for i in os.listdir() if "_SAC.csv" in i  ]
+    sacName = (habtype +'_SAC.csv')
+    assert( (habtype +'_SAC.csv') in sacs)
+    specEstName = (habtype + "_specEst.csv")
+    sac_i = pd.read_csv(sacName, index_col=0)
+    specEst_i = pd.read_csv(specEstName, index_col=0).loc['All']
+    specEst_i.index = specEst_i.index.str.replace(".","_")
+    X = sac_i.index
+    ax.plot(X, sac_i['richness'], color=color)
+    ax.fill_between(x=X,
+                     y1=sac_i.richness - sac_i.sd,
+                     y2=sac_i.richness + sac_i.sd,
+                    alpha=0.4,
+                    color=color,
+                    )
+
+plt.close('all')
+fig, ax = plt.subplots(figsize=(10,10))
+plotSACs('Arableland', ax=ax, color='#862d2d')
+plotSACs('Forest', ax=ax, color='#006600')
+plotSACs('Grassland', ax=ax, color='#1aff1a')
+
+
+
+color="#E41A1C"
+habtype="Grassland"
+sacs = [ i for i in os.listdir() if "_SAC.csv" in i  ]
+sacName = (habtype +'_SAC.csv')
+assert( (habtype +'_SAC.csv') in sacs)
+specEstName = (habtype + "_specEst.csv")
+sac_i = pd.read_csv(sacName, index_col=0)
+specEst_i = pd.read_csv(specEstName, index_col=0).loc['All']
+specEst_i.index = specEst_i.index.str.replace(".","_")
+X = sac_i.index
+ax.plot(X, sac_i['richness'], color=color)
+ax.fill_between(x=X,
+                 y1=sac_i.richness - sac_i.sd,
+                 y2=sac_i.richness + sac_i.sd,
+                alpha=0.4,
+                color=color,
+                )
+
+
+

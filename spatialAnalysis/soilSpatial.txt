@@ -498,36 +498,6 @@ for (lt in c('Arableland','Grassland', 'Forest')){
 
 ## we have an old function for this, wonder if it still works:
 
-######## original #######
-def plotSACs(habtype, color='black',
-                xUnits='ha', printChao=False,
-                printTitle=False, ax=None):
-    if ax is None: fig, ax = plt.subplots()
-    sacName = (habtype +'_SAC.csv')
-    specEstName = (habtype + "_specEst.csv")
-    sacs = [ i for i in os.listdir() if "_SAC.csv" in i  ]
-    assert( (habtype +'_SAC.csv') in sacs)
-    assert( xUnits in ['ha','plots'])
-    sac_i = pd.read_csv(sacName, index_col=0)
-    pArea = np.pi * (30/2)**2 / 10000
-    sac_i['areaSampled'] = (sac_i.index * pArea).to_list()
-    if xUnits == 'ha': X = sac_i['areaSampled']
-    elif xUnits == 'plots': X = sac_i.index.to_list()
-    specEst_i = pd.read_csv(specEstName, index_col=0).loc['All']
-    specEst_i.index = specEst_i.index.str.replace(".","_")
-    ax.plot(X, sac_i['richness'], color=color)
-    ax.fill_between(x=X,
-                     y1=sac_i.richness - sac_i.sd,
-                     y2=sac_i.richness + sac_i.sd,
-                    alpha=0.4,
-                    color=color,
-                    )
-    if printTitle: ax.set_title(f'{habtype}')
-    if printChao:
-        ax.text(1, (sac_i['richness'].max()-3),
-                    f'Expected species richness = {specEst_i.chao.round()} +/- {specEst_i.chao_se.round()}',
-            )
-###########################################################3
 
 os.chdir("/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis")
 
@@ -555,27 +525,191 @@ plt.close('all')
 fig, ax = plt.subplots(figsize=(10,10))
 plotSACs('Arableland', ax=ax, color='#862d2d')
 plotSACs('Forest', ax=ax, color='#006600')
-plotSACs('Grassland', ax=ax, color='#1aff1a')
+plotSACs('Grassland', ax=ax, color='#FF7F00')
+
+Arableland_patch = Patch(color='#862d2d', label='Arableland', alpha=0.4)
+Forest_patch = Patch(color='#006600', label='Forest', alpha=0.4)
+Grassland_patch = Patch(color='#FF7F00', label='Grassland', alpha=0.4)
+
+ax.legend(handles=[Forest_patch, Arableland_patch, Grassland_patch])
+ax.set_title('Species accumulution curves by\nland-use/Habitat')
+ax.set_xlabel('Sites sampled')
+ax.set_ylabel('Prokaryotic ASVs')
+
+
+[Arableland_patch, Forest_patch, Grassland_patch]
+
+## repeat alpha diversity
+## using our >50 reads OTU table, can we calculate alpha diveristy by land type?
+## back to old fashioned vegan/R
+
+## we just want species richness. So we need to rarefy and compare 
+## forest v. farm v. grassland data
+
+notControls=!(row.names(comData) %in% c("C1.1", "C1.2", "C2.1", "C2.2"))
+comData = comData[notControls,]
+envData = envData[notControls,]
+
+data(BCI)
+
+S <- specnumber(BCI) # observed number of species
+
+S <- specnumber(comData) # observed number of species
+
+## pretty much same as:
+aa <- comData
+aa[aa > 0] <- 1
+rowSums(aa)
+
+S <- specnumber(comData) # observed number of species
+
+(raremax <- min(rowSums(BCI)))
+
+Srare <- rarefy(BCI, raremax)
+
+plot(S, Srare, xlab = "Observed No. of Species", ylab = "Rarefied No. of Species")
+
+abline(0, 1)
+
+rarecurve(BCI, step = 20, sample = raremax, col = "blue", cex = 0.6)
+
+
+## so we are looking for a rarified species richness for each site.
+
+## from this we will generate 3 mean +/- error values of species richness 
+## one for each land use.
+
+## this kind of analysis is really ok for count data.
+## we've done all kinds of transformations, to try 
+## to reduce sequencer error. 
+
+## so I think we need to back up to phyloseq, to use our 
+## sequencing depth information
+
+library(phyloseq)
+
+
+## transformed:
+load("/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/sularilogMin50ps.rda")
+
+## not transformed:
+load("/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/sulariPhyloseqObject.rda")
+
+logMin50ps
+
+(p = plot_richness(ps, x = "Land.type"))
+
+estimate_richness(ps)
+
+estimate_richness
+
+## but I am thinking about this incorrectly. 
+## these richness estimates are way high, 
+## because of PCR, sequencer error, etc. 
+
+## we attempting to reign in these errors 
+## a bit through our transformations, let's
+## honor this. 
+
+## so back and use our communty matrix, 
+
+savehistory("/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis/latelyInR.txt")
+
+## to make it into "count data", multiply 
+## to get rid of decimals:
+
+
+sum(comData < .001 & comData > 0) ## 508 observations smaller than .001.
+sum(comData < .0001 & comData > 0) ## 0 observations, so let's multiply by 10000
+comDataFakeCounts = ceiling(comData * 10000) 
+min(comDataFakeCounts[ comDataFakeCounts > 0 ]) ## our smallest non-zero observation is 8 
+
+S <- specnumber(comDataFakeCounts) # observed number of species
+
+(raremax <- min(rowSums(comDataFakeCounts))) ## 10001
+
+rowSums(comDataFakeCounts)
+
+Srare <- rarefy(comDataFakeCounts, raremax) ## this is what we need. 
+
+## this is an estimate of how many species are present in each 
+## sample, after coming down to a minimum abundance
+
+
+## kind of interesting but not useful. Shows we sequenced deeply enough:
+plot(S, Srare, xlab = "Observed No. of Species", ylab = "Rarefied No. of Species")
+
+## can we do all that without transforming to "counts"?
+S2 <- specnumber(comData) # observed number of species, same as fake counts
+
+(raremax2 <- min(rowSums(comData))) ## .9896
+
+rowSums(comData)
 
 
 
-color="#E41A1C"
-habtype="Grassland"
-sacs = [ i for i in os.listdir() if "_SAC.csv" in i  ]
-sacName = (habtype +'_SAC.csv')
-assert( (habtype +'_SAC.csv') in sacs)
-specEstName = (habtype + "_specEst.csv")
-sac_i = pd.read_csv(sacName, index_col=0)
-specEst_i = pd.read_csv(specEstName, index_col=0).loc['All']
-specEst_i.index = specEst_i.index.str.replace(".","_")
-X = sac_i.index
-ax.plot(X, sac_i['richness'], color=color)
-ax.fill_between(x=X,
-                 y1=sac_i.richness - sac_i.sd,
-                 y2=sac_i.richness + sac_i.sd,
-                alpha=0.4,
-                color=color,
-                )
+## compare to:
+
+bb <- specnumber(comData) # observed number of species
+all(bb == Srare) ## yes. the same
+## So I guess I am brilliant, I just reinvented their command. 
+## big waste of time. 
+
+## maybe also shows there isn't really a need to rarefy, at least
+## on the transformed data
+
+## not sure, but now let's trust these numbers.
+
+## now, subset by land type, and get means?
+
+head(envData)
+
+all(row.names(envData) == row.names(comData))
+
+## I'd guess we need a vector of group names (by land_type):
+hist(Srare, 20) ## looks more or less normal.
+mean(Srare) ## 301.3833
+sd(Srare) ## 26.4
+
+print("mean alpha diversity of all sites = ", mean(Srare))
+
+print(paste("mean alpha diversity of all sites =", mean(Srare), "ASVs"))
+
+cat(paste("mean alpha diversity of all sites =", mean(Srare), "ASVs"))
+
+cat(paste("mean alpha diversity of all sites =", mean(Srare), "+/-", round(sd(Srare)), "ASVs"))
 
 
+all(names(Srare) == row.names(envData))
+
+## break this down by groups:
+
+tapply(Srare, envData$Land_type, mean)
+tapply(Srare, envData$Land_type, sd)
+
+boxplot(Srare ~ envData$Land_type)
+
+## anova
+res.aov <- aov(Srare ~ envData$Land_type)
+summary(res.aov) ## F= 2.85, p = 0.0618
+
+## so maybe differences in species richness due to land type,
+## maybe not.  Not a large effect, anyway. 
+## update notebook, give it a break.
+
+## t-test for difference between forest and grassland?
+
+## to remove the farm samples 
+
+noFarms <- envData$Land_type != "Arableland"
+
+envData$Land_type[noFarms]
+Srare[noFarms]
+
+
+head(envData)
+
+t.test(Srare[noFarms] ~ envData$Land_type[noFarms])
+
+t_test(weight ~ group)
 

@@ -713,3 +713,154 @@ t.test(Srare[noFarms] ~ envData$Land_type[noFarms])
 
 t_test(weight ~ group)
 
+## we should probably do this in a bayesian way...
+## get the ordinations done, then order the new book, 
+## PCNMs can also be started without tests.
+
+## but generally not sure how to handle the multivariate
+## tests in a bayesian way. 
+
+## two possibilities:
+## BetaBayes: https://doi.org/10.3390/d14100858, somehow related to GDS
+## BERA: https://doi.org/10.1080/00273171.2019.1598837
+## BERA is apparently related to RDA. More reading is in order on both. 
+
+## in the meantime...re-run the ordinations:
+
+## the usual pipeline
+## let's get ordinations with vegan and plot with python 
+
+library(vegan)
+
+spatDir <- "/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis"
+setwd(spatDir)
+
+comData=read.csv("/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/comdat.csv", row.names=1)
+envData=read.csv("/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis/sulariEnv.csv", row.names=1)
+## get rid of controls
+notControls=!(row.names(comData) %in% c("C1.1", "C1.2", "C2.1", "C2.2"))
+comData <- comData[notControls,]
+envData <- envData[notControls,]
+
+comData[1:4,1:4]
+
+comNMS <- metaMDS(comData, try=40)
+
+write.csv(comNMS$points, file='comNMS.csv')
+
+## check this out in python:
+
+python
+import pandas as pd
+import matplotlib.pyplot as plt; plt.ion()
+import matplotlib.colors 
+import os
+import scipy.spatial as sp
+import numpy as np
+from scipy import stats
+from matplotlib.patches import Patch
+
+## data
+nmsPts = pd.read_csv("comNMS.csv", index_col=0)
+sulariEnvCSV="/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis/sulariEnv.csv"
+envData = pd.read_csv(sulariEnvCSV, index_col='SampleID')
+comData = pd.read_csv("/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/comdat.csv", 
+                      index_col=0) 
+controls=[ 'C1.1', 'C1.2', 'C2.1', 'C2.2']
+envData.drop(controls, axis='rows', inplace=True)
+comData.drop(controls, axis='rows', inplace=True)
+
+## need some colors for land type
+colorDict = {
+'Arableland':'#862d2d',
+'Forest'    :'#006600',
+'Grassland' :'#FF7F00'
+}
+landCols = [ colorDict[i] for i in envData['Land_type'] ]
+plt.close('all')
+fig, ax = plt.subplots()
+ax.scatter(x=nmsPts["MDS1"],
+           y=nmsPts["MDS2"], 
+           c=landCols,
+          )
+Arableland_patch = Patch(color='#862d2d', label='Arableland')
+Forest_patch = Patch(color='#006600', label='Forest')
+Grassland_patch = Patch(color='#FF7F00', label='Grassland')
+ax.legend(handles=[Forest_patch, Arableland_patch, Grassland_patch])
+
+## try markers for seasonality?
+seasonDict = {
+     'S': "o", 
+    'SP': "v", 
+    'W1': "D", 
+    'W2': "P", 
+     'A': "s",
+}
+
+## we might also check pH, and seasonality, and microbial biomass
+
+## seasonality:
+seasonShapes = [ seasonDict[i] for i in envData['season'] ]
+
+## matplot lib doesn't change markers on the fly...
+## if we want to change markers for each season:
+
+plt.close('all')
+fig, ax = plt.subplots()
+for i in envData.season.unique():
+  print(i)
+  env_i = envData[envData['season'] == i]
+  plots_i = env_i.index.to_list()
+  nmsPts_i = nmsPts.loc[plots_i]
+  cols_i = [ colorDict[i] for i in env_i['Land_type'] ]
+  ax.scatter(x=nmsPts_i["MDS1"],
+             y=nmsPts_i["MDS2"], 
+             c=cols_i,
+        marker=seasonDict[i],
+            )
+
+## I don't see any evidence of seasonality affecting these
+## community structures
+
+## ph ordinations
+
+## color by pH, land by symbol, respiration by size
+
+landTypeShapesDict = {
+'Arableland': "o", 
+'Forest'    : "v", 
+'Grassland' : "s", 
+}
+
+pHmin = envData['pH'].min() ## 3.647
+pHmax = envData['pH'].max() ## 7.312
+norm=matplotlib.colors.Normalize(pHmin, pHmax)
+plt.close('all')
+fig, ax = plt.subplots()
+for i in envData.Land_type.unique():
+  print(i)
+  env_i = envData[envData['Land_type'] == i]
+  plots_i = env_i.index.to_list()
+  nmsPts_i = nmsPts.loc[plots_i]
+  sizes = env_i['soil_respiration']*50
+  ax.scatter(x=nmsPts_i["MDS1"],
+             y=nmsPts_i["MDS2"], 
+             #s=140,
+             s=sizes,
+             c=env_i['pH'],
+             cmap='Spectral',
+             edgecolors='black',
+             marker=landTypeShapesDict[i],
+             norm=norm,
+            )
+
+fig.colorbar(plt.cm.ScalarMappable(norm=matplotlib.colors.Normalize(pHmin, pHmax), cmap='Spectral'),
+             ax=ax, orientation='vertical', label='pH')
+
+
+## this is a good graph. needs a legend. 
+
+## as usual, legends are beyond my ability. Do them manually later if we want the figure.
+
+
+

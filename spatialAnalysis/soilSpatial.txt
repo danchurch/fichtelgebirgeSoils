@@ -1037,12 +1037,26 @@ idx = pd.Categorical(specRichLT["Land_type"], categories=categories).codes
 
 coords = {"Land_type": categories, "land_type_flat":categories[idx]}
 
-## not run - why gamma?
 with pm.Model(coords=coords) as comparing_groups:
-    μ = pm.HalfNormal("μ", sigma=5, dims="Land_type")
-    σ = pm.HalfNormal("σ", sigma=1, dims="Land_type")
-    y = pm.Gamma("y", mu=μ[idx], sigma=σ[idx], observed=spr, dims="Land_type_flat")
-    idata_cg = pm.sample(random_seed=4591)
+    μ = pm.Normal("μ", mu=300, sigma=50, dims="Land_type")
+    σ = pm.HalfNormal("σ", sigma=10, dims="Land_type")
+    y = pm.Normal("Species richness", mu=μ[idx], sigma= σ[idx], observed=spr, dims="land_type_flat")
+    idata_cg = pm.sample(random_seed=4591, chains=4)
     idata_cg.extend(pm.sample_posterior_predictive(idata_cg, random_seed=4591))
 
+    #y = pm.Gamma("y", mu=μ[idx], sigma=σ[idx], observed=spr, dims="land_type_flat") ## better for outliers?
+
+fig, axes = plt.subplots(3, 1, sharex=True)
+
+az.plot_ppc(idata_cg, num_pp_samples=100, coords={"land_type_flat":[categories]}, flatten=[], ax=axes)
+
+
+fig.tight_layout()
+
+## in the notebook, they give two models for this
+## the second uses the gamma distribution.
+## not run - why gamma?
+
+## it does look like the normal isn't handling the outliers well. They are 
+## flattening the posterior curves. 
 

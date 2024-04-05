@@ -114,11 +114,42 @@ pip install bash_kernel
 python -m bash_kernel.install
 
 
-## okay, push through the old code. 
-## put it on the jupyter notebook if it works
+##### bayesian setup #####
+
+## last time we worked with pymc3 we needed
+## a separate conda env. Let's see if 
+## things have gotten better. 
+
+## first back up the env, just in case
+
+conda activate spatialDirt
+
+conda env export > spatialDirt.yml
+
+## installing bambi should also install pymc, so
+## try the bambi conda installs as per: 
+https://github.com/bambinos/bambi#quickstart
+
+pip install bambi
+
+pip install "preliz[full,lab]"
+
+## get the data from the newest martin book.
+
+## put outside our repo
+
+cd /home/daniel/Documents/manualsBooks/bayesian
+git clone https://github.com/aloctavodia/BAP3.git
+
+## seems like that worked in our spatialDirt environment
+
+## try everything out for a bit, then update yaml backup for the repo
+
 
 conda activate spatialDirt 
+
 python
+
 import pandas as pd
 import geopandas as gpd
 import matplotlib.pyplot as plt; plt.ion()
@@ -130,6 +161,7 @@ import numpy as np
 from scipy import stats
 from matplotlib.patches import Patch
 from matplotlib_scalebar.scalebar import ScaleBar
+import pymc as pm
 
 
 spatDir="/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis"
@@ -759,6 +791,9 @@ import scipy.spatial as sp
 import numpy as np
 from scipy import stats
 from matplotlib.patches import Patch
+import pymc as pm
+import preliz as pz
+import arviz as az
 
 ## data
 nmsPts = pd.read_csv("comNMS.csv", index_col=0)
@@ -862,5 +897,152 @@ fig.colorbar(plt.cm.ScalarMappable(norm=matplotlib.colors.Normalize(pHmin, pHmax
 
 ## as usual, legends are beyond my ability. Do them manually later if we want the figure.
 
+
+### test out bayesian setup, try comparison of two groups ###
+
+dist = pz.Beta()
+pz.maxent(dist, 0.1, 0.7, 0.9)
+
+## test out the pymc3 setup:
+np.random.seed(123)
+trials = 4
+theta_real = 0.35
+data = pz.Binomial(n=1, p=theta_real).rvs(trials)
+
+np.random.seed(123)
+trials = 4
+theta_real = 0.35
+data = stats.bernoulli.rvs(p=theta_real, size=trials)
+
+with pm.Model() as our_first_model:
+    θ = pm.Beta('θ', alpha=1., beta=1.)
+    γ = pm.Bernoulli('γ', p=θ, observed=data)
+    trace = pm.sample(1000, random_seed=123)
+
+## works. I can hardly remember how to do this bayesian stuff,
+## but we can work from old examples....
+
+## let's redo our only statistical model/test so far, the comparison 
+## of alpha diversity between the land types
+
+## start with oswaldo's tips example:
+
+tips = pd.read_csv("/home/daniel/Documents/manualsBooks/bayesian/BAP3/code/data/tips.csv")
+
+tips.tail()
+
+categories = np.array(["Thur", "Fri", "Sat", "Sun"])
+tip = tips["tip"].values
+idx = pd.Categorical(tips["day"], categories=categories).codes
+
+## arviz has cool plotting capabilities I have not even begun to learn:
+az.plot_forest(tips.pivot(columns="day", values="tip").to_dict("list"),
+               kind="ridgeplot",
+               hdi_prob=1,
+               colors="C1",
+               figsize=(12, 4))
+
+## for indexing with Arviz:
+
+coords = {"days": categories, "days_flat":categories[idx]}
+
+with pm.Model(coords=coords) as comparing_groups:
+    μ = pm.HalfNormal("μ", sigma=5, dims="days")
+    σ = pm.HalfNormal("σ", sigma=1, dims="days")
+    y = pm.Gamma("y", mu=μ[idx], sigma=σ[idx], observed=tip, dims="days_flat")
+    idata_cg = pm.sample(random_seed=4591, chains=4)
+    idata_cg.extend(pm.sample_posterior_predictive(idata_cg, random_seed=4591))
+
+
+_, axes = plt.subplots(2, 2, figsize=(10, 5), sharex=True, sharey=True)
+
+az.plot_ppc(idata_cg, num_pp_samples=100,
+            colors=["C1", "C0", "C0"],
+            coords={"days_flat":[categories]}, flatten=[], ax=axes)
+
+az.plot_trace(idata_cg)
+
+plt.show()
+
+## seems fine
+az.summary(idata_cg, kind="stats").round(2)
+
+
+
+## okay, how do we adapt this to our data? we want to compare 
+## alpha diversity of three groups - crop, forest, and grassland.
+
+sulariEnvCSV="/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis/sulariEnv.csv"
+envData = pd.read_csv(sulariEnvCSV, index_col='SampleID')
+comData = pd.read_csv("/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/comdat.csv", 
+                      index_col=0) 
+controls=[ 'C1.1', 'C1.2', 'C2.1', 'C2.2']
+envData.drop(controls, axis='rows', inplace=True)
+comData.drop(controls, axis='rows', inplace=True)
+
+## we observed above that we can trust the raw species 
+## richness counts from our community matrix, no need
+## to rarify back or anything. 
+
+## so how to get this in pandas/python?
+
+aa = comData.copy()
+aa[aa > 0] = 1
+specRich = aa.sum(axis="columns")
+
+comData.head()
+
+aa.head()
+
+aa.sum(axis="columns")
+
+aa.sum(axis="columns").loc['S14']
+
+aa.sum(axis="columns").loc['S102']
+
+
+specRich = aa.sum(axis="columns")
+
+
+
+pd.to_numeric(specRich, downcast='integer')
+
+## maybe a df with all the info we need:
+
+specRichLT = (pd.concat([pd.to_numeric(specRich, downcast='integer'), envData['Land_type']], axis='columns')
+                     .rename({0:"spRich"},axis="columns"))
+
+## looks right. so this should be our species richness. Might need this later:
+specRichLT.to_csv("specRich.csv")
+
+specRichLT.head()
+
+## we want to get a distribution for the mean values of alpha diversity for
+## each group 
+ 
+specRichLT.head()
+
+## can we visualize this with arviz first?:
+
+az.plot_forest(specRichLT.pivot(columns="Land_type", values="spRich").to_dict("list"),
+               kind="ridgeplot",
+               hdi_prob=1,
+               colors="C1",
+               figsize=(12, 4))
+
+## oswaldo's confusing code for creating an index, adapted for our data:
+categories = np.array(["Arableland", "Grassland", "Forest"])
+spr = specRichLT["spRich"].values
+idx = pd.Categorical(specRichLT["Land_type"], categories=categories).codes
+
+coords = {"Land_type": categories, "land_type_flat":categories[idx]}
+
+## not run - why gamma?
+with pm.Model(coords=coords) as comparing_groups:
+    μ = pm.HalfNormal("μ", sigma=5, dims="Land_type")
+    σ = pm.HalfNormal("σ", sigma=1, dims="Land_type")
+    y = pm.Gamma("y", mu=μ[idx], sigma=σ[idx], observed=spr, dims="Land_type_flat")
+    idata_cg = pm.sample(random_seed=4591)
+    idata_cg.extend(pm.sample_posterior_predictive(idata_cg, random_seed=4591))
 
 

@@ -783,7 +783,9 @@ write.csv(comNMS$points, file='comNMS.csv')
 ## check this out in python:
 
 python
+
 import pandas as pd
+import geopandas as gpd
 import matplotlib.pyplot as plt; plt.ion()
 import matplotlib.colors 
 import os
@@ -794,6 +796,7 @@ from matplotlib.patches import Patch
 import pymc as pm
 import preliz as pz
 import arviz as az
+import rasterio.plot
 
 ## data
 nmsPts = pd.read_csv("comNMS.csv", index_col=0)
@@ -1034,7 +1037,6 @@ az.plot_forest(specRichLT.pivot(columns="Land_type", values="spRich").to_dict("l
 categories = np.array(["Arableland", "Grassland", "Forest"])
 spr = specRichLT["spRich"].values
 idx = pd.Categorical(specRichLT["Land_type"], categories=categories).codes
-
 coords = {"Land_type": categories, "land_type_flat":categories[idx]}
 
 with pm.Model(coords=coords) as comparing_groups:
@@ -1046,17 +1048,108 @@ with pm.Model(coords=coords) as comparing_groups:
 
     #y = pm.Gamma("y", mu=μ[idx], sigma=σ[idx], observed=spr, dims="land_type_flat") ## better for outliers?
 
+plt.close('all')
+
+
+with pm.Model(coords=coords) as comparing_groups:
+    μ = pm.Normal("μ", mu=300, sigma=50, dims="Land_type")
+    σ = pm.HalfNormal("σ", sigma=20, dims="Land_type")
+    y = pm.Normal("Species richness", mu=μ[idx], sigma= σ[idx], observed=spr, dims="land_type_flat")
+    idata_cg = pm.sample(random_seed=4591, chains=4)
+    idata_cg.extend(pm.sample_posterior_predictive(idata_cg, random_seed=4591))
+
+plt.close('all')
 fig, axes = plt.subplots(3, 1, sharex=True)
-
 az.plot_ppc(idata_cg, num_pp_samples=100, coords={"land_type_flat":[categories]}, flatten=[], ax=axes)
-
-
 fig.tight_layout()
+
+## works, but the outliers are forcing a lot of variation into the posterior
+
+## can we do this with cauchy?
+
+with pm.Model(coords=coords) as model_t:
+    μ = pm.Normal("μ", mu=300, sigma=50, dims="Land_type")
+    σ = pm.HalfNormal("σ", sigma=20, dims="Land_type")
+    ν = pm.Exponential('ν', 0.1, dims="Land_type") ## exponential gets flatter with lower values, mean gets pulled away from zero
+    y = pm.StudentT('Species richness', nu=ν[idx], mu=μ[idx], sigma= σ[idx], observed=spr, dims="land_type_flat")
+    idata_cg = pm.sample(random_seed=4591, chains=4)
+    idata_cg.extend(pm.sample_posterior_predictive(idata_cg, random_seed=4591))
 
 ## in the notebook, they give two models for this
 ## the second uses the gamma distribution.
-## not run - why gamma?
+## not run - why gamma? not sure. 
 
-## it does look like the normal isn't handling the outliers well. They are 
-## flattening the posterior curves. 
+plt.close('all')
+
+fig, axes = plt.subplots(3, 1, sharex=True)
+az.plot_ppc(idata_cg, num_pp_samples=100, coords={"land_type_flat":[categories]}, flatten=[], ax=axes)
+axes[0].set_xlim(200,400)
+axes[1].get_legend().remove()
+axes[2].get_legend().remove()
+fig.tight_layout()
+
+
+#### map of respiration values ####
+
+## we still don't have a general analysis strategy,
+## but it always helps to look at a map at the trait 
+## of interest.
+
+## we want to see rates of respiration across the 
+## study. 
+
+## it would be great to gave a vectorized land use map...
+## does this exist somewhere?
+
+## first, plot the respiration values:
+
+envData.soil_respiration
+
+plotPoints = gpd.points_from_xy( envData.Longitude, envData.Latitude, crs="EPSG:4326" )
+sulariPlotsDF = gpd.GeoDataFrame(envData[[ 'PlotID', 'soil_respiration', 
+                    'MBC', 'season', 'Land_type', 'pH', 'N', 'C']], geometry=plotPoints)
+
+sulariPlot_utm = sulariPlotsDF.to_crs('EPSG:32633')
+
+fichtelMap = rasterio.open("studyAreaClipped_UTM.tif")
+
+## color edges by landtype:
+
+landColorDict = {
+'Arableland':'#862d2d',
+'Forest'    :'#006600',
+'Grassland' :'#FF7F00'
+}
+landCols = [ landColorDict[i] for i in sulariPlot_utm['Land_type'] ]
+## 
+plt.close('all')
+fig, ax = plt.subplots()
+rasterio.plot.show(fichtelMap, ax=ax)
+ax.ticklabel_format(useOffset=False, style='plain')
+sulariPlot_utm.plot(
+    marker="o",
+    ax=ax,
+    cmap='YlOrRd',
+    #cmap='RdPu',
+    column='soil_respiration',
+    edgecolors=landCols,
+    linewidth=2,
+    markersize=sulariPlot_utm['soil_respiration']*50,
+     )
+
+
+ax.set_ylim(5547500, 5570000)
+ax.set_xlim(265000, 287000)
+respMin = envData['soil_respiration'].min() ## 0.488057256
+respMax = envData['soil_respiration'].max() ## 13.70117879
+fig.colorbar(plt.cm.ScalarMappable(norm=matplotlib.colors.Normalize(respMin, respMax), cmap='YlOrRd'),
+             ax=ax, orientation='vertical', label='resp')
+Arableland_patch = Patch(color='#862d2d', label='Arableland')
+Forest_patch = Patch(color='#006600', label='Forest')
+Grassland_patch = Patch(color='#FF7F00', label='Grassland')
+ax.legend(handles=[Forest_patch, Arableland_patch, Grassland_patch])
+
+
+#### find species that are associated with high respiration (and low resp?) ##
+
 

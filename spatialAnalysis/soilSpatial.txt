@@ -1137,7 +1137,6 @@ sulariPlot_utm.plot(
     markersize=sulariPlot_utm['soil_respiration']*50,
      )
 
-
 ax.set_ylim(5547500, 5570000)
 ax.set_xlim(265000, 287000)
 respMin = envData['soil_respiration'].min() ## 0.488057256
@@ -1149,7 +1148,183 @@ Forest_patch = Patch(color='#006600', label='Forest')
 Grassland_patch = Patch(color='#FF7F00', label='Grassland')
 ax.legend(handles=[Forest_patch, Arableland_patch, Grassland_patch])
 
-
 #### find species that are associated with high respiration (and low resp?) ##
 
+## try deseq or bayesian equivalent. 
+## or indicator species?
+## cooccurrence networks?
 
+## in general, we want species that are associated with high resp
+## even in forests and croplands, which are the land types with 
+## lower respiration rates generally. 
+
+## we could cluster the communities and see if a cluster not related to
+## to land type emerges. It is possible that a "highly respiring" community
+## exists. But seems unlikely, across all land types. 
+
+## take the highest respiring sites from each land type, and look for 
+## species that occur only in them? or run deseq on each land 
+## type alone and take the species positively associated with respiration
+
+## see if there are any common species. We'll start with deseq, but 
+## I think for publication I'd like to build some bayesian models for
+## differential abundance
+
+
+##### deseq ##### 
+
+## need deseq. Let's install it in the overall environment, not just spatialDirt env
+
+
+if (!require("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+
+BiocManager::install("DESeq2")
+
+## we need raw abundances
+
+R
+
+library('phyloseq')
+library('DESeq2')
+load("/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/sulariPhyloseqObject.rda")
+
+psLandCont <- ps ## make a duplicate phyloseq obj to play with
+
+sample_data(psLandCont)[c('C1.1','C1.2','C2.1','C2.2'),'Land.type']  <- "control" ## add info
+
+tail(sample_data(psLandCont)) ## looks okay
+
+## okay, now following the tutorial above:
+
+diagdds = phyloseq_to_deseq2(psLandCont, ~ Land.type)
+gm_mean = function(x, na.rm=TRUE){
+  exp(sum(log(x[x > 0]), na.rm=na.rm) / length(x))
+}
+geoMeans = apply(counts(diagdds), 1, gm_mean)
+diagdds = estimateSizeFactors(diagdds, geoMeans = geoMeans)
+diagdds = DESeq(diagdds, fitType="local")
+
+resultsNames(diagdds) ## Forest vs. Grassland not mentioned, but still possible
+
+## let's see how the results look:
+res <- results(diagdds, contrast=c("Land.type","Forest","Arableland"))
+
+## edit down to highly significant results:
+
+alpha = 0.1 ## significance cutoff
+res <- res[complete.cases(res),] ## necessary because not all ASVs in all landtypes? 
+## but then are those ASVs that are present only in one or two land types excluded here?
+## these would be among the most important, I would think...think about this later
+sigtab = res[(res$padj < alpha), ] ## cut off below the alpha using adjusted pvalues
+## add taxonomy:
+sigtab = cbind(as(sigtab, "data.frame"), as(tax_table(psLandCont)[rownames(sigtab), ], "matrix"))
+
+## to check ASVs associated with respiration?
+
+library('phyloseq')
+library('DESeq2')
+load("/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/sulariPhyloseqObject.rda")
+
+## just like before make a duplicate phyloseq obj to play with
+## and get rid of controls while we're at it
+psNoControl = prune_samples(!(rownames(sample_data(ps)) %in% c("C1.1","C1.2","C2.1","C2.2")), ps)
+
+## get rid of NAs in basalResp
+basalRespNotNA <- !is.na(sample_data(psNoControl)$soil.respiration)
+psNoControl = prune_samples(basalRespNotNA, psNoControl)
+## okay, same old code as before:
+diagdds = phyloseq_to_deseq2(psNoControl, ~ soil.respiration) ## set "treatment" of interest
+gm_mean = function(x, na.rm=TRUE){
+  exp(sum(log(x[x > 0]), na.rm=na.rm) / length(x))
+}
+geoMeans = apply(counts(diagdds), 1, gm_mean)
+diagdds = estimateSizeFactors(diagdds, geoMeans = geoMeans)
+diagdds = DESeq(diagdds, fitType="local")
+resultsNames(diagdds)
+res <- results(diagdds)
+
+alpha = 0.01 ## significance cutoff
+
+res <- res[complete.cases(res),] ## necessary because not all ASVs in all landtypes
+sigtab = res[(res$padj < alpha), ] ## cut off below the alpha using adjusted pvalues
+
+sigtab$log2FoldChange
+
+## since our "gene length" is exactly the same for all reads, I think we 
+## can interpret baseMean as abundance 
+
+## is this true? for instance, ASV2 has baseMean of 590. Seems like this 
+## would be the abundance of ASV among the samples of lowest respiration values.
+
+ 
+sample_data(psNoControl)$Basal.respiration
+
+## find some of these ASVs associated with increasing respiration - are they co-occurring? Are they where we expect them to be?
+
+## we need a way to rapidly map ASVs.
+
+## we also need to figure out if these are cooccurring
+
+## we have a bunch of old, crude tools...start with these, and think about 
+## a proper bayesian model for finding which species are responding
+
+## the bracod paper seems very promising, even though it has zero citations...
+## hasn't been updated in a year but could be worse. Interesting, it 
+## focuses on the species as predictors of a host trait. That fits our 
+## setup just fine, with species as predictors of respiration. Can't
+## tell what the backend is. 
+
+
+## the other option seems to be BORAL. This has been cited a bunch, in nature 
+## etc. Looks like a good package to know about. More generalized, etc.
+## but also looks like we do 
+## uses old gibbs samplers, I think. Weird. 
+
+## let's give bracod a run tomorrow, see if it is easy to set up and use
+
+## in the meantime, how do we map the observations of an ASV? 
+
+## should be do-able in python with the data we have:
+
+
+##  
+
+
+sulariEnvCSV="/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis/sulariEnv.csv"
+envData = pd.read_csv(sulariEnvCSV, index_col='SampleID')
+comData = pd.read_csv("/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/comdat.csv", 
+                      index_col=0) 
+controls=[ 'C1.1', 'C1.2', 'C2.1', 'C2.2']
+envData.drop(controls, axis='rows', inplace=True)
+comData.drop(controls, axis='rows', inplace=True)
+
+## for one asv:
+
+plotPoints = gpd.points_from_xy( envData.Longitude, envData.Latitude, crs="EPSG:4326" )
+sulariPlotsDF = gpd.GeoDataFrame(envData[[ 'PlotID', 'soil_respiration',
+                    'MBC', 'season', 'Land_type', 'pH', 'N', 'C']], geometry=plotPoints)
+sulariPlotsDF.to_crs('EPSG:32633', inplace=True)
+
+sulariPlotsDF.tail()
+
+
+asv="ASV1"
+landColorDict = {
+'Arableland':'#862d2d',
+'Forest'    :'#006600',
+'Grassland' :'#FF7F00'
+}
+asvGEO= gpd.GeoDataFrame(pd.concat([comData[asv], sulariPlotsDF['Land_type']], axis=1), geometry=sulariPlotsDF['geometry'])
+asvGEO['landCols'] = [ landColorDict[i] for i in asvGEO['Land_type'] ]
+fichtelMap = rasterio.open("studyAreaClipped_UTM.tif")
+fig, ax = plt.subplots()
+rasterio.plot.show(fichtelMap, ax=ax)
+asvGEO.plot(
+    marker="o",
+    ax=ax,
+    edgecolor='k',
+    facecolor='b',
+    markersize=asvGEO[asv]*10000)
+
+## to handle multiple otus, need some jitter.

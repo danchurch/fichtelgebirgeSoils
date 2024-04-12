@@ -475,19 +475,22 @@ ps <- phyloseq(otu_table(seqtab.nochim, taxa_are_rows=FALSE),
 #conda activate dada2
 
 R
+
 library(dada2)
+
 library(phyloseq)
 library(ggplot2)
 library(scales)
 library(grid)
 library(vegan)
+
 library(DESeq2)
+
 library(patchwork) ## good for ggplot
 library(BiocGenerics) ## might not need to load in newer versions of deseq2?
 library(rsq)
 
 packageVersion("DESeq2") ## I'm working with deseq2 version 1.34.0
-## sulari has v1.40.2, try to update to this
 
 ## try  making a phyloseq object out of just our  
 ## otu table and our taxonomic object:
@@ -1290,10 +1293,13 @@ https://www.bioconductor.org/packages/devel/bioc/vignettes/DESeq2/inst/doc/DESeq
 ## I will look for ASVs whose abundances seem to correlated with 
 ## increasing respiration.
 
-load("sulariData/sulariPhyloseqObject.rda") ## sulari original "raw" phyloseq output from dada2
-load("sulariData/sularilogMin50ps.rda")  ## sulari's transformed, cutoffs enforeced, etc
+library
+
+load("../sulariData/sulariPhyloseqObject.rda") ## sulari original "raw" phyloseq output from dada2
+load("../sulariData/sularilogMin50ps.rda")  ## sulari's transformed, cutoffs enforeced, etc
 
 ps 
+
 logMin50ps
 
 ## just like before make a duplicate phyloseq obj to play with
@@ -1301,7 +1307,13 @@ logMin50ps
 psNoControl = prune_samples(!(rownames(sample_data(ps)) %in% c("C1.1","C1.2","C2.1","C2.2")), ps)
 
 ## get rid of NAs in basalResp
+
+variable_names
+
+sample_data(psNoControl)$Basal.respiration
+
 basalRespNotNA <- !is.na(sample_data(psNoControl)$Basal.respiration)
+
 psNoControl = prune_samples(basalRespNotNA, psNoControl)
 
 ## okay, same old code as before:
@@ -1497,3 +1509,55 @@ psOnlyGrass = prune_samples(sample_data(ps)$Land.type == "Grassland", ps)
 psLogMin50NoControl = prune_samples(!(rownames(sample_data(logMin50ps)) %in% c("C1.1","C1.2","C2.1","C2.2")), logMin50ps)
 
 
+#### looking for index bleed ####
+
+## there are some hints that index bleed may be occuring
+## let's check
+
+library(phyloseq)
+
+setwd('/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis')
+
+load("/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/sulariPhyloseqObject.rda")
+load("/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/sularilogMin50ps.rda")
+
+rankAb <- function(phyObj, sampleName, ylimit=500, ntax=NULL, textatX=100, textatY=(ylimit-40)){
+    sampleNo0filter <- get_taxa(phyObj, sampleName) > 0
+    if(is.null(ntax)) ntax=sum(sampleNo0filter)
+    print(sum(sampleNo0filter)) ## let user know how many unique taxa are in sample
+    sampleNo0 <- get_taxa(phyObj, sampleName)[sampleNo0filter]
+    sampleNo0 <- sort(sampleNo0, decreasing=TRUE)
+    sampleNo0 <- sampleNo0[1:ntax]
+    taxaNames=tax_table(phyObj)[ names(sampleNo0), "Genus"]
+    nuASV <- paste("number of unique ASVs = ",sum(sampleNo0filter), sep="")
+    par(cex.axis = .75, mar=c(10,4,4,2))
+    barplot(sampleNo0, 
+        ylim = c(0,ylimit), 
+        main=sampleName, 
+        cex.main=2, 
+        las=2, 
+        names.arg=taxaNames) 
+    text(textatX, textatY,  nuASV, cex = 2, )
+}
+
+sample_variables(ps)
+
+rankAb(ps,"C1.1", ntax = 30)
+
+rankAb(ps,"C2.1", ntax = 30)
+
+rankAb(ps,"S5")
+
+rankAb(logMin50ps, "S5", 0.03, ntax=20, 200, 0.015)
+
+rankAb(ps, "C1.1", 0.03, ntax=20, 200, 0.015)
+
+rankAb(logMin50ps, "C1.1", 0.03, ntax=20, 200, 0.015)
+
+rankAb(logMin50ps, "S120", 0.03, ntax=20, 200, 0.015)
+
+sample_data(ps)["S120",] ## forest. the second most common bacteria is E. coli. 
+## seems likely that there was cross-contamination. Ugh. 
+
+## ponder this for a bit. It doesn't seem to be affecting our community-level
+## analysis, these otus aren't coming up as important for respiration, etc. 

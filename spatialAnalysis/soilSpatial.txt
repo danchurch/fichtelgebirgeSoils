@@ -1222,6 +1222,8 @@ sigtab = cbind(as(sigtab, "data.frame"), as(tax_table(psLandCont)[rownames(sigta
 
 ## to check ASVs associated with respiration?
 
+R
+
 library('phyloseq')
 library('DESeq2')
 load("/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/sulariPhyloseqObject.rda")
@@ -1245,11 +1247,32 @@ resultsNames(diagdds)
 res <- results(diagdds)
 
 alpha = 0.01 ## significance cutoff
-
 res <- res[complete.cases(res),] ## necessary because not all ASVs in all landtypes
 sigtab = res[(res$padj < alpha), ] ## cut off below the alpha using adjusted pvalues
 
 sigtab$log2FoldChange
+
+View(sigtab)
+
+
+
+write.csv(sigtab, file="respDiffSeq.csv")
+
+## these are all the strongly positively associated ASVs with resp:
+
+highResp <- tax_table(ps)[c('ASV5', 'ASV13', 'ASV85', 'ASV110', 'ASV371', 'ASV462', 'ASV621',
+       'ASV1089', 'ASV1419', 'ASV1795', 'ASV1831', 'ASV1905', 'ASV2058',
+       'ASV2184', 'ASV2773')]
+
+write.csv(highResp, file="hiRespTax.csv")
+
+
+## there is a geobacter (ASV371) in there, maybe two (ASV2058). Weird.
+
+ASV1831
+
+## let's look at the rep sequence of these weird ones when we have time.
+
 
 ## since our "gene length" is exactly the same for all reads, I think we 
 ## can interpret baseMean as abundance 
@@ -1260,7 +1283,57 @@ sigtab$log2FoldChange
  
 sample_data(psNoControl)$Basal.respiration
 
+sample_variables(psNoControl)
+
 ## find some of these ASVs associated with increasing respiration - are they co-occurring? Are they where we expect them to be?
+
+##### diffseq with land type as covariate #####
+
+
+## if we want to check using covariate of land type, something like this?:
+
+#diagdds = phyloseq_to_deseq2(psNoControl, ~ soil.respiration + Land.type) ## set "treatment" of interest
+## ^ I think order matters here, covariate of interest should be last? 
+## as per https://support.bioconductor.org/p/100828/
+
+diagdds = phyloseq_to_deseq2(psNoControl, ~ Land.type + soil.respiration) ## set "treatment" of interest
+gm_mean = function(x, na.rm=TRUE){
+  exp(sum(log(x[x > 0]), na.rm=na.rm) / length(x))
+}
+geoMeans = apply(counts(diagdds), 1, gm_mean)
+diagdds = estimateSizeFactors(diagdds, geoMeans = geoMeans)
+diagdds = DESeq(diagdds, fitType="local")
+resultsNames(diagdds)
+res <- results(diagdds)
+
+alpha = 0.01 ## significance cutoff
+res <- res[complete.cases(res),] ## necessary because not all ASVs in all landtypes
+sigtab = res[(res$padj < alpha), ] ## cut off below the alpha using adjusted pvalues
+sigtab$log2FoldChange
+
+## these should ASVs that are changing with respiration 
+## regardless of land type...
+
+aa <- sigtab[ sigtab$log2FoldChange > 0, ]
+bb <- aa[ aa$baseMean > 1, ]
+
+tax_table(ps)[row.names(bb)]
+
+View(sigtab)
+
+## with this approach, the asvs that come across as most important here are:
+
+ASV1164 Chloroflexi
+ASV1734 acidobacteriota, Bryobacter
+ASV2626 alphaprot, Esterales 
+ASV4902 Actinbacteriota, Solirubrobacteraceae
+ASV6938 Alphaproteo, Sphingomonas
+
+## what habitat do these microbes prefer?
+## plotted below, seems like only ASV1164 is useful new info
+
+## to be sure, maybe subset (split) by land type and run? We lose
+## statistical power, but could be interesting.
 
 ## we need a way to rapidly map ASVs.
 
@@ -1288,9 +1361,6 @@ sample_data(psNoControl)$Basal.respiration
 ## should be do-able in python with the data we have:
 
 
-##  
-
-
 sulariEnvCSV="/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis/sulariEnv.csv"
 envData = pd.read_csv(sulariEnvCSV, index_col='SampleID')
 comData = pd.read_csv("/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/comdat.csv", 
@@ -1298,33 +1368,192 @@ comData = pd.read_csv("/home/daniel/Documents/projects/fichtelSoils/fichtelgebir
 controls=[ 'C1.1', 'C1.2', 'C2.1', 'C2.2']
 envData.drop(controls, axis='rows', inplace=True)
 comData.drop(controls, axis='rows', inplace=True)
-
-## for one asv:
-
 plotPoints = gpd.points_from_xy( envData.Longitude, envData.Latitude, crs="EPSG:4326" )
 sulariPlotsDF = gpd.GeoDataFrame(envData[[ 'PlotID', 'soil_respiration',
                     'MBC', 'season', 'Land_type', 'pH', 'N', 'C']], geometry=plotPoints)
 sulariPlotsDF.to_crs('EPSG:32633', inplace=True)
-
-sulariPlotsDF.tail()
-
-
-asv="ASV1"
 landColorDict = {
 'Arableland':'#862d2d',
 'Forest'    :'#006600',
 'Grassland' :'#FF7F00'
 }
-asvGEO= gpd.GeoDataFrame(pd.concat([comData[asv], sulariPlotsDF['Land_type']], axis=1), geometry=sulariPlotsDF['geometry'])
-asvGEO['landCols'] = [ landColorDict[i] for i in asvGEO['Land_type'] ]
 fichtelMap = rasterio.open("studyAreaClipped_UTM.tif")
-fig, ax = plt.subplots()
-rasterio.plot.show(fichtelMap, ax=ax)
-asvGEO.plot(
-    marker="o",
-    ax=ax,
-    edgecolor='k',
-    facecolor='b',
-    markersize=asvGEO[asv]*10000)
 
-## to handle multiple otus, need some jitter.
+fig,ax = plt.subplots()
+
+## how can we generalize this so it can handle multiple ASVs? 
+
+def mapOneASV(asv, ax=None, color="b", jitter=0, showLand=False):
+    if ax is None: ax = plt.gca()
+    jitX = sulariPlotsDF['geometry'].x.apply(lambda x: x + np.random.normal(loc=0, scale=jitter))
+    jitY = sulariPlotsDF['geometry'].y.apply(lambda x: x + np.random.normal(loc=0, scale=jitter))
+    asvPlotPoints = gpd.points_from_xy( jitX, jitY, crs="EPSG:32633" )
+    asvGEO = gpd.GeoDataFrame(pd.concat([comData[asv], sulariPlotsDF['Land_type']], axis=1), geometry=asvPlotPoints, crs="EPSG:32633")
+    if showLand: 
+        asvGEO['landCols'] = [ landColorDict[i] for i in asvGEO['Land_type'] ]
+    else: 
+        asvGEO['landCols'] = "k"
+    rasterio.plot.show(fichtelMap, ax=ax)
+    asvGEO.plot(
+        marker="o",
+        ax=ax,
+        linewidth=1,
+        edgecolor=asvGEO['landCols'],
+        facecolor=color,
+        markersize=asvGEO[asv]*10000)
+    return(asvGEO)
+
+plt.close('all')
+
+## then we can make maps as we see fit, with 0-inf otus.
+
+mapOneASV("ASV2", color="b", jitter=0, showLand=True)
+
+asv1 = mapOneASV("ASV1", color="r", jitter=0)
+
+fig,ax = plt.subplots()
+
+mapOneASV("ASV2", color="b", jitter=0)
+
+mapOneASV("ASV1", color="r", jitter=0)
+
+mapOneASV("ASV3", color="k", jitter=0)
+
+## side note, ASV1 seems to be in a lot of plots...
+## I thought this was E. coli from our mock community. Is this index bleed?
+
+## how to check...
+
+## this would mean diving back into the phyloseq pipeline and tracking 
+## the prevalence of these MC otus...ugh, what a pain. 
+
+## anyway, fairly low levels. If we are sticking to community level
+## questions, probably not important.
+
+## let's map some of the ASVs that look important for 
+
+ASV1831 "Gemmataceae"         "Zavarzinella"
+ASV371  "Geobacteraceae"      "Geobacter"
+
+aa = mapOneASV("ASV1831", color="b", jitter=0)
+
+aa = mapOneASV("ASV371", color="y", jitter=100)
+
+aa[aa["ASV371"] > 0].index.values
+
+envData.loc(bb)
+
+envData.loc["S36"]
+envData.loc["S70"]
+
+## let's map the five most plentiful 
+respASV = pd.read_csv("respDiffSeq.csv", index_col=0)
+
+respASVtax = pd.read_csv("hiRespTax.csv", index_col=0)
+
+
+respASV.head()
+
+respASV.index
+
+
+respASV.query("log2FoldChange > 1" ).index
+
+
+## these are not so rare:
+
+respASV.query("log2FoldChange > 1 & baseMean > 7")
+
+## look at udeabacter
+
+
+udea = mapOneASV("ASV621", color="b", jitter=0, showLand=True)
+
+## interesting, but are any of these non-grassland species?
+## subset to just forest sites, then run the deseq
+## check tomorrow, have to work on some other things...
+
+## here are some species that still appeared sensitive to 
+## respiration, after accounting for land type, using deseq2 above
+
+## ASV1164 Chloroflexi  forest
+## ASV1734 acidobacteriota, Bryobacter
+## ASV2626 alphaprot, Esterales 
+## ASV4902 Actinbacteriota, Solirubrobacteraceae
+## ASV6938 Alphaproteo, Sphingomonas
+
+fig,ax = plt.subplots()
+
+plt.close('all')
+
+mapOneASV("ASV1164", color="b", jitter=0, showLand=True) ## definitely forest associated
+
+aa = mapOneASV("ASV1734", color="b", jitter=0, showLand=True) ## definitely forest associated
+aa = mapOneASV("ASV2626", color="b", jitter=0, showLand=True) ## only found in one plot above thresholds? So this probably disappears after our transformations
+aa = mapOneASV("ASV4902", color="b", jitter=0, showLand=True) ## same: only found in one plot above thresholds? So this probably disappears after our transformations
+aa = mapOneASV("ASV6938", color="b", jitter=0, showLand=True) ## also only one point. Oh jeez. 
+
+(aa.iloc[:,0] > 0).sum()
+
+## so the only the Chloroflexi from forests seems informative here.
+## let's try subsetting by landtype:
+
+## I think we need some multivariate approaches here. Networks and bayesian lms, like maybe bradco
+
+## not sure if it will work with our current conda env?:
+
+pip install BRACoD ## nope
+
+## try a new env:
+
+conda deactivate
+
+conda create -n BRACoD python=3.6
+
+conda activate BRACoD
+
+pip install BRACoD
+
+## theano not working...needs this?
+conda install mkl-service
+
+## that seems to have installed okay...test it out with sample data
+
+## following https://github.com/ajverster/BRACoD
+
+python
+
+import BRACoD
+import numpy as np
+
+sim_counts, sim_y, contributions = BRACoD.simulate_microbiome_counts(BRACoD.df_counts_obesity)
+
+sim_y ## our response variable 
+
+contributions.shape
+
+sim_relab = BRACoD.scale_counts(sim_counts)
+
+help(BRACoD.run_bracod)
+
+trace = BRACoD.run_bracod(sim_relab, sim_y, n_sample = 1000, n_burn=1000, njobs=4)
+
+## too many cores? try defaults?
+trace = BRACoD.run_bracod(sim_relab, sim_y, n_sample = 1000, n_burn=1000)
+
+
+## whoah, this is slow...why?
+## not working, freezes up. No real use of memory/cores
+
+
+BRACoD.convergence_tests(trace, sim_relab)
+
+conda env export > my_bracod_env.yaml
+
+
+## that appears to be dead. 
+
+## okay, that rules out bracod for the moment. Let's pick a cooccurence network 
+## analysis method, try an install:
+
+

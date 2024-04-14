@@ -1556,4 +1556,173 @@ conda env export > my_bracod_env.yaml
 ## okay, that rules out bracod for the moment. Let's pick a cooccurence network 
 ## analysis method, try an install:
 
+install.packages("devtools")
 
+install.packages("BiocManager")
+
+BiocManager::install("limma")
+
+# Install NetCoMi
+devtools::install_github("stefpeschel/NetCoMi", 
+                         dependencies = c("Depends", "Imports", "LinkingTo"),
+                         repos = c("https://cloud.r-project.org/",
+                                   BiocManager::repositories()))
+
+
+## try some sample features:
+
+library(NetCoMi)
+
+data("amgut1.filt")
+
+amgut1.filt[0:10,0:10]
+
+
+data("amgut2.filt.phy")
+
+amgut2.filt.phy ## phyloseq obj
+
+
+net_spring <- netConstruct(amgut1.filt,
+                           filtTax = "highestFreq",
+                           filtTaxPar = list(highestFreq = 50),
+                           filtSamp = "totalReads",
+                           filtSampPar = list(totalReads = 1000),
+                           measure = "spring",
+                           measurePar = list(nlambda=10, 
+                                             rep.num=10,
+                                             Rmethod = "approx"),
+                           normMethod = "none", 
+                           zeroMethod = "none",
+                           sparsMethod = "none", 
+                           dissFunc = "signed",
+                           verbose = 2,
+                           seed = 123456)
+
+
+
+props_spring <- netAnalyze(net_spring, 
+                           centrLCC = TRUE,
+                           clustMethod = "cluster_fast_greedy",
+                           hubPar = "eigenvector",
+                           weightDeg = FALSE, normDeg = FALSE)
+
+
+#?summary.microNetProps
+
+
+summary(props_spring, numbNodes = 5L)
+
+p <- plot(props_spring, 
+          nodeColor = "cluster", 
+          nodeSize = "eigenvector",
+          title1 = "Network on OTU level with SPRING associations", 
+          showTitle = TRUE,
+          cexTitle = 2.3)
+
+legend(0.7, 1.1, cex = 2.2, title = "estimated association:",
+       legend = c("+","-"), lty = 1, lwd = 3, col = c("#009900","red"), 
+       bty = "n", horiz = TRUE)
+
+## or with pearson:
+
+net_pears <- netConstruct(amgut2.filt.phy,  
+                          measure = "pearson",
+                          normMethod = "clr",
+                          zeroMethod = "multRepl",
+                          sparsMethod = "threshold",
+                          thresh = 0.3,
+                          verbose = 3)
+
+## let's try it on our data.
+
+## we can use a centered log transformation, pearson correlation as per the examples 
+## on the NetCoMi github
+
+load("/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/sulariPhyloseqObject.rda")
+
+net_pears <- netConstruct(ps,  
+                          measure = "pearson",
+                          normMethod = "clr",
+                          zeroMethod = "multRepl", ## don't understand totally...
+                          sparsMethod = "threshold", ## don't understand totally...
+                          thresh = 0.3,
+                          verbose = 3)
+
+## killed. To much memory required?
+
+
+props_pears <- netAnalyze(net_pears, 
+                          clustMethod = "cluster_fast_greedy")
+
+plot(props_pears, 
+     nodeColor = "cluster", 
+     nodeSize = "eigenvector",
+     title1 = "Network on OTU level with Pearson correlations", 
+     showTitle = TRUE,
+     cexTitle = 2.3)
+
+legend(0.7, 1.1, cex = 2.2, title = "estimated correlation:", 
+       legend = c("+","-"), lty = 1, lwd = 3, col = c("#009900","red"), 
+       bty = "n", horiz = TRUE)
+
+
+## can we port this over to the lab computer?
+
+nanoComp
+
+## let's try using the house R install:
+
+## make a working directory:
+
+cd /media/vol1/daniel/sulariArne/soilAnalysis
+
+
+#library('DESeq2')
+
+if (!require("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+
+BiocManager::install('phyloseq')
+
+library('phyloseq')
+
+setwd("/media/vol1/daniel/sulariArne/soilAnalysis")
+
+download.file("https://github.com/danchurch/fichtelgebirgeSoils/raw/main/sulariData/sulariPhyloseqObject.rda", destfile="sulariPhyloseqObject.rda")
+
+load("sulariPhyloseqObject.rda")
+
+ps ## looks ok
+
+
+BiocManager::install("limma")
+
+install.packages("devtools")
+
+devtools::install_github("stefpeschel/NetCoMi", 
+                         dependencies = c("Depends", "Imports", "LinkingTo"),
+                         repos = c("https://cloud.r-project.org/",
+                                   BiocManager::repositories()))
+
+
+## the following packages failed. Work on it tomorrow. 
+
+install.packages("systemfonts")
+install.packages(       "xml2")
+install.packages("textshaping")
+install.packages(  "rversions")
+install.packages( "urlchecker")
+install.packages(    "openssl")
+install.packages(       "ragg")
+install.packages("credentials")
+install.packages(      "httr2")
+install.packages(       "httr")
+install.packages(       "gert")
+install.packages(         "gh")
+install.packages(    "usethis")
+install.packages(    "pkgdown")
+install.packages(   "roxygen2")
+install.packages(   "devtools")
+
+## not run

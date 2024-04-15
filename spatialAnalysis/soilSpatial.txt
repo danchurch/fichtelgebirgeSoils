@@ -100,7 +100,6 @@ BiocManager::install("phyloseq")
 ## right python?
 
 conda activate spatialDirt 
-
 pip install notebook 
 
 which jupyter ## looks like that work. Gets easier every year.
@@ -112,7 +111,6 @@ which jupyter ## looks like that work. Gets easier every year.
 
 pip install bash_kernel
 python -m bash_kernel.install
-
 
 ##### bayesian setup #####
 
@@ -1901,4 +1899,48 @@ legend(0.7, 1.1, cex = 2.2, title = "estimated correlation:",
 conda env export > spatialDirt_15.4.24.yaml
 
 ## update repo, clone onto lab
-## on the lab comp, try to 
+## on the lab comp, try to use it to make a new environment:
+
+cd /media/vol1/daniel/sulariArne/soilAnalysis
+
+wget https://raw.githubusercontent.com/danchurch/fichtelgebirgeSoils/main/spatialDirt_15.4.24.yaml 
+
+conda update -n base conda
+
+conda install -n base conda-libmamba-solver
+
+conda config --set solver libmamba
+
+## get the standard channels
+
+conda config --add channels defaults
+conda config --add channels bioconda
+conda config --add channels conda-forge
+
+conda env create --name spatialDirt --file=spatialDirt_15.4.24.yaml
+
+## lots of errors...let's see...installing kernels as above
+
+## is the R kernel on there?
+
+## try: 
+## https://stackoverflow.com/questions/44056164/jupyter-client-has-to-be-installed-but-jupyter-kernelspec-version-exited-wit
+
+## in a sudo R sesh on lab comp:
+
+install.packages('IRkernel')
+
+system.file('kernelspec', package = 'IRkernel')
+
+## gives us:
+"/usr/local/lib/R/site-library/IRkernel/kernelspec"
+
+## which we 
+
+IRkernel::installspec()
+
+
+## as per this site:
+https://stackoverflow.com/questions/69244218/how-to-run-a-jupyter-notebook-through-a-remote-server-on-local-machine
+
+jupyter notebook --no-browser --port=8080

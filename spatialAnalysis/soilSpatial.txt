@@ -1935,12 +1935,28 @@ system.file('kernelspec', package = 'IRkernel')
 ## gives us:
 "/usr/local/lib/R/site-library/IRkernel/kernelspec"
 
-## which we 
 
-IRkernel::installspec()
+## which we can give to our notebook
+jupyter kernelspec install "/usr/local/lib/R/site-library/IRkernel/kernelspec" \
+  --name "R" \
+  --user 
+
+jupyter kernelspec list
+
+cd /media/vol1/daniel/miniconda3/envs/spatialDirt
+
 
 
 ## as per this site:
 https://stackoverflow.com/questions/69244218/how-to-run-a-jupyter-notebook-through-a-remote-server-on-local-machine
 
 jupyter notebook --no-browser --port=8080
+
+ssh -L 8080:localhost:8080 test@132.180.112.115
+
+## almost works. wants passwords and tokens and stuff:
+https://jupyter-server.readthedocs.io/en/latest/operators/public-server.html
+
+## for now use tokens...
+
+

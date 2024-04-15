@@ -1698,7 +1698,9 @@ ps ## looks ok
 
 BiocManager::install("limma")
 
-install.packages("devtools")
+BiocManager::install("zCompositions")
+
+install.packages("devtools") 
 
 devtools::install_github("stefpeschel/NetCoMi", 
                          dependencies = c("Depends", "Imports", "LinkingTo"),
@@ -1706,23 +1708,182 @@ devtools::install_github("stefpeschel/NetCoMi",
                                    BiocManager::repositories()))
 
 
+## dev.tools failed. 
 ## the following packages failed. Work on it tomorrow. 
 
 install.packages("systemfonts")
+## which needs...
+sudo apt install libfontconfig1-dev
+
 install.packages(       "xml2")
+## which needs...
+sudo apt install libxml2-dev
+
 install.packages("textshaping")
-install.packages(  "rversions")
-install.packages( "urlchecker")
+## which needs...
+sudo apt install libharfbuzz-dev libfribidi-dev
+
+install.packages(  "rversions") ## easy
+install.packages( "urlchecker") ## easy
+
 install.packages(    "openssl")
+## which needs
+sudo apt install libssl-dev
+
 install.packages(       "ragg")
-install.packages("credentials")
-install.packages(      "httr2")
-install.packages(       "httr")
-install.packages(       "gert")
-install.packages(         "gh")
-install.packages(    "usethis")
-install.packages(    "pkgdown")
-install.packages(   "roxygen2")
+## which needs
+sudo apt install libfreetype6-dev libpng-dev libtiff5-dev libjpeg-dev
+
+install.packages("credentials") ## easy
+install.packages(      "httr2") ## easy
+install.packages(       "httr") ## easy
+install.packages(       "gert") ## easy
+install.packages(         "gh") ## easy
+install.packages(    "usethis") ## easy
+install.packages(    "pkgdown") ## easy
+install.packages(   "roxygen2") ## easy
+
+## and...
 install.packages(   "devtools")
 
+devtools::install_github("stefpeschel/NetCoMi", 
+                         dependencies = c("Depends", "Imports", "LinkingTo"),
+                         repos = c("https://cloud.r-project.org/",
+                                   BiocManager::repositories()))
+
+## failed again. Lots of failed dependencies:
+‘SpiecEasi’, ‘mixedCCA’, ‘qgraph’, ‘SPRING’, ‘WGCNA’ are not available for package ‘NetCoMi’
+
+
+library(devtools)
+install_github("zdk123/SpiecEasi")
+
+## which needs:
+
+## which needs fortran ??
+sudo apt install gfortran
+## and the following are not there:
+ld -llapack --verbose
+ld -lblas --verbose
+sudo apt install liblapack-dev libopenblas-dev
+
+install.packages("mixedCCA")
+install.packages("qgraph") 
+install.packages("SPRING")
+install.packages("WGCNA")
+
+## try again 
+devtools::install_github("stefpeschel/NetCoMi", 
+                         dependencies = c("Depends", "Imports", "LinkingTo"),
+                         repos = c("https://cloud.r-project.org/",
+                                   BiocManager::repositories()))
+
+library('NetCoMi') ## no errors...finally...
+
+R
+
+library('phyloseq')
+library('NetCoMi')
+setwd("/media/vol1/daniel/sulariArne/soilAnalysis")
+
+## does the plotter work on x11 forwarding?
+
+plot(1) ## looks okay, for base plotter
+
+#download.file("https://github.com/danchurch/fichtelgebirgeSoils/raw/main/sulariData/sulariPhyloseqObject.rda", destfile="sulariPhyloseqObject.rda")
+
+load("sulariPhyloseqObject.rda")
+
+## to run our data, we want a pretty rigorous minimum abundance threshold. 
+## for all of our vegan stuff, we use a minimum abundance of 50 reads 
+## per observation. 
+
+## to be clear, we want all sample counts below 50 to be come zero
+
+dropLow <- function(x) {
+                           if (x < 0) {x = 0}
+                          }
+
+dropLow <- function(x) {
+                           x <- x - 50
+                           if (x < 0) {x = 0}
+                           x
+                          }
+
+dropLow(100)
+ps.atLeast50 <- transform_sample_counts(ps.filter.fam, dropLow)
+
+## nope, can't handle if statements. Let' pull out the matrix and work 
+## on it directly:
+
+
+setwd("/media/vol1/daniel/sulariArne/soilAnalysis")
+load("sulariPhyloseqObject.rda")
+library('phyloseq')
+library('NetCoMi')
+
+ps.atLeast50 <- ps
+aa <- otu_table(ps)
+bb <- aa - 50 
+bb[bb < 0] <- 0
+otu_table(ps.atLeast50) <- bb
+## can we trim out empty otus now? 
+ps.atLeast50 <- prune_taxa( taxa_sums(ps.atLeast50) > 0, ps.atLeast50 )
+
+otu_table(ps)[0:10,0:10]
+
+otu_table(ps.atLeast50)[0:10,0:10]
+
+dim(otu_table(ps)) 
+dim(otu_table(ps.atLeast50)) ## down to just 4280 taxa, out of 36140
+
+## ok, looks right
+## now pass that to network software:
+
+## just curious, can it handle the full ps? want to see how this changes the network.
+
+#net_pears_fullPS <- netConstruct(ps,  
+#                          measure = "pearson",
+#                          normMethod = "clr",
+#                          zeroMethod = "multRepl", ## don't understand totally...
+#                          sparsMethod = "threshold", ## don't understand totally...
+#                          thresh = 0.3,
+#                          verbose = 3)
+
+## nope, dies
+
+## try smaller object:
+
+net_pears_PSatleast50 <- netConstruct(ps.atLeast50,  
+                          measure = "pearson",
+                          normMethod = "clr",
+                          zeroMethod = "multRepl", ## don't understand totally...
+                          sparsMethod = "threshold", ## don't understand totally...
+                          thresh = 0.3,
+                          verbose = 3)
+
+## that was computationally expensive:
+save(net_pears_PSatleast50, file = "net_pears_PSatleast50.rda") ## 139 mb, pretty darn big..
+
+props_pears <- netAnalyze(net_pears_PSatleast50, 
+                          clustMethod = "cluster_fast_greedy")
+
+
 ## not run
+plot(props_pears, 
+     nodeColor = "cluster", 
+     nodeSize = "eigenvector",
+     title1 = "Network on OTU level with Pearson correlations", 
+     showTitle = TRUE,
+     cexTitle = 2.3)
+
+legend(0.7, 1.1, cex = 2.2, title = "estimated correlation:", 
+       legend = c("+","-"), lty = 1, lwd = 3, col = c("#009900","red"), 
+       bty = "n", horiz = TRUE)
+
+## plan for the day:
+
+## rerun network analysis with environment variables land-use and respiration
+
+## if it works, update notebook with it:
+

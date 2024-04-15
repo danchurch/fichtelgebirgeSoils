@@ -1887,3 +1887,18 @@ legend(0.7, 1.1, cex = 2.2, title = "estimated correlation:",
 
 ## if it works, update notebook with it:
 
+
+
+### on another note, we need to run jupyter on the lab computer...
+
+## means 
+## - install jupyter
+## - clone repo to lab comp
+##  maybe best to do this as we did on my own computer, within a conda env
+
+## can we use our current spatialDirt yaml for this?
+
+conda env export > spatialDirt_15.4.24.yaml
+
+## update repo, clone onto lab
+## on the lab comp, try to 

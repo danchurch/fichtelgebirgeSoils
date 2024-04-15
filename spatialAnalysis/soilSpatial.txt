@@ -1989,8 +1989,6 @@ https://stackoverflow.com/questions/13509293/git-fatal-could-not-read-from-remot
 ## the ssh-agent had to be started up and informed about the new key:
 
 eval `ssh-agent -s`
-ssh-add nanoComp2git
-
-
+ssh-add ~/.ssh/nanoComp2git
 
 

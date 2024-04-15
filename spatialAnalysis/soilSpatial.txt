@@ -1960,3 +1960,37 @@ https://jupyter-server.readthedocs.io/en/latest/operators/public-server.html
 ## for now use tokens...
 
 
+## we need to synch up with git
+
+## on the nanocomp
+
+## as per above, the nanocomp computer repo needs 
+## to be given permissions, etc.
+
+cd /media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis
+
+git config --global user.email "danchurchthomas@gmail.com"
+
+git config --global user.name "danchurch"
+
+git remote add origin https://github.com/danchurch/fichtelgebirgeSoils.git
+git branch -M main
+git remote set-url origin git@github.com:danchurch/fichtelgebirgeSoils.git
+
+git push -u origin main
+
+## nope, don't think I put keys for lab comp on there
+
+cd ~/.ssh
+ssh-keygen -t rsa -f nanoComp2git
+
+## and as per here:
+https://stackoverflow.com/questions/13509293/git-fatal-could-not-read-from-remote-repository
+## the ssh-agent had to be started up and informed about the new key:
+
+eval `ssh-agent -s`
+ssh-add nanoComp2git
+
+
+
+

@@ -1815,8 +1815,9 @@ ps.atLeast50 <- transform_sample_counts(ps.filter.fam, dropLow)
 ## on it directly:
 
 
-setwd("/media/vol1/daniel/sulariArne/soilAnalysis")
+setwd("/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis")
 load("sulariPhyloseqObject.rda")
+library('vegan')
 library('phyloseq')
 library('NetCoMi')
 
@@ -1990,5 +1991,23 @@ https://stackoverflow.com/questions/13509293/git-fatal-could-not-read-from-remot
 
 eval `ssh-agent -s`
 ssh-add ~/.ssh/nanoComp2git
+
+## and this had to be added to the bashrc. weird. never had to do that before...
+
+## anyway, github seems synched. 
+## and does that mean we can carefully work remotely with the jupyter notebook now?
+
+## when we actually get comfortable with this, we can get back to editing this
+## text file local. For now, both vim and jupyter are on the nanocomp computer:
+
+
+cd /media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis
+
+conda activate spatialDirt 
+
+jupyter notebook --no-browser --port=8080
+
+## run this to activate the tcp forwarding
+ssh -L 8080:localhost:8080 test@132.180.112.115
 
 

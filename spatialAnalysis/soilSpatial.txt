@@ -1816,7 +1816,8 @@ ps.atLeast50 <- transform_sample_counts(ps.filter.fam, dropLow)
 
 
 setwd("/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis")
-load("sulariPhyloseqObject.rda")
+
+load("../sulariData/sulariPhyloseqObject.rda")
 library('vegan')
 library('phyloseq')
 library('NetCoMi')
@@ -1867,6 +1868,15 @@ save(net_pears_PSatleast50, file = "net_pears_PSatleast50.rda") ## 139 mb, prett
 props_pears <- netAnalyze(net_pears_PSatleast50, 
                           clustMethod = "cluster_fast_greedy")
 
+
+?netConstruct
+
+## huh, we can use a custom count matrix
+
+## which means we can add columns. 
+## so let's make a matrix that includes land-type, and 
+
+?netAnalyze
 
 ## not run
 plot(props_pears, 
@@ -2009,5 +2019,26 @@ jupyter notebook --no-browser --port=8080
 
 ## run this to activate the tcp forwarding
 ssh -L 8080:localhost:8080 test@132.180.112.115
+
+## it's going to be confusing working on both computers. 
+## just slow it down, save/pull/push.
+
+## calculating the network statistics takes for ever with netcommi
+
+## can we multithread? its only using one core...
+
+
+## I think we need to revisit the network software 
+
+## we need some how a vector of the ASVs most responsive to 
+## respiration, added to a cooccurrence matrix.
+
+## we need to mkae our own adjacency matrix, I guess. 
+
+## anyway, to get the candidates for responsiveness to 
+## respiration...seems like we can't avoid a full multivariate
+## treatment of the community matrix?
+
+## let's take a look at the BORAL tool...
 
 

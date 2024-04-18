@@ -2041,4 +2041,866 @@ ssh -L 8080:localhost:8080 test@132.180.112.115
 
 ## let's take a look at the BORAL tool...
 
+##### boral install and test ####
+
+## boral github repo is here:
+https://github.com/emitanaka/boral
+
+## try the install on local machine:
+
+install.packages('boral') 
+
+install.packages('R2jags') 
+
+install.packages('rjags') 
+
+sudo apt install jags ## and work back up
+
+library(boral)
+
+## and pretty much zero documentation...
+
+#### HMSC install and test #####
+
+## let's try HMSC package:
+
+install.packages("devtools") # if not yet installed
+install.packages("usethis") # if not yet installed
+
+library(devtools)
+
+install_github("hmsc-r/HMSC")
+
+## cran could also work, for stable version. 
+
+## there is a book. Maybe we order it? 
+
+## but for the moment, try to find some online examples?
+
+## they have a series of vignettes they want you to work through
+
+https://cran.r-project.org/web/packages/Hmsc/index.html
+
+## start with the first:
+
+https://cran.r-project.org/web/packages/Hmsc/vignettes/vignette_1_univariate.pdf
+
+
+library(Hmsc)
+
+set.seed(1)
+
+## make a simple linear model:
+## using a maximum likelihood fit:
+
+n = 50
+x = rnorm(n)
+alpha = 0
+beta = 1
+sigma = 1
+L = alpha + beta*x
+y = L + rnorm(n, sd = sigma)
+
+plot(x, y, las=1)
+
+
+df = data.frame(x,y)
+m.lm = lm(y ~ x, data=df)
+summary(m.lm)
+
+## compare this to HMSC
+
+Y = as.matrix(y)
+
+XData = data.frame(x = x)
+
+m = Hmsc(Y = Y, XData = XData, XFormula = ~x)
+
+nChains = 2
+thin = 5
+samples = 1000
+transient = 500*thin
+verbose = 500*thin
+
+?sampleMcmc
+
+m = sampleMcmc(m, thin = thin, samples = samples, transient = transient,
+nChains = nChains, verbose = verbose)
+
+mpost = convertToCodaObject(m)
+
+summary(mpost$Beta)
+
+preds = computePredictedValues(m)
+
+?computePredictedValues
+
+evaluateModelFit(hM=m, predY=preds)
+
+plot(mpost$Beta)
+
+effectiveSize(mpost$Beta)
+
+## if these indicators are close to one, the 
+## chains behaved similarly during sampling
+gelman.diag(mpost$Beta,multivariate=FALSE)$psrf
+
+
+## evaluating at a maxlikelihood linear model:
+
+nres.lm = rstandard(m.lm)
+preds.lm = fitted.values(m.lm)
+par(mfrow=c(1,2))
+hist(nres.lm, las = 1)
+plot(preds.lm,nres.lm, las = 1)
+abline(a=0,b=0)
+
+plot(m.lm)
+
+## checking out a bayesian lm:
+
+preds.mean = apply(preds, FUN=mean, MARGIN=1)
+
+nres = scale(y-preds.mean)
+
+par(mfrow=c(1,2))
+
+hist(nres, las = 1)
+plot(preds.mean,nres, las = 1)
+
+abline(a=0,b=0)
+
+## generalized linear models (link function, different dists) possible, just a couple
+## for univariate models:
+
+y = 1*(L+ rnorm(n, sd = 1)>0)
+
+plot(x,y, las = 1)
+
+### example hierachical model
+
+## 100 samples, 10 plots, one response variable, checking for plot effects
+## additive effects, in other words looking for different intercepts
+## due to the different plots:
+
+## make fake data:
+n = 100
+x = rnorm(n)
+alpha = 0
+beta = 1
+sigma = 1
+L = alpha + beta*x
+np = 10
+sigma.plot = 1
+sample.id = 1:n
+plot.id = sample(1:np, n, replace = TRUE)
+ap = rnorm(np, sd = sigma.plot)
+a = ap[plot.id]
+y = L + a + rnorm(n, sd = sigma)
+plot.id = as.factor(plot.id)
+plot(x,y,col = plot.id, las = 1)
+XData = data.frame(x = x)
+Y = as.matrix(y)
+studyDesign = data.frame(sample = as.factor(sample.id), plot = as.factor(plot.id))
+rL = HmscRandomLevel(units = studyDesign$plot)
+m = Hmsc(Y=Y, XData=XData, XFormula=~x,
+       studyDesign=studyDesign, ranLevels=list("plot"=rL))
+m = sampleMcmc(m, thin = thin, samples = samples, transient = transient,
+                nChains = nChains, nParallel = nChains, verbose = verbose)
+preds = computePredictedValues(m)
+MF = evaluateModelFit(hM=m, predY=preds)
+MF$R2 ## ~.7, keeps changing
+## that is classical R2, I guess, all data used to make the model
+## and all data used to evaluate
+
+## they offer rapid cross-validation predictive R2 
+partition = createPartition(m, nfolds = 2, column = "sample")
+
+partition
+
+## not sure how this works, but model is refit using the likelihood from half 
+## the data I guess:
+preds = computePredictedValues(m, partition = partition, nParallel = nChains)
+
+## seems like this would create two diff posteriors? no way, too weird. I just don't
+## understand
+
+MF = evaluateModelFit(hM = m, predY = preds)
+MF$R2 ## ~0.7 still pretty good
+
+
+
+## spatial autorrelation can be incorporated as an additional variable
+
+## make a random dataset with y-variable autocorrelation that does
+## not correspond with autocorrelation in x:
+
+sigma.spatial = 2
+alpha.spatial = 0.5
+sample.id = rep(NA,n)
+for (i in 1:n){
+sample.id[i] = paste0("location_",as.character(i))
+}
+sample.id = as.factor(sample.id)
+xycoords = matrix(runif(2*n), ncol=2)
+rownames(xycoords) = sample.id
+colnames(xycoords) = c("x-coordinate","y-coordinate")
+a = MASS::mvrnorm(mu=rep(0,n),
+Sigma = sigma.spatial^2*exp(-as.matrix(dist(xycoords))/alpha.spatial))
+y = L + a + rnorm(n, sd = sigma)
+Y=as.matrix(y)
+colfunc = colorRampPalette(c("cyan", "red"))
+ncols = 100
+cols = colfunc(100)
+par(mfrow=c(1,2))
+for (i in 1:2){
+if (i==1) value = x
+if (i==2) value = y
+value = value-min(value)
+value = 1+(ncols-1)*value/max(value)
+plot(xycoords[,1],xycoords[,2],col=cols[value],pch=16,main=c("x","y")[i], asp=1)
+}
+
+studyDesign = data.frame(sample = sample.id)
+
+## tell the model we are expecting a spatial level to our model with sData setting?
+rL = HmscRandomLevel(sData = xycoords)
+
+m = Hmsc(Y=Y, XData=XData, XFormula=~x,
+         studyDesign=studyDesign, ranLevels=list("sample"=rL))
+
+m = sampleMcmc(m, thin = thin, samples = samples, transient = transient,
+         nChains = nChains, nParallel = nChains, verbose = verbose)
+
+
+## not sure how they hande the estimation of the spatial effects,
+## need to check under the hood a bit. But also need to keep moving with this
+## analysis. 
+
+## the second tutorial: simple multivariate data:
+
+https://cran.r-project.org/web/packages/Hmsc/vignettes/vignette_2_multivariate_low.pdf
+
+library(Hmsc)
+library(corrplot)
+
+set.seed(1) 
+
+## five species example:
+
+n = 100
+x1 = rnorm(n)
+x2 = rnorm(n)
+XData = data.frame(x1=x1,x2=x2)
+alpha = c(0,0,0,0,0)
+beta1 = c(1,1,-1,-1,0)
+beta2 = c(1,-1,1,-1,0)
+sigma = c(1,1,1,1,1)
+
+L = matrix(NA,nrow=n,ncol=5)
+
+Y = matrix(NA,nrow=n,ncol=5)
+
+for (j in 1:5){
+L[,j] = alpha[j] + beta1[j]*x1 + beta2[j]*x2
+Y[,j] = L[,j] + rnorm(n, sd = sigma[j])
+}
+
+## build model
+
+m = Hmsc(Y = Y, XData = XData, XFormula = ~x1+x2)
+
+nChains = 2
+thin = 10
+samples = 1000
+transient = 500*thin
+verbose = 0
+
+m = sampleMcmc(m, thin = thin, samples = samples, transient = transient,
+               nChains = nChains, nParallel = nChains, verbose = verbose)
+
+mpost = convertToCodaObject(m)
+
+## check for convergence 
+effectiveSize(mpost$Beta)
+
+gelman.diag(mpost$Beta, multivariate=FALSE)$psrf
+## sample sizes should 
+
+par(mfrow=c(1,2))
+hist(effectiveSize(mpost$Beta), main="ess(beta)")
+hist(gelman.diag(mpost$Beta, multivariate=FALSE)$psrf, main="psrf(beta)")
+
+preds = computePredictedValues(m)
+
+evaluateModelFit(hM = m, predY = preds)
+
+partition = createPartition(m, nfolds = 2)
+
+preds = computePredictedValues(m, partition = partition, nParallel = nChains)
+
+evaluateModelFit(hM = m, predY = preds)
+
+postBeta = getPostEstimate(m, parName = "Beta")
+
+plotBeta(m, post = postBeta, param = "Support", supportLevel = 0.95)
+
+## so we can pick out the individual species response to environmental parameter
+## in a statistically sound way, no need for pvalue correction, etc.
+## this is a great improvement...
+
+### including species-species interations 
+
+## biotic interactions are included as latent variables in model, using 
+## a species-species covariance matrix
+
+studyDesign = data.frame(sample = as.factor(1:n))
+
+rL = HmscRandomLevel(units = studyDesign$sample)
+
+m = Hmsc(Y = Y, XData = XData, XFormula = ~x1+x2,
+      studyDesign = studyDesign, ranLevels = list(sample = rL))
+
+m = sampleMcmc(m, thin = thin, samples = samples, transient = transient,
+       nChains = nChains, nParallel = nChains, verbose = verbose)
+
+mpost = convertToCodaObject(m)
+
+par(mfrow=c(2,2))
+hist(effectiveSize(mpost$Beta), main="ess(beta)")
+hist(gelman.diag(mpost$Beta, multivariate=FALSE)$psrf, main="psrf(beta)")
+hist(effectiveSize(mpost$Omega[[1]]), main="ess(omega)")
+hist(gelman.diag(mpost$Omega[[1]], multivariate=FALSE)$psrf, main="psrf(omega)")
+
+postBeta = getPostEstimate(m, parName="Beta")
+plotBeta(m, post=postBeta, param="Support", supportLevel = 0.95)
+## you would expect these to be the same as above
+
+## and but now you also have a posterior for a latent variable 
+## that is describing species-species interactions
+
+OmegaCor = computeAssociations(m)
+supportLevel = 0.95
+toPlot = ((OmegaCor[[1]]$support>supportLevel)
+   + (OmegaCor[[1]]$support<(1-supportLevel))>0)*OmegaCor[[1]]$mean
+
+corrplot(toPlot, method = "color",
+         col = colorRampPalette(c("blue","white","red"))(200),
+         title = paste("random effect level:", m$rLNames[1]), mar=c(0,0,1,0))
+
+
+## and there is no correlation between species abundances,
+## because the data was not generated with any covariances
+## among the species abundances.
+
+## make a simpler model, drop one covariate...what happens?
+
+m = Hmsc(Y=Y, XData=XData, XFormula=~x1,
+         studyDesign=studyDesign, ranLevels=list(sample=rL))
+
+m = sampleMcmc(m, thin = thin, samples = samples, transient = transient,
+               nChains = nChains, nParallel = nChains, verbose = verbose)
+
+postBeta = getPostEstimate(m, parName="Beta")
+
+plotBeta(m, post=postBeta, param="Support", supportLevel = 0.95)
+
+OmegaCor = computeAssociations(m)
+
+?computeAssociations
+
+supportLevel = 0.95
+
+toPlot = ((OmegaCor[[1]]$support>supportLevel)
+         + (OmegaCor[[1]]$support<(1-supportLevel))>0)*OmegaCor[[1]]$mean
+
+corrplot(toPlot, method = "color",
+         col=colorRampPalette(c("blue","white","red"))(200),
+         title=paste("random effect level:", m$rLNames[1]), mar=c(0,0,1,0))
+
+## the resulting checkerboard shows what happens when an important 
+## predictor is left out. The residual covariance after that is left
+## after the remaining environmental predictor is incorporated into 
+## the latent variable that is intended to represent biotic interactions.
+## So some species are covarying, but only because they both "like" 
+## environmental conditions that weren't in the model, not because 
+## they are in symbioses etc. This shows the limitations of this kind of analysis. 
+
+## explanatory R2:
+preds = computePredictedValues(m)
+
+evaluateModelFit(hM = m, predY = preds)
+
+## the latent variable is actually doing a good job of 
+
+## predictive/cross-validated R2
+## making up the missing predictor. 
+oo
+
+
+
+
+## but this breaks down when you split the data
+## for training/prediction. 
+## They don't describe this in the tutorial, but
+## assume this because the latent variables 
+## are given uninformative priors and the 
+## likelihood isn't weighted as much with the 
+## smaller amound of data/evidenc.
+
+preds = computePredictedValues(m, partition = partition, nParallel = nChains)
+
+evaluateModelFit(hM = m, predY = preds)
+
+## possible to do predictions of a species, especially
+## if you have data from the other species. So cross validation
+## leaving one species out at a time also possible:
+
+preds = computePredictedValues(m, partition=partition,
+      partition.sp=c(1,2,3,4,5), mcmcStep=10, nParallel = nChains)
+
+
+## this is mostly for when you have a small species matrix
+
+##### Ordinations ####
+
+rL$nfMin=2
+rL$nfMax=2
+
+m = Hmsc(Y=Y, XData=XData, XFormula=~1,
+    studyDesign=studyDesign, ranLevels=list(sample=rL))
+m = sampleMcmc(m, thin = thin, samples = samples, transient = transient,
+    nChains = nChains, nParallel = nChains, verbose = verbose)
+
+etaPost=getPostEstimate(m, "Eta")
+lambdaPost=getPostEstimate(m, "Lambda")
+
+biPlot(m, etaPost = etaPost, lambdaPost = lambdaPost, factors = c(1,2), "x2")
+
+## interesting, but my results don't match the tutorial, so not sure how to 
+## interpret
+
+## essentially, the idea is similar to eigen-decomposition/PCA type 
+## analysis, but the method is different. 
+
+## they just introduced two vaguely defined variables the explain the 
+## general mass of the data, without any previous hypotheses
+## stated, but what are the priors and likelihoods on these? don't 
+## understand. Some sort of gaussian or dirichilet process I guess. Beyond me. 
+
+## then these two latent variables act pretty much like when we create 
+## a composite variable using PCAs
+
+## we subtract the variance we can explain from environmental conditions
+## and biotic interactions by giving these to the model, and the remaining
+## residual variation only is explained by these 
+
+## you can mix up the link functions and residual models:
+
+nChains = 2
+thin = 10
+samples = 1000
+transient = 500*thin
+verbose = 0
+set.seed(2)
+n = 100
+x1 = rnorm(n)
+x2 = rnorm(n)
+alpha = c(0,0,0,0)
+beta1 = c(1,1,-1,-1)
+beta2 = c(1,-1,1,-1)
+sigma = c(1,NA,NA,1)
+XData = data.frame(x1=x1,x2=x2)
+L = matrix(NA,nrow=n,ncol=4)
+Y = matrix(NA,nrow=n,ncol=4)
+for (j in 1:4){
+  L[,j] = alpha[j] + beta1[j]*x1 + beta2[j]*x2
+  }
+Y[,1] = L[,1] + rnorm(n, sd = sigma[1])
+Y[,2] = 1*((L[,2] + rnorm(n, sd = 1))>0)
+Y[,3] = rpois(n, lambda = exp(L[,3]))
+Y[,4] = rpois(n, lambda = exp(L[,4] + rnorm(n, sd = sigma[4])))
+
+m = Hmsc(Y = Y, XData = XData, XFormula = ~x1+x2,
+       distr = c("normal","probit","poisson","lognormal poisson"))
+
+m = sampleMcmc(m, thin = thin, samples = samples, transient = transient,
+    nChains = nChains, nParallel = nChains, verbose = verbose)
+
+
+
+mpost = convertToCodaObject(m)
+effectiveSize(mpost$Beta)
+gelman.diag(mpost$Beta, multivariate=FALSE)$psrf
+
+preds = computePredictedValues(m, expected = FALSE)
+
+evaluateModelFit(hM = m, predY = preds)
+
+postBeta = getPostEstimate(m, parName="Beta")
+
+plotBeta(m, post=postBeta, param="Support", supportLevel = 0.95)
+
+## cool, works. But not sure how we would assign priors/likelihood models for
+## all of the thousand species we're going to examine...
+## maybe in the next tutorial:
+
+## HSCMC tutorial #3:
+## https://cran.r-project.org/web/packages/Hmsc/vignettes/vignette_3_multivariate_high.pdf
+
+library(Hmsc)
+library(corrplot)
+library(ape)
+library(MASS)
+library(fields) ## for image.plot?
+library(knitr)
+set.seed(1)
+
+ns = 50
+## this will incorporate phylogeny, which we will randomly make up:
+phy = ape::rcoal(n=ns, tip.label = sprintf('species_%.3d',1:ns), br = "coalescent")
+plot(phy, show.tip.label = FALSE, no.margin = TRUE)
+
+## model two traits - forest preference and thermal optimum
+## assume there is a phylogenetic effect - more closely related 
+## species are more likely to have the same preference for forest
+## or more similar thermal optimum:
+
+## make up the data so, this hurts my poor little brain:
+
+C = vcv(phy, model = "Brownian", corr = TRUE) ## ape function for traits that are evolving
+spnames = colnames(C)
+traits = matrix(NA,ncol =2,nrow = ns)
+## fill in the traits,  mvrnorm from MASS package
+for (i in 1:2){
+    traits[,i] = matrix(mvrnorm(n = 1, mu = rep(0,ns), Sigma=C))
+    }
+rownames(traits) = spnames
+colnames(traits) = c("habitat.use","thermal.optimum")
+traits = as.data.frame(traits)
+par(fig = c(0,0.6,0,0.8), mar=c(6,0,2,0))
+plot(phy, show.tip.label = FALSE)
+par(fig = c(0.6,0.9,0.025,0.775), mar=c(6,0,2,0), new=T)
+plot.new()
+image.plot(t(traits),axes=FALSE,legend.width = 3,legend.shrink=1,
+#imagePlot(t(traits),axes=FALSE,legend.width = 3,legend.shrink=1,
+col = colorRampPalette(c("blue","white","red"))(200))
+text(x=1.1, y=0.72, srt = 90, "H", cex=0.9, pos = 4)
+text(x=1.4, y=0.72, srt = 90, "T", cex=0.9, pos = 4)
+
+## neat. maybe do something similar with respiration and forest/grassland
+
+## make some environmental and community data:
+
+n = 200
+habitat = factor(sample(x = c("forest","open"), size = n, replace=TRUE))
+climate = rnorm(n)
+nc = 4
+mu = matrix(0,nrow=nc,ncol=ns)
+
+#expected niche of each species related to the "covariate" intercept
+mu[1, ] = -traits$thermal.optimum^2/4-traits$habitat.use
+#expected niche of each species related to the covariate forest
+#(open area as reference level, so included in intercept)
+mu[2, ] = 2*traits$habitat.use
+#expected niche of each species related to the covariate climate
+mu[3, ] = traits$thermal.optimum/2
+#expected niche of each species related to the covariate climate*climate
+mu[4, ] = -1/4
+beta = mu + 0.25*matrix(rnorm(n = ns*nc), ncol=ns)
+X = cbind(rep(1,ns), as.numeric(habitat=="forest"), climate, climate*climate)
+L = X%*%beta
+Y = L + mvrnorm(n=n, mu=rep(0,ns), Sigma=diag(ns))
+colnames(Y) = spnames
+
+## didn't really understand all of the code, but the goal 
+## is to create a community matrix of species that 
+## affected by the two traits. 
+
+Y[1:5,1:5] ## species are columns
+
+## build a model that includes:
+## the climate and habitat data, 
+## a climate^2 term (allows for unimodal, non-linear climate niche curve)
+## also a term for the phylogenetic signal
+
+XData = data.frame(climate = climate, habitat = habitat)
+XFormula = ~habitat + poly(climate,degree = 2,raw = TRUE)
+TrFormula = ~habitat.use + thermal.optimum
+studyDesign = data.frame(sample = sprintf('sample_%.3d',1:n), stringsAsFactors=TRUE)
+rL = HmscRandomLevel(units = studyDesign$sample)
+rL$nfMax = 15
+m = Hmsc(
+                Y = Y, 
+            XData = XData, 
+         XFormula = XFormula,
+           TrData = traits, 
+        TrFormula = TrFormula,
+        phyloTree = phy,
+      studyDesign = studyDesign, 
+        ranLevels = list(sample = rL))
+
+
+## not run - apparently this will take 2 hours.
+## lets set up the labcomputer for this.
+
+m = Hmsc(Y = Y, XData = XData, XFormula = XFormula,
+         TrData = traits, TrFormula = TrFormula,
+         phyloTree = phy,
+         studyDesign = studyDesign, ranLevels = list(sample = rL))
+
+nChains = 2
+thin = 10
+samples = 1000
+transient = 500
+verbose = 0
+
+m = sampleMcmc(m, thin = thin, samples = samples, transient = transient,
+               nChains = nChains, nParallel = nChains, verbose = verbose)
+
+## that actually ran for like ten minutes
+
+## so now we have posterior probability for the community
+
+## they look for four parameters:
+
+## species niches (environmental predictors of species abundance)
+## influence of traits on species niches (organismal traits predicting their response to environment)
+## species-species interactions 
+## effect of phylogeny
+
+## the omega (s x s) matrix is 50 x 50 x 2500 elements. The 2500 is from the traces of the posterior, I think
+## but I thought that part of the point of latent variables was to avoid building this massive matrix?
+
+## anyway...figure out later. They subset to one 100 random species pairs
+
+## check convergences
+
+mpost = convertToCodaObject(m)
+
+par(mfrow=c(3,2))
+ess.beta = effectiveSize(mpost$Beta)
+psrf.beta = gelman.diag(mpost$Beta, multivariate=FALSE)$psrf
+hist(ess.beta)
+hist(psrf.beta)
+ess.gamma = effectiveSize(mpost$Gamma)
+psrf.gamma = gelman.diag(mpost$Gamma, multivariate=FALSE)$psrf
+hist(ess.gamma)
+hist(psrf.gamma)
+sppairs = matrix(sample(x = 1:ns^2, size = 100))
+tmp = mpost$Omega[[1]]
+
+for (chain in 1:length(tmp)){
+tmp[[chain]] = tmp[[chain]][,sppairs]
+}
+
+ess.omega = effectiveSize(tmp)
+psrf.omega = gelman.diag(tmp, multivariate=FALSE)$psrf
+hist(ess.omega)
+hist(psrf.omega)
+
+print("ess.rho:")
+effectiveSize(mpost$Rho)
+
+print("psrf.rho:")
+gelman.diag(mpost$Rho)$psrf
+
+## convergence diagnostics look fine
+
+## overall performance of the model, explanatory.
+## for this, check the R2 on average for all 
+## species predictions:
+
+preds = computePredictedValues(m)
+MF = evaluateModelFit(hM=m, predY=preds)
+
+hist(MF$R2, xlim = c(0,1), main=paste0("Mean = ", round(mean(MF$R2),2)))
+
+## hovering around .70  not bad
+
+m$X
+
+head(m$X)
+
+
+## we can use our model to do Variance Partitioning:
+
+VP = computeVariancePartitioning(m, group = c(1,1,2,2), groupnames = c("habitat","climate"))
+
+?computeVariancePartitioning
+
+plotVariancePartitioning(m, VP = VP)
+
+kable(VP$R2T$Beta)
+
+## we can get back to the environmental predictors, on a per-species basis: 
+postBeta = getPostEstimate(m, parName = "Beta")
+
+plotBeta(m, post = postBeta, param = "Support",
+plotTree = TRUE, supportLevel = 0.95, split=.4, spNamesNumbers = c(F,F))
+
+postGamma = getPostEstimate(m, parName = "Gamma")
+
+plotGamma(m, post=postGamma, param="Support", supportLevel = 0.95)
+
+OmegaCor = computeAssociations(m)
+
+## what are these these objects?
+
+str(OmegaCor)
+
+str(OmegaCor[[1]][1])
+
+## significance is judged by a "support" metric, not sure what this is
+str(OmegaCor[[1]][2])
+
+supportLevel = 0.95 ## what is this? some sort of credible interval?
+
+toPlot = ((OmegaCor[[1]]$support>supportLevel)
+        + (OmegaCor[[1]]$support<(1-supportLevel))>0)*OmegaCor[[1]]$mean
+
+corrplot(toPlot, method = "color",
+         col=colorRampPalette(c("blue","white","red"))(200),
+         tl.cex=.6, tl.col="black",
+         title=paste("random effect level:", m$rLNames[1]), mar=c(0,0,1,0))
+
+## no associations, because synthetic data, not included
+
+summary(mpost$Rho)
+
+## we can predict what a community might do over an environmental gradient:
+
+Gradient = constructGradient(m,focalVariable = "climate",
+                   non.focalVariables = list("habitat"=list(3,"open")))
+
+Gradient$XDataNew
+
+predY = predict(m, XData=Gradient$XDataNew, studyDesign=Gradient$studyDesignNew,
+                ranLevels=Gradient$rLNew, expected=TRUE)
+
+plotGradient(m, Gradient, pred=predY, measure="S", showData = TRUE)
+
+
+## individual species response can be modeled:
+
+par(mfrow=c(1,2))
+plotGradient(m, Gradient, pred=predY, measure="S", index = 1, showData = TRUE)
+plotGradient(m, Gradient, pred=predY, measure="Y", index = 2, showData = TRUE)
+
+## trait values of the group changing with a gradient:
+plotGradient(m, Gradient, pred=predY, measure="T", index = 3, showData = TRUE)
+
+
+## "gradients" can be constructed for categorical variables?:
+
+Gradient = constructGradient(m,focalVariable = "habitat",
+                             non.focalVariables = list("climate"=list(1)))
+
+Gradient$XDataNew
+
+## ah, I get it. This is like a parameter sweep, where we hold everything else
+## constant and just change the variable of interest.
+
+## so in this case we have a trait for "preference for forest". We can select the species most 
+## responsive to habitat and watch its response to being in either a forest or meadow:
+
+predY = predict(m, XData=Gradient$XDataNew, studyDesign=Gradient$studyDesignNew,
+                ranLevels=Gradient$rLNew, expected=TRUE)
+
+plotGradient(m, Gradient, pred=predY, measure="Y", index=which.max(m$TrData$habitat.use),
+             showData = TRUE, jigger = 0.2)
+
+## predicted to drop, make sense.
+
+## and we can see how the community mean for this trait will drop with a habitat-change:
+
+plotGradient(m, Gradient, pred=predY, measure="T", index=2, showData = TRUE, jigger = 0.2)
+
+## same story. The number of microbes with the "forest-preference trait" will increase
+## when the community is subject to forests.
+
+## to get closer to reality, they give the example of trying to model the simulated 
+## community without all the predictors that were used to make the data
+## so it's like real life, when we are hypothesizing what is driving the community
+## dynamics, but don't really know.
+
+## for instance, trying to explain the community composition with climate only:
+
+XFormula.1 = ~poly(climate, degree = 2, raw = TRUE)
+ma50 = Hmsc(Y=Y, XData=XData, XFormula = XFormula.1,
+            TrData = traits, TrFormula = TrFormula,
+            phyloTree = phy,
+            studyDesign=studyDesign, ranLevels=list(sample=rL))
+
+ma50 = sampleMcmc(ma50, thin = thin, samples = samples, transient = transient,
+            nChains = nChains, nParallel = nChains, verbose = verbose)
+
+print ("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! done !!!!!!!!!!!!!!!!")
+print ("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! done !!!!!!!!!!!!!!!!")
+print ("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! done !!!!!!!!!!!!!!!!")
+
+## and so we have a lot more variance from randome effects
+
+VP = computeVariancePartitioning(ma50, group = c(1,1,1), groupnames=c("climate"))
+plotVariancePartitioning(ma50, VP = VP)
+
+## which is now ascribed partially due to species associations, because 
+
+OmegaCor = computeAssociations(ma50)
+
+supportLevel = 0.95
+toPlot = ((OmegaCor[[1]]$support>supportLevel)
+  + (OmegaCor[[1]]$support<(1-supportLevel))>0)*OmegaCor[[1]]$mean
+
+corrplot(toPlot, method = "color",
+col=colorRampPalette(c("blue","white","red"))(200),
+tl.cex=.6, tl.col="black",
+title=paste("random effect level:", m$rLNames[1]), mar=c(0,0,1,0))
+
+
+## and other stuff about traits, controlling shrinkage on the hierarchical model 
+## etc, etc. But generally, got the idea. 
+
+## there is another tutorial, about spatial datasets. Seems pertinent:
+
+library(Hmsc)
+library(MASS)
+
+set.seed(6)
+
+## 100 sites, 5 species:
+
+n = 100
+ns = 5
+beta1 = c(-2,-1,0,1,2)
+alpha = rep(0,ns)
+beta = cbind(alpha,beta1)
+x = cbind(rep(1,n),rnorm(n))
+Lf = x%*%t(beta)
+xycoords = matrix(runif(2*n),ncol=2)
+colnames(xycoords) = c("x-coordinate","y-coordinate")
+rownames(xycoords) = 1:n
+
+## exponentially decreasing autocorrelation model:
+sigma.spatial = c(2)
+alpha.spatial = c(0.35)
+Sigma = sigma.spatial^2*exp(-as.matrix(dist(xycoords))/alpha.spatial)
+eta1 = mvrnorm(mu=rep(0,n), Sigma=Sigma)
+lambda1 = c(1,2,-2,-1,0) ## species spatial residuals
+Lr = eta1%*%t(lambda1) ##  
+L = Lf + Lr ## linear function of effects of environmental and spatial function
+y = as.matrix(L + matrix(rnorm(n*ns),ncol=ns))
+yprob = 1*((L +matrix(rnorm(n*ns),ncol=ns))>0)
+XData = data.frame(x1=x[,2])
+
+rbPal = colorRampPalette(c('cyan','red'))
+par(mfrow=c(2,3))
+Col = rbPal(10)[as.numeric(cut(x[,2],breaks = 10))]
+plot(xycoords[,2],xycoords[,1],pch = 20,col = Col,main=paste('x'), asp=1)
+for(s in 1:ns){
+    Col = rbPal(10)[as.numeric(cut(y[,s],breaks = 10))]
+    plot(xycoords[,2],xycoords[,1],pch = 20,col = Col,main=paste('Species',s), asp=1)
+    }
+
+
 

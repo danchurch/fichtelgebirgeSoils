@@ -3068,31 +3068,16 @@ grep ">" sulariAbundantASV16s.fna | wc -l ## 4370 sequences
 
 ## but our alignment 
 
-phyml -i allSeqsForGrahamTree_trimmed.phy -b 100
-
-ssu-mask -h
-
-sudo apt-get install libboost-program-options
-
-sudo apt-get install libboost-program-options-dev
-
-conda activate spatialDirt
-
-conda install -c bioconda sina
-
-sina -h
-
-sudo ln -s /usr/lib/x86_64-linux-gnu/libboost_program_options.so.1.71.0 /usr/lib/x86_64-linux-gnu/libboost_program_options.so.1.54.0
-sudo ln -s /usr/lib/x86_64-linux-gnu/libboost_thread.so.1.71.0 /usr/lib/x86_64-linux-gnu/libboost_thread.so.1.54.0
-sudo ln -s /usr/lib/x86_64-linux-gnu/libboost_system.so.1.71.0 /usr/lib/x86_64-linux-gnu/libboost_system.so.1.54.0
-
-sina -h
-
-ls /opt/ont/dorado/lib/libnvToolsExt.so.1
-
 ## tree building... 
 
-conda remove sina
+## try fasttree:
+
+mv /home/daniel/Downloads/FastTree /home/daniel/.local/bin
+
+ssuAlignOut="/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis/sulariAbundantASV16s_ali/sulariAbundantASV16s_ali.bacteria.afa"
+ls $ssuAlignOut
+
+FastTree -gtr -nt < $ssuAlignOut > sulariFastTree.nwk 
 
 phy = ape::rcoal(n=50, tip.label = sprintf('species_%.3d',1:50), br = "coalescent")
 

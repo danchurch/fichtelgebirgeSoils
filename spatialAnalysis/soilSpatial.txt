@@ -2020,6 +2020,9 @@ jupyter notebook --no-browser --port=8080
 ## run this to activate the tcp forwarding
 ssh -L 8080:localhost:8080 test@132.180.112.115
 
+## then open browser to: 
+http://localhost:8080/notebooks/spatialAnalysisSulariData.ipynb
+
 ## it's going to be confusing working on both computers. 
 ## just slow it down, save/pull/push.
 
@@ -2902,5 +2905,194 @@ for(s in 1:ns){
     plot(xycoords[,2],xycoords[,1],pch = 20,col = Col,main=paste('Species',s), asp=1)
     }
 
+## this diagram is useful for showing that autocorrelation is hard to pick up by eye 
+## sometimes
 
+####
+
+## make a model spatial by adding a random effect with a spatial argument
+ 
+studyDesign = data.frame(sample = as.factor(1:n))
+rL.spatial = HmscRandomLevel(sData = xycoords) ## here
+rL.spatial = setPriors(rL.spatial,nfMin=1,nfMax=1) #We limit the model to one latent variables for visualization
+m.spatial = Hmsc(Y=yprob, XData=XData, XFormula=~x1,
+                 studyDesign=studyDesign, ranLevels=list("sample"=rL.spatial),distr="probit")
+
+## sample:
+nChains = 2
+thin = 10
+samples = 1000
+transient = 1000
+verbose = 1
+
+m.spatial = sampleMcmc(m.spatial, thin = thin, samples = samples, transient = transient,
+                       nChains = nChains, nParallel = nChains, verbose = verbose,
+                       updater=list(GammaEta=FALSE))
+
+## they skip checking the convergences
+
+#Explanatory power
+
+preds.spatial = computePredictedValues(m.spatial)
+
+MF.spatial = evaluateModelFit(hM=m.spatial, predY=preds.spatial)
+
+?evaluateModelFit
+
+MF.spatial
+
+partition = createPartition(m.spatial, nfolds = 2, column = "sample")
+
+cvpreds.spatial = computePredictedValues(m.spatial, partition=partition,
+                          nParallel = nChains, updater=list(GammaEta=FALSE))
+
+mpost.spatial = convertToCodaObject(m.spatial)
+
+plot(mpost.spatial$Alpha[[1]])
+
+mpost.spatial = convertToCodaObject(m.spatial)
+
+plot(mpost.spatial$Alpha[[1]])
+
+summary(mpost.spatial$Alpha[[1]])
+
+## try the model without the spatial component (so no random effects)
+m = Hmsc(Y=yprob, XData=XData, XFormula=~x1, studyDesign = studyDesign, distr="probit")
+
+m = sampleMcmc(m, thin = thin, samples = samples, transient = transient,
+                nChains = nChains, nParallel = nChains, verbose = verbose)
+
+
+preds = computePredictedValues(m)
+
+MF = evaluateModelFit(hM=m, predY=preds)
+
+MF
+
+partition = createPartition(m, nfolds = 2, column = "sample")
+preds = computePredictedValues(m, partition=partition, nParallel = nChains)
+
+MF = evaluateModelFit(hM=m, predY=preds)
+
+MF
+
+
+
+### ok great...anything else we need to know before we dive into the real data?
+
+## don't think so. 
+
+## first step, what format do we want our data in?
+
+## should use the >50, log-transformed data. 
+
+## we have a lot of predictors. Model might get too
+## complex. 
+
+## maybe start without spatial effects, find best predictors,
+## then include the spatial effects
+
+####### try out HMSC on sulari data ##############
+
+## still on lab comp
+
+R
+
+library(phyloseq)
+library(vegan)
+
+library(Hmsc)
+library(corrplot)
+library(ape)
+library(MASS)
+library(fields) 
+library(knitr)
+
+## sulari  community data:
+comData <- read.csv("../sulariData/comdat.csv", row.names=1)
+envData <- read.csv("sulariEnv.csv", row.names=1)
+
+tail(comData)[,1:5]
+tail(envData)[,1:5]
+
+## let's just start working through the high-dim tutorial, using our 
+## data. I think we need a 16s tree of our sequences...
+
+## we need to get the reduced ~5000 ASV sequences out into fasta form:
+
+
+load("../sulariData/sularilogMin50ps.rda")
+## get rid of zero columns
+logMin50ps = prune_taxa( taxa_sums(logMin50ps) > 0, logMin50ps )
+
+## export the sequences as a fasta file for the aligner:
+
+?Biostrings::writeXStringSet
+
+Biostrings::writeXStringSet(refseq(logMin50ps), "sulariAbundantASV16s.fna", append=FALSE,
+                                  compress=FALSE, compression_level=NA, format="fasta")
+
+## align them with ssu-aligner:
+
+## try it on the local desktop
+
+conda activate spatialDirt
+
+#conda install bioconda::ssu-align
+
+## align these with SSU align
+## as per https://www.biostars.org/p/11377/, 
+## to produce a single tree from both archea and bact,
+## we need to designate a single model:
+
+ssu-align -n bacteria sulariAbundantASV16s.fna sulariAbundantASV16s_ali
+## then a strict mask, don't trust any ambiguous calls
+ssu-mask --pf 0.9999 --pt 0.9999 sulariAbundantASV16s_ali
+
+## to get a fasta output of the alignment (what we probably need)
+ssu-mask --stk2afa sulariAbundantASV16s_ali
+
+ssu-mask --stk2afa sulariAbundantASV16s_ali
+
+grep ">" sulariAbundantASV16s_ali/sulariAbundantASV16s_ali.bacteria.afa | wc -l ## 4300 sequences
+grep ">" sulariAbundantASV16s.fna | wc -l ## 4370 sequences
+
+## we lost 70 sequences. Probably all of our archea. 
+## not sure 
+## not sure if the HMSC can handle missing asvs
+## we can try anyway. 
+
+## use fastree? phyml?
+
+## start with phyml:
+
+## but our alignment 
+
+phyml -i allSeqsForGrahamTree_trimmed.phy -b 100
+
+ssu-mask -h
+
+sudo apt-get install libboost-program-options
+
+sudo apt-get install libboost-program-options-dev
+
+conda activate spatialDirt
+
+conda install -c bioconda sina
+
+sina -h
+
+sudo ln -s /usr/lib/x86_64-linux-gnu/libboost_program_options.so.1.71.0 /usr/lib/x86_64-linux-gnu/libboost_program_options.so.1.54.0
+sudo ln -s /usr/lib/x86_64-linux-gnu/libboost_thread.so.1.71.0 /usr/lib/x86_64-linux-gnu/libboost_thread.so.1.54.0
+sudo ln -s /usr/lib/x86_64-linux-gnu/libboost_system.so.1.71.0 /usr/lib/x86_64-linux-gnu/libboost_system.so.1.54.0
+
+sina -h
+
+ls /opt/ont/dorado/lib/libnvToolsExt.so.1
+
+## tree building... 
+
+conda remove sina
+
+phy = ape::rcoal(n=50, tip.label = sprintf('species_%.3d',1:50), br = "coalescent")
 

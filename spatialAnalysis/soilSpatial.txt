@@ -3000,7 +3000,6 @@ R
 
 library(phyloseq)
 library(vegan)
-
 library(Hmsc)
 library(corrplot)
 library(ape)
@@ -3079,5 +3078,52 @@ ls $ssuAlignOut
 
 FastTree -gtr -nt < $ssuAlignOut > sulariFastTree.nwk 
 
-phy = ape::rcoal(n=50, tip.label = sprintf('species_%.3d',1:50), br = "coalescent")
+## installing arb to look at this tree:
+
+wget http://download.arb-home.de/release/latest/arb-7.0.ubuntu2004-amd64.tgz
+wget http://download.arb-home.de/release/latest/arb_install.sh
+
+less /usr/arb/arb_UBUNTU.txt
+
+## looks the binaries need:
+sudo apt install gnuplot
+sudo apt install gv
+sudo apt install libmotif-common
+sudo apt install xfig
+sudo apt install transfig
+sudo apt install xterm
+
+sudo bash arb_install.sh
+
+sudo bash arb_installubuntu4arb.sh
+
+## okay, seems to run. can look at the tree that way, 
+## looks like a nice tree
+## no use for it right now.  
+
+## the next step would be to see if we can get it into R:
+
+R
+
+library(phyloseq)
+library(vegan)
+library(Hmsc)
+library(corrplot)
+library(ape)
+library(MASS)
+library(fields) 
+library(knitr)
+
+setwd("/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis/")
+
+aa = ape::read.tree("sulariFastTree.nwk")
+
+plot(aa, show.tip.label = FALSE, no.margin = TRUE)
+
+## well, we can make an ape phylo object, and a nice looking tree
+## good sign. But to test this out, we need to get the 
+## community data into an HMSC model   
+## the asvs may cause problems.
+## check tomorrow or monday, I guess.
+
 

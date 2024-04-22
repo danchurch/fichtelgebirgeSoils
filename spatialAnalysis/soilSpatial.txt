@@ -3372,5 +3372,67 @@ m = sampleMcmc(m, samples = samples, thin=thin, adaptNf=ceiling(0.4*samples*thin
 
 ## we need to make sure the lab computer is set up:
 
+## on lab computer:
+library(Hmsc)
+library(phyloseq)
+library(vegan)
+library(corrplot)
+library(ape)
+library(MASS)
+library(fields) 
+library(knitr)
+
+## they worked from raw asv abundances, we'll
+## do the same.
+
+## that means sulari's original phyloseq object:
+
+load("../sulariData/sulariPhyloseqObject.rda")
+
+psNoControl = prune_samples(!(rownames(sample_data(ps)) %in% c("C1.1","C1.2","C2.1","C2.2")), ps)
+## remove species that are now zero
+psNoControl = prune_taxa( colSums(otu_table(psNoControl)) > 0, psNoControl)
+
+row.names(otu_table(psNoControl))
+
+dim(otu_table(psNoControl))
+
+bactRaw <- otu_table(psNoControl)
+
+
+ny = dim(bactRaw)[1]
+
+## make pa matrix
+bact.pa<-ifelse(bactRaw>0,1,0)
+
+aa = rep(rowSums(bactRaw),times=length(bactRaw))
+
+## make relative abundance matrix
+bact.rel <- bactRaw/rep(rowSums(bactRaw),times=length(bactRaw))
+
+## I think this needs help
+## do some matrix multiplication
+
+rowsumsInv = 1/rowSums(bactRaw)
+
+t(bactRaw)
+
+aa <- t(bactRaw) * rowsumsInv
+bb <- t(aa)
+
+bact.rel <- bactRaw/rep(rowSums(bactRaw),times=length(bactRaw))
+
+length(bactRaw)
+
+## let's use their thresholds.
+## we'll need to check these later on our positive controls
+threshold.prev = 0.1
+threshold.abu = 0.005
+
+cond1=!(colSums(Fungi.pa)<=threshold.prev*ny)
+
+cond2=apply(Fungi.rel,2,max)>=threshold.abu
+Fungidata <- Fungi[,cond1 & cond2]
+dim(Fungidata)
 
 

@@ -2600,7 +2600,6 @@ habitat = factor(sample(x = c("forest","open"), size = n, replace=TRUE))
 climate = rnorm(n)
 nc = 4
 mu = matrix(0,nrow=nc,ncol=ns)
-
 #expected niche of each species related to the "covariate" intercept
 mu[1, ] = -traits$thermal.optimum^2/4-traits$habitat.use
 #expected niche of each species related to the covariate forest
@@ -2615,6 +2614,7 @@ X = cbind(rep(1,ns), as.numeric(habitat=="forest"), climate, climate*climate)
 L = X%*%beta
 Y = L + mvrnorm(n=n, mu=rep(0,ns), Sigma=diag(ns))
 colnames(Y) = spnames
+
 
 ## didn't really understand all of the code, but the goal 
 ## is to create a community matrix of species that 
@@ -3125,5 +3125,252 @@ plot(aa, show.tip.label = FALSE, no.margin = TRUE)
 ## community data into an HMSC model   
 ## the asvs may cause problems.
 ## check tomorrow or monday, I guess.
+
+## anyway, what's the point? The point is to find out if the 
+## respiration has a phylogenetic signal, beyond species 
+## level
+
+## so keep trying to adapt the tutorials with our data
+
+## review how they built their sim data:
+
+## for their species abundance, use matrix with rows as sites,
+## columns as species 
+
+## not sure, should we give the pseudocounts, or what?
+
+## honestly, I have no idea how the data are shaped 
+## after log transformation. 
+
+## the tutorial authors don't seem to care, funny. 
+## they mention that the Y in their example "might"
+## represent log transformed biomass. Not sure 
+## what that means for us. 
+
+## anyway, let's pretend it fits for us, keep moving.
+## they are using to numerical matrices, a community 
+## matrix and an environmental 
+
+XData = data.frame(climate = climate, habitat = habitat)
+
+XFormula = ~habitat + poly(climate,degree = 2,raw = TRUE)
+TrFormula = ~habitat.use + thermal.optimum
+studyDesign = data.frame(sample = sprintf('sample_%.3d',1:n), stringsAsFactors=TRUE)
+rL = HmscRandomLevel(units = studyDesign$sample)
+rL$nfMax = 15
+
+m = Hmsc(Y = Y, XData = XData, XFormula = XFormula,
+         TrData = traits, TrFormula = TrFormula,
+         phyloTree = phy,
+         studyDesign = studyDesign, ranLevels = list(sample = rL))
+
+
+## our data:
+comData <- read.csv("../sulariData/comdat.csv", row.names=1)
+envData <- read.csv("sulariEnv.csv", row.names=1)
+notControls=!(row.names(comData) %in% c("C1.1", "C1.2", "C2.1", "C2.2"))
+comData = comData[notControls,]
+envData = envData[notControls,]
+
+## they have a very simple set of environmental predictors
+
+## I do not know if we can call this a zero-inflated dataset...
+## there are lots of zeros...but how do you test a massive
+## multivariate dataset like this?
+
+length(comData)
+
+dim(comData)
+
+120*4370 ## 524,400
+sum(comData > 0) ## 36,166
+sum(comData == 0) ## 488,234
+120*4370 ## 524,400
+
+## so like 90% of our observations are zeros. 
+## of course we introduced a lot of these 
+## when we enforced a minimum abundance
+
+## I guess we treat zeros as missing values. 
+## how? 
+
+## let's check out their R scripts...
+ 
+threshold.prev = 0.1
+threshold.abu = 0.005
+
+dataDir="/home/daniel/Documents/projects/fichtelSoils/Odriozola_etal_2020/data"
+
+Fungi <- read.csv(file.path(dataDir,"OtusFungi.csv"),header = TRUE,stringsAsFactors = F,sep=";")
+Fungi<-Fungi[,-1] 
+ny = dim(Fungi)[1]
+
+# Keep species meeting above established prevalence and abundance thresholds
+
+## here I think they create two community matrices, one presence
+## absence and one where zeros are treated as missing samples
+## the likelihood distribution for each species is then 
+## a mixture model of two distributions, one that tries
+## to model the creation of negative, non-observation 
+## zeroes as a limit of the sampling, and real zeroes 
+## that indicate rarity.  
+
+Fungi.pa<-ifelse(Fungi>0,1,0)
+Fungi.rel<-Fungi/rep(rowSums(Fungi),times=length(Fungi))
+
+## subset the data a bit, to make it easier to deal with. 
+
+## they use a prevalence threshold of 10% of PA sums (0.1) or greater, throwing out other PA columns
+cond1=!(colSums(Fungi.pa)<=threshold.prev*ny)
+## and only species contain at least one instance total relative abundance of 0.005 at a site
+cond2=apply(Fungi.rel,2,max)>=threshold.abu
+
+## after this the matrix is much smaller.
+Fungidata <- Fungi[,cond1 & cond2]
+
+Fungidata[1:5,1:5]
+
+dim(Fungidata) ## only 452 species remain
+## I'm not sure if we would do something similar. 
+
+## but this is their community matrix:
+
+Y <- as.matrix(Fungidata)
+
+ny = dim(Y)[1]
+ns = dim(Y)[2]
+
+
+Env <- read.csv(file.path(dataDir,"env.csv"),sep=";")
+
+FungiDepth<-log(rowSums(Fungi)) ## add in sequencing depth
+Env$DecayTime<-as.factor(Env$Year)
+levels(Env$DecayTime)<-list("<5"="2013","5-15"="2008","16-38"="1997",">38"="1975")
+
+## however, think we have to fix the tree categorical variable:
+Env$Tree<-as.factor(Env$Tree)
+
+head(Env)
+
+## 
+
+XData<-data.frame(Env[,c(1,11,8,3,4,5,6,7)],FungiDepth)
+## they take the log of the nitrogen values, why? Is this usually done?
+
+XData$N = log(XData$N)
+## standardize the diameter of the fallen wood.
+## why only this variable? the rest are normalized later. 
+XData$diam = scale(XData$diam)
+
+head(XData)
+
+## here the rest is scaled:
+XData[,-c(1,2)]=scale(XData[,-c(1,2)])
+
+head(XData)
+
+## I think they use the trait slot for denoting 
+## fungal or bacterial otu
+
+XDataList = list()
+for (j in 1:2){
+   for (i in 1:ns){
+      tmp = XData
+      tmp$Depth = XData$FungiDepth
+      XDataList[[i+(j-1)*ns]] = tmp
+   }
+}
+
+
+XDataList[[1]] ## I think this isn't necessary for us, they are just giving the 
+## different seq depth data for bact vs. fungi
+
+
+## then they make the dataframe of relative abundances:
+
+Yabu = Y
+## zeros become missing values
+Yabu[Y==0] = NA
+Yabu = log(Yabu)
+
+## another scaling/centering?
+for (i in 1:ns){
+   Yabu[,i] = Yabu[,i] - mean(Yabu[,i],na.rm=TRUE)
+   Yabu[,i] = Yabu[,i] / sqrt(var(Yabu[,i],na.rm=TRUE))
+}
+
+
+Ypa = 1*(Y>0)
+
+## and they put the P/A and the relative abundance  matrices side-by-side.
+
+Y = cbind(Ypa,Yabu)
+
+#### build model ###
+
+sample.id = rep(NA,ny)
+
+for(i in 1:ny){
+   sample.id[i] = paste0("log_",as.character(i))
+}
+
+studyDesign = data.frame(Sample=as.factor(sample.id))
+
+## set a random effect by site, explained 5-10 latent variables. 
+## not sure what they mean by setPriors, I don't see any 
+## specification of priors here. 
+rL.Sample = setPriors(HmscRandomLevel(units = studyDesign$Sample), nfMin = 5, nfMax = 10)
+
+## set formulas:
+
+# REGRESSION MODEL FOR ENVIRONMENTAL COVARIATES.
+XFormula = ~ water + pH + N + C + lig + diam + Tree + DecayTime + FungiDepth
+
+## null model, to check for seq depth effects??:
+XFormula1 = ~ Depth
+
+thin = 100
+samples = 1000
+nChains = 4
+set.seed(1)
+
+
+## model. Probit, I guess this is makes sense for the PA in the X data
+## but I thought this hurdle model was a mixture model...
+
+m = Hmsc(Y=Y,
+         XData = XData,  XFormula = XFormula,
+         distr={"probit"} ,
+         studyDesign=studyDesign, ranLevels={list(Sample=rL.Sample)})
+
+## ah, here is the hurdle implementation
+## here they change the distributions 
+## the distr=probit above gives a value of 2,
+## not sure how the dispersion parameter 
+## set to zero came to be
+## but now for the latter half of the 
+## species (which are a repeat of the 
+## the first, but with relative abundances
+## instead of P/A). 
+## the 1,1 setting indicates poisson 
+## with log-link function
+
+for (i in (ns+1):(2*ns)){
+   m$distr[i,1:2] = c(1,1)
+}
+
+
+?sampleMcmc
+
+ceiling(0.4*samples*thin)
+
+m = sampleMcmc(m, samples = samples, thin=thin, adaptNf=ceiling(0.4*samples*thin), transient = ceiling(0.5*samples*thin), nChains = nChains, nParallel = 4,verbose=1)
+
+## seems to work. Can we set up something similar for our data?
+## first stab would be to ignore time and space and just include 
+## the environmental variables and time
+
+## we need to make sure the lab computer is set up:
+
 
 

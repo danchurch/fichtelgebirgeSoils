@@ -3388,7 +3388,6 @@ library(knitr)
 ## that means sulari's original phyloseq object:
 
 load("../sulariData/sulariPhyloseqObject.rda")
-
 psNoControl = prune_samples(!(rownames(sample_data(ps)) %in% c("C1.1","C1.2","C2.1","C2.2")), ps)
 ## remove species that are now zero
 psNoControl = prune_taxa( colSums(otu_table(psNoControl)) > 0, psNoControl)
@@ -3397,42 +3396,233 @@ row.names(otu_table(psNoControl))
 
 dim(otu_table(psNoControl))
 
-bactRaw <- otu_table(psNoControl)
+bactRaw <- otu_table(psNoControl)@.Data
 
-
-ny = dim(bactRaw)[1]
 
 ## make pa matrix
 bact.pa<-ifelse(bactRaw>0,1,0)
 
-aa = rep(rowSums(bactRaw),times=length(bactRaw))
-
-## make relative abundance matrix
-bact.rel <- bactRaw/rep(rowSums(bactRaw),times=length(bactRaw))
 
 ## I think this needs help
-## do some matrix multiplication
-
+## do an element-wise multiplication
 rowsumsInv = 1/rowSums(bactRaw)
+nASVs <- dim(bactRaw)[2]
+scaleMat = matrix( rep(rowsumsInv, nASVs), ncol =nASVs)
+bact.rel <- bactRaw * scaleMat
 
-t(bactRaw)
+## sanity check
+bactRaw[1:5,1:5]
+bact.rel[1:5,1:5]
 
-aa <- t(bactRaw) * rowsumsInv
-bb <- t(aa)
+## check some ASVs
+20/sum(bactRaw[1,])
+241/sum(bactRaw[2,]) 
+## looks sane
 
-bact.rel <- bactRaw/rep(rowSums(bactRaw),times=length(bactRaw))
-
-length(bactRaw)
 
 ## let's use their thresholds.
 ## we'll need to check these later on our positive controls
-threshold.prev = 0.1
-threshold.abu = 0.005
 
-cond1=!(colSums(Fungi.pa)<=threshold.prev*ny)
+#threshold.prev = 0.1 ## present in at least 10% of samples?
+threshold.prev = 0.02 ## present in at least 2% of samples?
+threshold.abu = 0.001 ## only OTU that reaches at least 0.1% abundance of one sample
 
-cond2=apply(Fungi.rel,2,max)>=threshold.abu
-Fungidata <- Fungi[,cond1 & cond2]
-dim(Fungidata)
+ny = dim(bactRaw)[1]
+
+cond1=!(colSums(bact.pa)<=threshold.prev*ny) ## present in at least n% of samples?
+cond2=apply(bact.rel,2,max)>=threshold.abu ## in at least one sample, abundance reaches m%
+bactData <- bactRaw[,cond1 & cond2]
+
+Y = bactData
+ny = dim(Y)[1]
+ns = dim(Y)[2]
+
+dim(bactRaw)
+dim(Y)
+
+dim(bactData) ## with 0.02 and 0.0001 we are down to 2900 asvs. Really strict. In the future, relax condition1
+
+bactData[1:5,1:5] 
+Y[1:5,1:5] ## this includes ASV1, which is probably spurious. Ugh.
+
+## note to self, remove all members of mock community. They are the largest
+## source of index bleed.
+
+## do the ordinations looks similar?
+
+## first get a model running, see how long it takes
+
+## environmental covariates (XData matrix) and read depth
+
+## for first model run, ignore spatial and temporal aspects of data
+## and check effect of read depth?
+
+dataDir="/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis"
+Env <- read.csv(file.path(dataDir,"sulariEnv.csv"), row.names="SampleID")
+Env <- Env[!(rownames(Env) %in% c("C1.1","C1.2","C2.1","C2.2")),]
+BacteriaDepth<-log(rowSums(bactRaw))
+
+
+#c("PlotID","Date","soil_respiration","srpuc","MBC","season","Land_type","pH","N","C","CNR","Temperature","Moisture","Latitude","Longitude")
+varsOfInterest = c("soil_respiration","Land_type","pH","N","C","Temperature","Moisture")
+XData<-data.frame(Env[,varsOfInterest],BacteriaDepth)
+XData[,-2]=scale(XData[,-2])
+XData$Land_type <- as.factor(XData$Land_type)
+
+## sanity check:
+head(Env[,varsOfInterest])
+head(XData)
+View(XData)
+## looks okay
+
+## we'll do the hurdle model, with one PA and on relative abundance, log-transformed
+
+Yabu <- Y
+Yabu[Y==0] <- NA
+Yabu = log(Yabu) ## take log of abundances. They basically decided on the same transformations as Sulari and I.
+
+## but here they do further transformations? they scale the data, center it on the mean and divide
+## by the square of the variance...this is pretty transformed data by the end of it all
+
+## I think this is just a z-score standardization
+for (i in 1:ns){
+   Yabu[,i] = Yabu[,i] - mean(Yabu[,i],na.rm=TRUE)
+   Yabu[,i] = Yabu[,i] / c(sqrt(var(Yabu[,i],na.rm=TRUE)))
+}
+
+## so is this the same as doing?
+
+Yabu2 <- Y
+Yabu2[Y==0] <- NA
+Yabu2 = log(Yabu2) ## take log of abundances. They basically decided on the same transformations as Sulari and I.
+bb <- scale(Yabu2)
+
+Yabu[1:5,1:5]
+bb[1:5,1:5]
+
+all(Yabu[1:5,1:5] == bb[1:5,1:5], na.rm=TRUE)
+all(Yabu == bb, na.rm=TRUE) ## nope, why? Looks the same
+cc = which(Yabu != bb, arr.ind=TRUE)
+Yabu[119,302] == bb[119,302] ## no, but...
+Yabu[119,302] - bb[119,302] ## 2.775558e-17
+
+## floating decimal difference. these are the same. ugh, waste of time.
+
+## in the future, use:
+Yabu <- Y
+Yabu[Y==0] <- NA
+Yabu = log(Yabu) ## take log of abundances. They basically decided on the same transformations as Sulari and I.
+Yabu <- scale(Yabu)
+
+## make our second, presence absence matrix:
+
+Ypa = 1*(Y>0)
+
+## bring them together for a final Y matrix
+Y = cbind(Ypa,Yabu)
+
+## below, found out that we have a lot of missing
+## X values, especially from moisture. So for the moment,
+## just to try out the model, let's drop the moisture 
+## column, and keep only complete rows after that:
+
+#XData = XData[,c("soil_respiration","Land_type","pH","N","C","Temperature","Moisture", "BacteriaDepth")]
+
+## for the moment, gotta leave out moisture, missing too much data.
+XData = XData[,c("soil_respiration","Land_type","pH","N","C","Temperature","BacteriaDepth")]
+
+ccases <- complete.cases(XData) ## 112 samples, we only lose 8 
+
+XData = XData[ccases,] 
+Y = Y[ccases,] 
+
+ny = dim(Y)[1]
+ns = dim(Y)[2]/2
+
+rownames(XData) == rownames(Y)
+
+## in the future, I guess we can check out the watercontent variable in Betty's data 
+## see how correlated it is, 
+
+## for now, keep moving, want to try a model today
+
+# STUDY DESIGN
+
+sample.id = row.names(Y)
+studyDesign = data.frame(Sample=as.factor(sample.id))
+rL.Sample = setPriors(HmscRandomLevel(units = studyDesign$Sample), nfMin = 5, nfMax = 10) ## not sure how to optimize the number of laten variables?
+
+# REGRESSION MODEL FOR ENVIRONMENTAL COVARIATES.
+XFormula = ~ soil_respiration + Land_type + pH + N + C + Temperature
+XFormula1 = ~ BacteriaDepth ## check this next. Sort of a null model, I guess.
+
+m = Hmsc(Y=Y,
+         XData = XData,  XFormula = XFormula,
+         distr={"probit"} ,
+         studyDesign=studyDesign, ranLevels={list(Sample=rL.Sample)})
+
+## huh, NA's not allowed in the xdata
+
+sum(complete.cases(XData)) ## 91 complete cases, out of 120. Shoot. That is a lot of data lost. 
+
+colSums(is.na(XData)) ## Moisture is the problem.  Corrected above.
+
+## change the priors for the abundance matrix:
+
+
+head(m$distr)
+
+tail(m$distr)
+
+View(m$distr)
+
+for (i in (ns+1):(2*ns)){
+   m$distr[i,1:2] = c(1,1)
+}
+
+## try this:
+thin = 1
+samples = 1000
+nChains = 4
+
+#m = sampleMcmc(m, samples = samples, thin=thin, adaptNf=ceiling(0.4*samples*thin), transient = ceiling(0.5*samples*thin), nChains = nChains, nParallel = 4,verbose=1)
+
+
+## looks good, no errors. Cut it off and run remotely. What do we need to do make a script for this?
+
+## save out the model, unsampled
+
+save(m, file="firstHMSCmodelCarbon4d.rds")
+
+
+## script: ## mcmcSample.R
+library(Hmsc)
+thin = 1
+samples = 1000
+nChains = 4
+setwd("/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis")
+print(paste("start time is", Sys.time()))
+load("firstHMSCmodelCarbon4d.rds")
+m = sampleMcmc(m, samples = samples, thin=thin, adaptNf=ceiling(0.4*samples*thin), transient = ceiling(0.5*samples*thin), nChains = nChains, nParallel = 4,verbose=1)
+save(m, file="firstHMSCmodelCarbon4d_sampled.rds")
+print(paste("finish time is", Sys.time()))
+
+## that only took ten minutes
+## we can expand the above to include many more rare species, I think.
+
+## now rerun it with more ASVs...
+
+nohup Rscript mcmcSample.R &> mcmcSample.log & ## that ran for an hour and ten minutes. 
+
+## very doable. Add in space and seasonality/time? 
+
+## at least add it moisture. 
+
+## that is on this "sciebo" site:
+
+
+## for the moment, run through some of the tutorials to see if it actually worked. 
+
+## or maybe the analysis that the paper used..
 
 

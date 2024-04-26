@@ -3620,9 +3620,399 @@ nohup Rscript mcmcSample.R &> mcmcSample.log & ## that ran for an hour and ten m
 
 ## that is on this "sciebo" site:
 
-
 ## for the moment, run through some of the tutorials to see if it actually worked. 
 
 ## or maybe the analysis that the paper used..
 
+https://uni-muenster.sciebo.de/s/Ke1maWrj1cBHwVl?path=%2F
+
+## soildata/master.csv, or something like that.
+
+## read
+
+dataDir="/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis"
+Env <- read.csv(file.path(dataDir,"sulariEnv.csv"), row.names="SampleID")
+Env <- Env[!(rownames(Env) %in% c("C1.1","C1.2","C2.1","C2.2")),]
+
+head(Env)
+
+bettyData <- read.csv(file.path(dataDir,"master.csv"))
+
+## we need only zero depths for sulari data
+
+filt0 <- bettyData$depth == 0 
+
+bettyData0 <- bettyData[filt0,]
+
+dim(bettyData0)
+
+head(bettyData0)
+
+bettyData0$watercont 
+
+bettyData0$plotID
+
+## ugh, let's do this in python. 
+
+conda activate spatialDirt
+
+python3 
+
+import pandas as pd
+import os
+import matplotlib.pyplot as plt; plt.ion()
+
+envData = pd.read_csv('/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis/sulariEnv.csv', index_col='SampleID')
+envData['Date'] = pd.to_datetime(envData['Date'], dayfirst=True, errors='coerce')
+envData.drop([ "C1.1", "C1.2", "C2.1", "C2.2" ], axis=0, inplace=True)
+
+envData.dtypes
+
+bettyData = pd.read_csv('/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis/master.csv', parse_dates=['date'])
+filt0 = bettyData['depth'] == '0'
+bettyData0 = bettyData[filt0]
+
+
+
+envData.PlotID
+
+bettyData0.plotID
+
+## how do we link these up, joining by plotid isn't enough, because of the multiple sampling in time
+## do the dates agree?
+
+
+bettyData0.plotID[bettyData0.plotID.duplicated()] ## yep lots of dups/resamples
+
+## go through each of sulari's samples, find matching plotID and date
+## in betty's data, pull out the watercont
+
+## one line:
+
+#s="S1"
+s="S2"
+#envData.loc[s]
+a = envData.loc[s]['PlotID']
+b = envData.loc[s]['Date'].strftime("%Y-%m-%d")
+c = bettyData0.query(f'plotID == "{a}" & date == "{b}"')['watercont']
+
+## in a function:
+
+def get_waterCont(sample):
+    a = envData.loc[sample]['PlotID']
+    b = envData.loc[sample]['Date'].strftime("%Y-%m-%d")
+    c = (bettyData0.query(f'plotID == "{a}" & date == "{b}"')['watercont'])
+    try:
+        c = c.to_list()[0]
+    except:
+        c = float("NaN")
+    return(c)
+
+
+sample="S1"
+
+sample="S10"
+
+aa = get_waterCont(sample)
+
+## looks okay.
+
+aa = envData.reset_index()['SampleID'].apply(get_waterCont)
+aa.index=envData.index
+
+
+
+
+envData['waterCont'] = aa
+
+envData.head()
+
+## sanity check:
+
+## missing data:
+aa.isna().any() ## y
+
+envData[aa.isna()] ## three samples:
+
+## there are three sites where data are missing
+P0216 P0116 P0165
+
+envData[envData$PlotID %in% c('P0216','P0116','P0165'),]
+envData[envData$PlotID %in% c('P0216','P0116','P0165'),]
+
+## are Moisture and waterCont correlated?
+
+help(envData.plot)
+
+envData.plot("Moisture", "waterCont", kind="scatter")
+## looks good, very correlated
+
+## One weird outlier.
+## that was confusing. save this as our new environmental 
+## matrix:
+
+envData.to_csv('sulariEnv.csv')
+
+## okay, so we need a new model, that includes the spatial
+## and maybe temporal components?
+
+## for the analysis we need to, not necessarily in order:
+
+## 1 - remove the MC species, can't trust them
+## 2 - build spatiatemporal model without temporal component
+## 3 - build with temporal component
+## 4 - compare
+
+## to remove the mock community species, back to R:
+
+R
+
+library('phyloseq')
+
+sulariDataDir="/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/"
+load(paste0(sulariDataDir,"sulariPhyloseqObject.rda"))
+psNoControl = prune_samples(!(rownames(sample_data(ps)) %in% c("C1.1","C1.2","C2.1","C2.2")), ps)
+## remove species that are now zero
+psNoControl = prune_taxa( colSums(otu_table(psNoControl)) > 0, psNoControl)
+
+## and how do we find our ASVs from the MC control?
+
+## These will be the most abundant asvs in our positive controls
+## the taxonomy should line up, also, with our notes
+
+sample_names(ps) 
+
+## the single species controls are obvious:
+otu_table(ps)["C1.1",1:10]
+
+c1.1 <- sort(otu_table(ps)@.Data["C1.1",],decreasing=TRUE)
+c1.1 <- c1.1[c1.1 > 0]
+
+c1.2 <- sort(otu_table(ps)@.Data["C1.2",],decreasing=TRUE)
+c1.2 <- c1.2[c1.2 > 0]
+
+## the most abundant ASVs in these:
+
+c1.1[1:15]
+
+c1.1ASVs <- c("ASV1","ASV1315","ASV997","ASV29","ASV39","ASV43","ASV62","ASV4162")
+
+c1.2[1:15]
+
+c1.2ASVs <- c("ASV1","ASV1315","ASV997","ASV4162","ASV29","ASV43","ASV39","ASV62")
+
+## what is the taxonomy of these?
+
+tax_table(ps)[c1.1ASVs,]
+
+tax_table(ps)[c1.2ASVs,]
+
+## there are several possible MC contaminants in here
+## ASV1315 is probably a split ASV off of ASV1
+## ASV29 bacillus
+## ASV39 Chryseobacterium
+
+c2.1 <- sort(otu_table(ps)@.Data["C2.1",],decreasing=TRUE)
+c2.1 <- c2.1[c2.1 > 0]
+
+c2.2 <- sort(otu_table(ps)@.Data["C2.2",],decreasing=TRUE)
+c2.2 <- c2.2[c2.2 > 0]
+
+## and these are:
+
+c2.1[1:20]
+
+c2.1ASVs <- c("ASV29","ASV39","ASV43","ASV62","ASV70","ASV86","ASV78","ASV200","ASV244","ASV275","ASV365","ASV1","ASV943","ASV997","ASV4")
+
+c2.2[1:20]
+c2.2ASVs <- c("ASV29"," ASV39"," ASV43"," ASV70"," ASV62"," ASV86"," ASV78","ASV200","ASV244","ASV275 ASV365","ASV1","ASV943","ASV997")
+
+
+tax_table(ps)[c2.1ASVs,]
+
+tax_table(ps)[c2.2ASVs,]
+
+## how common are these elsehwere? 
+
+otu_table(ps)[,"ASV29"]
+
+sum(otu_table(ps)[,"ASV29"] > 0) ## 30 sites, out 120. Again, don't think we can trust this. 
+## Too bad, because bacillus subtilis is actually known from soil
+
+## franconibacter is an unusual one, I think:
+sum(otu_table(ps)[,"ASV943"] > 0) ## 2 samples, as expected 
+otu_table(ps)[,"ASV943"] ## not found outside of mock community. Great. 
+
+## so index bleed is mostly a problem with the really abundant microorganisms
+
+## clean up the index bleed problem and rerun the notebook with the cleaner dat
+## then start again on the models  
+
+## which are the members of the mock community, as far as we can tell?:
+
+## C1.x controls are all e. coli, ASV1 and probably also ASV1315, and ASV997
+
+otu="ASV1"
+sum(otu_table(ps)[,otu] > 0) ## 58 samples, over half
+otu_table(ps)[,otu] ## ~1000 reads in the mock community standards. elsewhere <500 reads 
+
+otu="ASV1315"
+sum(otu_table(ps)[,otu] > 0) ## only in c1.1/2, didn't bleed
+otu_table(ps)[,otu] ## ~500 reads
+
+otu="ASV997"
+sum(otu_table(ps)[,otu] > 0) ## 
+otu_table(ps)[,otu] ## funny, highly concentrated in controls, but present in a cluster of 
+## sites S33-S40 at lower levels (40-120 reads each), probably not enough to matter but can
+## be removed here to be sure
+
+## so probably get rid of ASV1 and ASV99
+
+## also of interest in the controls are four ASVs that 
+## are probably mock community species:
+
+ASV29   "Bacillaceae"        "Bacillus"
+ASV39   "Weeksellaceae"      "Chryseobacterium"
+ASV43   "Clostridiaceae"     "Clostridium sensu stricto 11"
+ASV62   "Enterobacteriaceae" "Klebsiella"
+
+otu="ASV29"
+sum(otu_table(ps)[,otu] > 0) ## 
+otu_table(ps)[,otu] ## 
+
+otu="ASV39"
+sum(otu_table(ps)[,otu] > 0) ## 
+otu_table(ps)[,otu] ## 
+
+otu="ASV43"
+sum(otu_table(ps)[,otu] > 0) ## 
+otu_table(ps)[,otu] ## 
+
+otu="ASV62"
+sum(otu_table(ps)[,otu] > 0) ## 
+otu_table(ps)[,otu] ## 
+
+otus=c("ASV29", "ASV39", "ASV43", "ASV62","ASV86","ASV70","ASV200")
+otu_table(ps)[,otus] ## 
+
+## site 120 seems to be contaminated more than any other by the controls  
+sum(otu_table(ps)["S120",])
+
+## the paper I'm following used a minimum abundance of 0.005 of a site to be considered:
+
+head(tax_table(ps))
+
+
+sum(otu_table(ps)["S120",])*.005 ## anything above 337.76 would be kept
+
+## so some index bleed by those MC members, but probably not enough to worry about
+
+## check the others:
+
+c2.1 <- sort(otu_table(ps)@.Data["C2.1",],decreasing=TRUE)
+c2.1 <- c2.1[c2.1 > 0]
+c2.2 <- sort(otu_table(ps)@.Data["C2.2",],decreasing=TRUE)
+c2.2 <- c2.2[c2.2 > 0]
+
+c2.1[1:20]
+
+c2.1ASVs <- c("ASV29","ASV39","ASV43","ASV62","ASV70","ASV86","ASV78","ASV200","ASV244","ASV275","ASV365","ASV1","ASV943","ASV997","ASV4")
+
+otu_table(ps)[,c("ASV1",c2.1ASVs)]
+
+sum(otu_table(ps)[,"ASV1"] > 0)
+
+
+tax_table(ps)["ASV70",]
+
+tax_table(ps)["ASV943",] ## franconibacter
+
+tax_table(ps)["ASV997",] ## plesiomonas 
+
+
+c2.2[1:20]
+c2.2ASVs <- c("ASV29"," ASV39"," ASV43"," ASV70"," ASV62"," ASV86"," ASV78","ASV200","ASV244","ASV275 ASV365","ASV1","ASV943","ASV997")
+
+## for example, the Klebsiella/Enterobactor
+otu="ASV62"
+sum(otu_table(ps)[,otu] > 0) ## shows up in 38 samples
+otu_table(ps)[,otu] ## but mostly in trivial amounts, < 60 reads
+
+## Bacillus subtilis:
+otu="ASV29"
+otu_table(ps)[,otu] ## but mostly in trivial amounts, =< 100 reads
+sum(otu_table(ps)[,otu] > 0) ## shows up in 30 samples
+
+rowSums(otu_table(ps)) ## 
+
+rowSums(otu_table(ps))*0.005 ## in general, a 0.5% threshold requires ~ 300 reads 
+rowSums(otu_table(ps))*0.003 ## in general, a 0.3% threshold requires ~ 100-200 reads 
+
+## so we could go to 0.003 (.3%) and get rid of these index-bleeds
+
+## okay, so the only real index bleed is with E. coli. Minimum thresholds
+## should take care of the rest.
+
+c2.1ASVs
+
+tax_table(ps)[c2.1ASVs,][,'Genus']
+c2.1[1:20]
+
+tax_table(ps)[c2.2ASVs,]
+
+## need to update the notebook with the above.
+## standardize the data we are using a bit.
+
+## best approach here - include a section at the beginning of the 
+## notebook with these poking/prodding data, 
+
+## also the plotting function that we used with sulari's 
+## thesis:
+
+rankAb <- function(phyObj, sampleName, ylimit=500, ntax=NULL, textatX=100, textatY=(ylimit-40)){
+    sampleNo0filter <- get_taxa(phyObj, sampleName) > 0
+    if(is.null(ntax)) ntax=sum(sampleNo0filter)
+    print(sum(sampleNo0filter)) ## let user know how many unique taxa are in sample
+    sampleNo0 <- get_taxa(phyObj, sampleName)[sampleNo0filter]
+    sampleNo0 <- sort(sampleNo0, decreasing=TRUE)
+    sampleNo0 <- sampleNo0[1:ntax]
+    taxaNames=tax_table(phyObj)[ names(sampleNo0), "Genus"]
+    nuASV <- paste("number of unique ASVs = ",sum(sampleNo0filter), sep="")
+    par(cex.axis = .75, mar=c(10,4,4,2))
+    barplot(sampleNo0,
+        ylim = c(0,ylimit),
+        main=sampleName,
+        cex.main=2,
+        las=2,
+        names.arg=taxaNames,
+        mar=c(20,10,2,2))
+    text(textatX, textatY,  nuASV, cex = 2, )
+}
+ 
+rankAb(ps,"C1.1",ylimit=3000, ntax = 30)
+
+par(cex.lab=20)
+
+par(mar = c(30, 4.4, 4.1, 1.9))
+
+par(mar = c(0, 0, 0, 0))
+
+rankAb(ps,"C2.1",ylimit=10000, ntax = 30)
+
+rankAb(ps,"C2.2",ylimit=10000, ntax = 30)
+
+
+| MZ name | Classified as | ASV#s |
+|  :--- | :---: | ---: |
+|  Bacillus subtilis          |  Bacillus                                           | ASV29  |
+|  Chryseobacterium luteum    |  Chryseobacterium                                   | ASV39  |
+|  Clostridium roseum         |  Clostridium sensu stricto 11                       | ASV43  |                  
+|  Enterobacter mori          |  Klebsiella                                         | ASV62  |
+|  Franconibacter helveticus  |  Franconibactor                                     | ASV86  |    
+|  Glycomyces tenuis          |  Glycomyces                                         | ASV200  |
+|  Pseudomonas fluorescens    |  Pseudomonas                                        | ASV70, ASV275  | 
+|  Pseudomonas putida         |  Pseudomonas                                        | ASV70, ASV275  | 
+|  Rhizobium endophyticum     |  Allorhizobium-Neorhizobium-Pararhizobium-Rhizobium | ASV78  |
+|  Streptomyces acidiscabies  |  Streptomyces                                       | ASV244  |  
+|  Variovorax guangxiensis    |  Variovorax                                         | ASV365  |
 

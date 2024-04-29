@@ -3409,7 +3409,6 @@ rowsumsInv = 1/rowSums(bactRaw)
 nASVs <- dim(bactRaw)[2]
 scaleMat = matrix( rep(rowsumsInv, nASVs), ncol =nASVs)
 bact.rel <- bactRaw * scaleMat
-
 ## sanity check
 bactRaw[1:5,1:5]
 bact.rel[1:5,1:5]
@@ -4002,17 +4001,272 @@ rankAb(ps,"C2.1",ylimit=10000, ntax = 30)
 rankAb(ps,"C2.2",ylimit=10000, ntax = 30)
 
 
-| MZ name | Classified as | ASV#s |
-|  :--- | :---: | ---: |
-|  Bacillus subtilis          |  Bacillus                                           | ASV29  |
-|  Chryseobacterium luteum    |  Chryseobacterium                                   | ASV39  |
-|  Clostridium roseum         |  Clostridium sensu stricto 11                       | ASV43  |                  
-|  Enterobacter mori          |  Klebsiella                                         | ASV62  |
-|  Franconibacter helveticus  |  Franconibactor                                     | ASV86  |    
-|  Glycomyces tenuis          |  Glycomyces                                         | ASV200  |
-|  Pseudomonas fluorescens    |  Pseudomonas                                        | ASV70, ASV275  | 
-|  Pseudomonas putida         |  Pseudomonas                                        | ASV70, ASV275  | 
-|  Rhizobium endophyticum     |  Allorhizobium-Neorhizobium-Pararhizobium-Rhizobium | ASV78  |
-|  Streptomyces acidiscabies  |  Streptomyces                                       | ASV244  |  
-|  Variovorax guangxiensis    |  Variovorax                                         | ASV365  |
+| DSMZ name | (Sub)Phylum | Classified as | ASV# |
+|  :--- | :---: | :---: | ---: |
+|  Bacillus subtilis          | Bacillota            | Bacillus                                           | ASV29  |
+|  Chryseobacterium luteum    | Bacteroidota         | Chryseobacterium                                   | ASV39  |
+|  Clostridium roseum         | Bacillota            | Clostridium sensu stricto 11                       | ASV43  |
+|  Enterobacter mori          | Gammaproteobacteria  | Klebsiella                                         | ASV62  |
+|  Franconibacter helveticus  | Gammaproteobacteria  | Franconibactor                                     | ASV86, ASV943  |
+|  Glycomyces tenuis          | Actinomycetetota     | Glycomyces                                         | ASV200  |
+|  Pseudomonas fluorescens    | Gammaproteobacteria  | Pseudomonas                                        | ASV70, ASV275  |
+|  Pseudomonas putida         | Gammaproteobacteria  | Pseudomonas                                        | ASV70, ASV275  |
+|  Rhizobium endophyticum     | Alphaproteobacteria  | Allorhizobium-Neorhizobium-Pararhizobium-Rhizobium | ASV78  |
+|  Streptomyces acidiscabies  | Actinomycetatota     | Streptomyces                                       | ASV244  |
+|  Variovorax guangxiensis    | Betaproteobacteria   | Variovorax                                         | ASV365  |
 
+
+
+
+## great. So how do we remove all this contamination? I think our original plan of 
+## a minimum cutoff is better than a minimum % prevalence per sample as 
+## used by Odriozola et al. 
+
+## so enforce a minimum cutoff, and normalize for each site and take the log 
+## essentially the same pipeline 
+## also, just get rid of ASV1. 
+
+## all this should be done in phylseq before exporting the community to downstream 
+## software:
+
+
+R
+
+library('phyloseq')
+
+sulariDataDir="/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/"
+load(paste0(sulariDataDir,"sulariPhyloseqObject.rda"))
+
+psNoControl = prune_samples(!(rownames(sample_data(ps)) %in% c("C1.1","C1.2","C2.1","C2.2")), ps)
+## remove species that are now zero
+psNoControl = prune_taxa( colSums(otu_table(psNoControl)) > 0, psNoControl)
+
+## remove ASV1 wherever it is found:
+
+notASV1 <- taxa_names(psNoControl) != "ASV1"
+psNoControl <- prune_taxa(notASV1, psNoControl)
+
+## what is our minimum cutoff? Here we have a dilemma. 
+## our last sample, 120, is extremely contaminated
+## by our positive controls. In the worst case,
+## ASV29 is >200 reads 
+
+rowSums(otu_table(psNoControl))
+
+otu_table(psNoControl)[0:10,0:10]
+
+## in which case do we lose more OTUs?
+## a simple minimum cutoff, or a relative minimum presence
+
+## they enforce a relative prevalence threshold in this way:
+## first, make a relative abundance matrix, line ~3400 above
+## then
+threshold.prev = 0.02 ## each OTU is retain only if present in at least 2% of samples
+threshold.abu = 0.001 ## only OTU that reaches at least 0.1% abundance of one sample
+bact.pa<-ifelse(bactRaw>0,1,0) ## make PA mat
+ny = dim(bactRaw)[1]
+cond1=!(colSums(bact.pa)<=threshold.prev*ny) ## present in at least n% of samples?
+cond2=apply(bact.rel,2,max)>=threshold.abu ## in at least one sample, abundance reaches m%
+bactData <- bactRaw[,cond1 & cond2]
+
+## with these thresholds, do the contaminants pass through?
+
+mcBiggest <- c("ASV29","ASV39","ASV43","ASV62","ASV70","ASV86","ASV78","ASV200")
+for (i in mcBiggest){
+  print(i)
+  print(bactData[,i])
+}
+
+otu_table(ps)[,mcBiggest]
+
+bactData[,mcBiggest]
+
+## yes, nearly all make it through.
+## I think we have to enforce a minimum cutoff.
+
+## I think the best strategy is to go by each line 
+## and find the highest abundance of contamination 
+## by the mock community.
+
+## essentially a site-by-site cutoff, using the most abundant members of the 
+## mock communitiy members to decide the cutoff 
+
+## ASVE 78 is everywhere, btw. What is this?
+tax_table(ps)["ASV78",] ## Rhizobium spp. This could be real. As far as I know, a non-nodule forming rhizobium
+## https://doi.org/10.1016/j.syapm.2010.07.005
+## 
+
+## interesting, B. subtilis is reported in thousands of 
+## soils samples across the world, but we don't really
+## see it here except in samples that are obviously 
+## contaminated. 
+
+## anyway, what happens with a minimum cutoff of 225, 
+## which is the highest level of contamination that 
+## we see in S120, with ASV29, Bacillus subtilis
+
+minCutoff <- 50
+
+## make a copy of our otu_table from our original phyloseq object:
+
+ot <- otu_table(ps)
+## if it doesn't meet this cutoff, go to zero
+ot <- ot - 225
+ot[ot < 0] <- 0
+## insert this into a new phyloseq object
+psMinCutoff <- ps
+otu_table(psMinCutoff) <- ot
+## how many reads do we lose with this?
+
+sample_names(psMinCutoff)
+
+otu_table(psMinCutoff)[,mcBiggest]
+
+otu_table(psMinCutoff)["c2.1",]
+
+## remove controls and zeros
+
+## remove species that are now zero
+psMinCutoff = prune_taxa( colSums(otu_table(psMinCutoff)) > 0, psMinCutoff)
+
+psMinCutoff ## down to 643 taxa
+
+## this clears out all the major contaminants
+
+otu_table(psMinCutoff)[,mcBiggest]
+
+otu_table(psMinCutoff)[c("C1.1","C1.2"),]
+
+par(mfrow=c(1,2))
+rankAb(psMinCutoff,"C1.1",ylimit=500)
+rankAb(ps,"C1.1",ylimit=500, ntax = 30)
+par(mfrow=c(1,1))
+
+## okay, so this gets rid of all contaminants. 
+## but all rare species are lost, I assume
+
+## for instance, do we find 
+
+Candidatus Udaeobacter
+
+onlySulari <- grep("S", filtFs)
+
+grep("Udaeobacter", tax_table(ps), value=TRUE)
+
+sum(grepl("Udaeobacter", tax_table(ps))) 
+
+grepl("Udaeobacter", tax_table(ps)) 
+
+## oh wow. Lots. 
+filt <- grep("Udaeobacter", tax_table(ps))
+filt <- grepl("Udaeobacter", tax_table(ps)) 
+
+tax_table(ps)@.Data[filt]
+
+head(tax_table(ps))
+
+any(tax_table(ps)[,'Phylum'] == "Candidatus Udaeobacter")
+
+grep("Candidatus Udaeobacter", tax_table(ps)[,'Phylum']) ## nope
+
+## here's where they are:
+filt <- grep("Candidatus Udaeobacter", tax_table(ps)[,'Genus'])
+tax_table(ps)@.Data[filt,]
+
+## lots of udeabacter, 
+
+filt <- grep("Candidatus Udaeobacter", tax_table(ps)[,'Genus'])
+udeas <- rownames(tax_table(ps)@.Data[filt,])
+otu_table(ps)[,udeas]
+
+## yes, looks like we may lose a lot of information if we use these
+## strict cutoffs.
+
+## it will be more reasonable to do some ASV/OTU clustering, 
+## then enforce the minimums. Less loss of data. 
+
+data("esophagus")
+# for speed
+esophagus = prune_taxa(taxa_names(esophagus)[1:25], esophagus)
+
+plot_tree(esophagus, label.tips="taxa_names", size="abundance", title="Before tip_glom()")
+plot_tree(tip_glom(esophagus, h=0.2), label.tips="taxa_names", size="abundance", title="After tip_glom()")
+
+## great, so how do we bring in our tree for this phyloseq object?
+## get the tree into R...
+
+spatDir <- "/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis"
+
+/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis
+
+aa <- read_tree(paste0(spatDir,"/sulariFastTree.nwk"))
+phy_tree(ps) <- aa
+
+print(paste("start time is", Sys.time()))
+#bb <- tip_glom(ps, h=0.03) ## looks like family level in tree below
+# bb <- tip_glom(ps, h=0.02) ## lost Franconibacter, presumably to the Enterobacter branch
+#bb <- tip_glom(ps, h=0.02) ## still too much lumping
+#bb <- tip_glom(ps, h=0.02) ## very close - two pseudomonas, one franconibacter, but streptomyces lumped into another ASV
+#bb <- tip_glom(ps, h=0.01) ## same as .02
+bb <- tip_glom(ps, h=0.005) ## and...looks good!
+print(paste("finish time is", Sys.time()))
+
+## the thing to do here would be to look at a positive controls, 
+## and find the h-value that gets rid of splitting in
+## E. coli, Franconibacter, any others 
+## but one that keeps the pseudomonases separate
+## to get a phylo tree of just the controls
+
+cutoffAbu <- 100
+cc = prune_samples((rownames(sample_data(bb)) %in% c("C1.1","C1.2","C2.1","C2.2")), bb)
+cc = prune_taxa( colSums(otu_table(cc)) > 0, cc)
+## retain only those OTUs with high abundances in both MC samples:
+mcOTUs <- taxa_names(cc)[colSums(otu_table(cc)[c("C2.1","C2.2"),] > cutoffAbu) == 2]
+dd = prune_taxa( c("ASV1",mcOTUs), cc)
+sample_data(dd)$Plot.ID <- c("ss","ss","mc","mc")
+
+
+plot(phy_tree(dd))
+
+par(mfrow = c(1,2))
+rankAb(cc,"C1.1", ylimit=5000, ntax=10)
+rankAb(dd,"C2.1", ylimit=5000)
+par(mfrow = c(1,1))
+
+rankAb(dd,"C1.1", ylimit=5000)
+
+
+plot_tree(dd, label.tips="taxa_names", color="Plot.ID", size="abundance")
+
+plot_tree(dd, label.tips="Genus", color="Plot.ID", size="abundance")
+
+plot_tree(dd, label.tips="Family", size="abundance")
+
+plot_tree(dd, label.tips="Phylum", size="abundance")
+
+plot_tree(dd, label.tips="Genus")
+
+rankAb(dd,"C2.1",ylimit=500)
+
+tax_table(dd)
+
+## why are the taxa so different now, mostly unlabeled?
+
+tax_table(ps)[,'Genus'])
+
+## Franconibacter keeps disappearing...
+filt <- grep("Franconibacter", tax_table(ps)[,'Genus'])
+frankishBacteria <- rownames(tax_table(ps)@.Data[filt,])
+otu_table(ps)[,frankishBacteria]
+
+frankishBacteria 
+
+## what else are we missing?
+
+bactOfInt <- "Streptomyces" 
+filt <- grep(bactOfInt, tax_table(ps)[,'Genus'])
+bactOfInt <- rownames(tax_table(ps)@.Data[filt,])
+
+bactOfInt
+
+otu_table(ps)[,bactOfInt]

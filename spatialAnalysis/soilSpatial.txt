@@ -3021,7 +3021,9 @@ tail(envData)[,1:5]
 
 
 load("../sulariData/sularilogMin50ps.rda")
+
 ## get rid of zero columns
+
 logMin50ps = prune_taxa( taxa_sums(logMin50ps) > 0, logMin50ps )
 
 ## export the sequences as a fasta file for the aligner:
@@ -4016,8 +4018,6 @@ rankAb(ps,"C2.2",ylimit=10000, ntax = 30)
 |  Variovorax guangxiensis    | Betaproteobacteria   | Variovorax                                         | ASV365  |
 
 
-
-
 ## great. So how do we remove all this contamination? I think our original plan of 
 ## a minimum cutoff is better than a minimum % prevalence per sample as 
 ## used by Odriozola et al. 
@@ -4229,8 +4229,8 @@ sample_data(dd)$Plot.ID <- c("ss","ss","mc","mc")
 plot(phy_tree(dd))
 
 par(mfrow = c(1,2))
-rankAb(cc,"C1.1", ylimit=5000, ntax=10)
-rankAb(dd,"C2.1", ylimit=5000)
+rankAb(sp,"C1.1", ylimit=5000, ntax=10)
+rankAb(dd,"C1.1", ylimit=5000)
 par(mfrow = c(1,1))
 
 rankAb(dd,"C1.1", ylimit=5000)
@@ -4270,3 +4270,126 @@ bactOfInt <- rownames(tax_table(ps)@.Data[filt,])
 bactOfInt
 
 otu_table(ps)[,bactOfInt]
+
+## so, looks like h=0.005 is a good phylogenetic distance (co-phenetic distance?)
+## for agglomerating back the tips
+
+## how do abundances etc look now? 
+
+c2.1ASVs <- c("ASV29","ASV39","ASV43","ASV62","ASV70","ASV86","ASV78","ASV200","ASV244","ASV275","ASV365","ASV943")
+
+otu_table(ps)[,c2.1ASVs]
+
+otu_table(cc)[,c2.1ASVs]
+
+## lost some...
+for (i in c2.1ASVs){
+  print(i)
+  print(otu_table(cc)[,i])
+} ## just ASV943, franconibacter
+
+## yup, the other franconibacter ASV has dissappeared: 
+otu_table(bb)[,"ASV943"] 
+otu_table(cc)[,"ASV943"] 
+## I think that is a good sign.
+
+## work with just the big ones:
+mcBiggest <- c("ASV29","ASV39","ASV43","ASV62","ASV70","ASV86","ASV78","ASV200")
+for (i in mcBiggest){
+  print(i)
+  print(otu_table(cc)[,i])
+}
+
+otu_table(cc)[,mcBiggest]
+
+otu_table(bb)[,mcBiggest]
+
+## check abundances 
+
+par(mfrow=c(2,1))
+rankAb(ps,"C1.1", ylimit=5000, ntax=30)
+rankAb(cc,"C1.1", ylimit=5000, ntax=30)
+par(mfrow=c(1,1))
+## main difference again is the merging of the two E. coli asvs
+
+par(mfrow=c(2,1))
+rankAb(ps,"C2.1", ylimit=10000, ntax=30)
+rankAb(cc,"C2.1", ylimit=10000, ntax=30)
+par(mfrow=c(1,1))
+
+## check ecological samples:
+
+par(mfrow=c(2,1))
+rankAb(ps,"S2", ylimit=1000, ntax=30)
+rankAb(bb,"S2", ylimit=1000, ntax=30)
+par(mfrow=c(1,1))
+
+#samp="S2"
+#samp="C1.1"
+samp="S12"
+sortOTUs <- sort(otu_table(bb)@.Data[samp,], decreasing=TRUE)
+filt = sortOTUs > 0
+sortOTUs <- sortOTUs[filt]
+tax_table(ps)[names(sortOTUs[1:4]),]
+par(mfrow=c(2,1))
+rankAb(ps,"S12", ylimit=1000, ntax=30)
+rankAb(bb,"S12", ylimit=1000, ntax=30)
+par(mfrow=c(1,1))
+tax_table(ps)[names(sortOTUs[1:30]),]
+
+## same error profile as before agglomeration.
+## great, shouldn't make too much of difference, 
+## can use the same down stream pipelines
+
+## the Candidatus udaeobacter OTUs are split. 
+## Do we have to accept this? 
+
+## is it possible to merge all these Udeabacters into just one otu?
+
+?merge_taxa
+
+x1 = merge_taxa(closedps, taxa_names(closedps)[3:27], 2)
+
+taxa_names(ps)[3:27]
+
+data(esophagus)
+
+tree <- phy_tree(esophagus)
+otu  <- otu_table(esophagus)
+otutree0 <- phyloseq(otu, tree)
+otutree1 <- merge_taxa(otutree0, 1:8, 2)
+
+
+plot_tree(otutree0)
+
+dev.new()
+plot_tree(otutree1)
+
+plot_tree(esophagus, ladderize="left")
+
+
+sum(!is.na(genera)) ## most of our OTUs are not identified to genus...
+
+head(tax_table(ps))
+
+tax_table(ps)@.Data['ASV3180',]
+
+#bb <- tip_glom(ps, h=0.005) 
+genera <- tax_table(bb)@.Data[,'Genus']
+filtUdaeo <- genera == "Candidatus Udaeobacter"
+filtUdaeo[is.na(filtUdaeo)]  <- FALSE
+sum(filtUdaeo) ## 36 ASVs blast to Udeaobacter
+udaeoASVs <- names(genera[filtUdaeo])
+ee <- merge_taxa(bb, udaeoASVs, 1)
+
+
+par(mfrow=c(2,1))
+rankAb(bb,"S12", ylimit=1000, ntax=30)
+rankAb(ee,"S12", ylimit=1000, ntax=30)
+par(mfrow=c(1,1))
+
+## so merge tips back till we get a clean MC, remove ASV1, merge Udaeos, enforce a minimum cutoff, log transform. 
+## anything else?
+
+
+

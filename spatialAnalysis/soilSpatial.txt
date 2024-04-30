@@ -4016,6 +4016,7 @@ rankAb(ps,"C2.2",ylimit=10000, ntax = 30)
 |  Rhizobium endophyticum     | Alphaproteobacteria  | Allorhizobium-Neorhizobium-Pararhizobium-Rhizobium | ASV78  |
 |  Streptomyces acidiscabies  | Actinomycetatota     | Streptomyces                                       | ASV244  |
 |  Variovorax guangxiensis    | Betaproteobacteria   | Variovorax                                         | ASV365  |
+|  E. coli                    | Gammaproteobacteria  | Escherichia-Shigella                               | ASV365, ASV1315 |
 
 
 ## great. So how do we remove all this contamination? I think our original plan of 
@@ -4196,9 +4197,6 @@ plot_tree(tip_glom(esophagus, h=0.2), label.tips="taxa_names", size="abundance",
 ## get the tree into R...
 
 spatDir <- "/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis"
-
-/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis
-
 aa <- read_tree(paste0(spatDir,"/sulariFastTree.nwk"))
 phy_tree(ps) <- aa
 
@@ -4222,9 +4220,8 @@ cc = prune_samples((rownames(sample_data(bb)) %in% c("C1.1","C1.2","C2.1","C2.2"
 cc = prune_taxa( colSums(otu_table(cc)) > 0, cc)
 ## retain only those OTUs with high abundances in both MC samples:
 mcOTUs <- taxa_names(cc)[colSums(otu_table(cc)[c("C2.1","C2.2"),] > cutoffAbu) == 2]
-dd = prune_taxa( c("ASV1",mcOTUs), cc)
+dd = prune_taxa( c("ASV1","ASV1315",mcOTUs), cc)
 sample_data(dd)$Plot.ID <- c("ss","ss","mc","mc")
-
 
 plot(phy_tree(dd))
 
@@ -4232,6 +4229,18 @@ par(mfrow = c(1,2))
 rankAb(sp,"C1.1", ylimit=5000, ntax=10)
 rankAb(dd,"C1.1", ylimit=5000)
 par(mfrow = c(1,1))
+
+## make a nice tree of the original PS mock community tree for comparison
+psControls = prune_samples((rownames(sample_data(ps)) %in% c("C1.1","C1.2","C2.1","C2.2")), ps)
+psControls = prune_taxa( colSums(otu_table(psControls)) > 0, psControls)
+mcOTUs <- taxa_names(psControls)[colSums(otu_table(psControls)[c("C2.1","C2.2"),] > cutoffAbu) == 2]
+psControls = prune_taxa( c("ASV1", "ASV1315", mcOTUs), psControls)
+sample_data(psControls)$Plot.ID <- c("ss","ss","mc","mc")
+plot_tree(psControls, label.tips="Genus", color="Plot.ID", size="abundance", title="original Mock Community and ASV1")
+
+plot(phy_tree(psControls))
+
+
 
 rankAb(dd,"C1.1", ylimit=5000)
 
@@ -4253,6 +4262,13 @@ tax_table(dd)
 ## why are the taxa so different now, mostly unlabeled?
 
 tax_table(ps)[,'Genus'])
+
+## What are the E. coli otu again?
+
+filt <- grep("Escherichia", tax_table(ps)[,'Genus'])
+ecoliOTUs <- rownames(tax_table(ps)@.Data[filt,])
+otu_table(ps)[,ecoliOTUs]
+tail(otu_table(ps)[,ecoliOTUs])
 
 ## Franconibacter keeps disappearing...
 filt <- grep("Franconibacter", tax_table(ps)[,'Genus'])
@@ -4348,10 +4364,6 @@ tax_table(ps)[names(sortOTUs[1:30]),]
 
 ?merge_taxa
 
-x1 = merge_taxa(closedps, taxa_names(closedps)[3:27], 2)
-
-taxa_names(ps)[3:27]
-
 data(esophagus)
 
 tree <- phy_tree(esophagus)
@@ -4391,5 +4403,9 @@ par(mfrow=c(1,1))
 ## so merge tips back till we get a clean MC, remove ASV1, merge Udaeos, enforce a minimum cutoff, log transform. 
 ## anything else?
 
+psControls = prune_samples((rownames(sample_data(ps)) %in% c("C1.1","C1.2","C2.1","C2.2")), ps)
+psControls = prune_taxa( colSums(otu_table(psControls)) > 0, psControls)
+
+plot_tree(psControls, label.tips="taxa_names", color="Plot.ID", size="abundance", title="original Mock Community")
 
 

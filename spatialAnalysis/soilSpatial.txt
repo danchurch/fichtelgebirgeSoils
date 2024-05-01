@@ -4387,6 +4387,7 @@ head(tax_table(ps))
 tax_table(ps)@.Data['ASV3180',]
 
 #bb <- tip_glom(ps, h=0.005) 
+
 genera <- tax_table(bb)@.Data[,'Genus']
 filtUdaeo <- genera == "Candidatus Udaeobacter"
 filtUdaeo[is.na(filtUdaeo)]  <- FALSE
@@ -4408,4 +4409,5 @@ psControls = prune_taxa( colSums(otu_table(psControls)) > 0, psControls)
 
 plot_tree(psControls, label.tips="taxa_names", color="Plot.ID", size="abundance", title="original Mock Community")
 
+plot_tree(dd, label.tips="Genus", color="Plot.ID", size="abundance", title="original Mock Community and E. coli")
 

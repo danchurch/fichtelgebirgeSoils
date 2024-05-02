@@ -4411,3 +4411,8 @@ plot_tree(psControls, label.tips="taxa_names", color="Plot.ID", size="abundance"
 
 plot_tree(dd, label.tips="Genus", color="Plot.ID", size="abundance", title="original Mock Community and E. coli")
 
+
+## so clean up the notebook, and start again with the models. I think we can pretty much 
+## follow Tinkhonox 2019, they do almost exactly what we want to do. 
+
+

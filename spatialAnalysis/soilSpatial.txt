@@ -3664,8 +3664,7 @@ import os
 import matplotlib.pyplot as plt; plt.ion()
 
 envData = pd.read_csv('/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis/sulariEnv.csv', index_col='SampleID')
-envData['Date'] = pd.to_datetime(envData['Date'], dayfirst=True, errors='coerce')
-envData.drop([ "C1.1", "C1.2", "C2.1", "C2.2" ], axis=0, inplace=True)
+envData['Date'] = pd.to_datetime(envData['Date'], yearfirst=True, errors='coerce')
 
 envData.dtypes
 
@@ -3673,17 +3672,21 @@ bettyData = pd.read_csv('/home/daniel/Documents/projects/fichtelSoils/fichtelgeb
 filt0 = bettyData['depth'] == '0'
 bettyData0 = bettyData[filt0]
 
+## all there?
+bettyData0['watercont'].all()
 
+## missing data are back. Thanks Betty.
+bettyData[bettyData['plotID'] == "P0216"]
+bettyData[bettyData['plotID'] == "P0116"]
+bettyData[bettyData['plotID'] == "P0165"]
 
-envData.PlotID
-
-bettyData0.plotID
 
 ## how do we link these up, joining by plotid isn't enough, because of the multiple sampling in time
 ## do the dates agree?
 
 
-bettyData0.plotID[bettyData0.plotID.duplicated()] ## yep lots of dups/resamples
+bettyData0.plotID[bettyData0.plotID.duplicated()] ## yep lots of dups/resamples. This is a pain now, useful later.
+
 
 ## go through each of sulari's samples, find matching plotID and date
 ## in betty's data, pull out the watercont
@@ -3714,19 +3717,22 @@ sample="S1"
 
 sample="S10"
 
+sample="S116"
+
 aa = get_waterCont(sample)
 
 ## looks okay.
 
 aa = envData.reset_index()['SampleID'].apply(get_waterCont)
+
 aa.index=envData.index
-
-
 
 
 envData['waterCont'] = aa
 
 envData.head()
+
+envData.tail()
 
 ## sanity check:
 
@@ -4411,8 +4417,16 @@ plot_tree(psControls, label.tips="taxa_names", color="Plot.ID", size="abundance"
 
 plot_tree(dd, label.tips="Genus", color="Plot.ID", size="abundance", title="original Mock Community and E. coli")
 
-
 ## so clean up the notebook, and start again with the models. I think we can pretty much 
 ## follow Tinkhonox 2019, they do almost exactly what we want to do. 
 
+## so, back onto the model building as above. As before, let's try without seasonal effects, it's simpler. 
+
+## this model would have 
+## environmental predictors, phylogeny, spatial patterns, species interactions. 
+
+## first step, fill in the moisture data holes. Betty found this information today...
+## done
+
+## with this new env matrix, start over with HMSC:
 

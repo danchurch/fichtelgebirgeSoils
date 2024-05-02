@@ -3663,7 +3663,8 @@ import pandas as pd
 import os
 import matplotlib.pyplot as plt; plt.ion()
 
-envData = pd.read_csv('/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis/sulariEnv.csv', index_col='SampleID')
+#envData = pd.read_csv('/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis/sulariEnv.csv', index_col='SampleID')
+envData = pd.read_csv('sulariEnv.csv', index_col='SampleID')
 envData['Date'] = pd.to_datetime(envData['Date'], yearfirst=True, errors='coerce')
 
 envData.dtypes
@@ -3752,9 +3753,17 @@ envData[envData$PlotID %in% c('P0216','P0116','P0165'),]
 help(envData.plot)
 
 envData.plot("Moisture", "waterCont", kind="scatter")
+
 ## looks good, very correlated
 
-## One weird outlier.
+## One weird outlier. What is this point?
+
+X,Y = plt.ginput(1)[0] ## 26.424, 0.549
+
+bettyData0.query(f'plotID == "{a}" & date == "{b}"')['watercont'])
+
+envData.query("waterCont > 0.5") ## 
+
 ## that was confusing. save this as our new environmental 
 ## matrix:
 
@@ -4418,7 +4427,8 @@ plot_tree(psControls, label.tips="taxa_names", color="Plot.ID", size="abundance"
 plot_tree(dd, label.tips="Genus", color="Plot.ID", size="abundance", title="original Mock Community and E. coli")
 
 ## so clean up the notebook, and start again with the models. I think we can pretty much 
-## follow Tinkhonox 2019, they do almost exactly what we want to do. 
+## follow Tinkhonov 2019 and 2022, they do almost exactly what we want to do. 
+## use the hurdle models from the 2022 paper, better for microbial data
 
 ## so, back onto the model building as above. As before, let's try without seasonal effects, it's simpler. 
 
@@ -4428,5 +4438,27 @@ plot_tree(dd, label.tips="Genus", color="Plot.ID", size="abundance", title="orig
 ## first step, fill in the moisture data holes. Betty found this information today...
 ## done
 
-## with this new env matrix, start over with HMSC:
+## with this new env matrix, start over with HMSC. Do this on the lab computer.
 
+### start over with HMSC ###
+
+cd "/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis"
+
+## line 3392 above for previous attempt
+R
+
+library(Hmsc)
+library(phyloseq)
+
+envData <- read.csv("sulariEnv.csv", row.names="SampleID")
+
+## this time, use our ps object with phylogeny and clustered OTUs:
+
+load("../sulariData/sulariPhyloseqObject.rda")
+
+psNoControl = prune_samples(!(rownames(sample_data(ps)) %in% c("C1.1","C1.2","C2.1","C2.2")), ps)
+## remove species that are now zero
+psNoControl = prune_taxa( colSums(otu_table(psNoControl)) > 0, psNoControl)
+
+
+BacteriaDepth<-log(rowSums(bactRaw))

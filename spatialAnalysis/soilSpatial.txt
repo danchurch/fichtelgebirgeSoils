@@ -3446,9 +3446,6 @@ dim(bactData) ## with 0.02 and 0.0001 we are down to 2900 asvs. Really strict. I
 bactData[1:5,1:5] 
 Y[1:5,1:5] ## this includes ASV1, which is probably spurious. Ugh.
 
-## note to self, remove all members of mock community. They are the largest
-## source of index bleed.
-
 ## do the ordinations looks similar?
 
 ## first get a model running, see how long it takes
@@ -3462,7 +3459,6 @@ dataDir="/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialA
 Env <- read.csv(file.path(dataDir,"sulariEnv.csv"), row.names="SampleID")
 Env <- Env[!(rownames(Env) %in% c("C1.1","C1.2","C2.1","C2.2")),]
 BacteriaDepth<-log(rowSums(bactRaw))
-
 
 #c("PlotID","Date","soil_respiration","srpuc","MBC","season","Land_type","pH","N","C","CNR","Temperature","Moisture","Latitude","Longitude")
 varsOfInterest = c("soil_respiration","Land_type","pH","N","C","Temperature","Moisture")
@@ -4454,11 +4450,154 @@ envData <- read.csv("sulariEnv.csv", row.names="SampleID")
 
 ## this time, use our ps object with phylogeny and clustered OTUs:
 
-load("../sulariData/sulariPhyloseqObject.rda")
-
-psNoControl = prune_samples(!(rownames(sample_data(ps)) %in% c("C1.1","C1.2","C2.1","C2.2")), ps)
+load("psCleanedUP.rda")
+psCleanedUp = prune_samples(!(rownames(sample_data(psCleanedUp)) %in% c("C1.1","C1.2","C2.1","C2.2")), psCleanedUp)
 ## remove species that are now zero
-psNoControl = prune_taxa( colSums(otu_table(psNoControl)) > 0, psNoControl)
+psCleanedUp = prune_taxa( colSums(otu_table(psCleanedUp)) > 0, psCleanedUp)
+bactRaw <- otu_table(psCleanedUp)@.Data
 
+## they include a term for sequencing depth
+BacteriaDepth<-log(rowSums(bactRaw))
+
+## make pa matrix
+bact.pa<-ifelse(bactRaw>0,1,0)
+
+## go to relative abundances
+
+rowsumsInv = 1/rowSums(bactRaw)
+nASVs <- dim(bactRaw)[2]
+scaleMat = matrix( rep(rowsumsInv, nASVs), ncol = nASVs)
+bact.rel <- bactRaw * scaleMat
+
+## sanity check
+bactRaw[1:5,1:5]
+bact.rel[1:5,1:5]
+
+## check some ASVs
+20/sum(bactRaw[1,])
+244/sum(bactRaw[3,]) 
+
+## looks sane
+
+## thresholds:
+threshold.prev = 0.02 ## present in at least 2% of samples?, so 3 samples?
+## skip this, because we already enforced some minimum cutoffs:
+#threshold.abu = 0.001 ## only OTU that reaches at least 0.1% abundance of one sample
+#####
+
+ny = dim(bactRaw)[1]
+
+cond1=!(colSums(bact.pa)<=threshold.prev*ny) ## present in at least n% of samples? We lose ~300 OTUs with this
+###cond2=apply(bact.rel,2,max)>=threshold.abu ## in at least one sample, abundance reaches m%
+bactData <- bactRaw[,cond1]
+
+Y <- bactData
+ny <- dim(Y)[1]
+ns <- dim(Y)[2]
 
 BacteriaDepth<-log(rowSums(bactRaw))
+
+varsOfInterest = c("soil_respiration","Land_type","pH","N","C","Temperature","waterCont")
+
+XData<-data.frame(envData[,varsOfInterest],BacteriaDepth)
+XData[,-2]=scale(XData[,-2])
+XData$Land_type <- as.factor(XData$Land_type)
+
+##########################################################
+
+## we need spatial data. I don't trust lat/long. get the UTMs out of our python spd:
+import pandas as pd
+import geopandas as gpd
+import matplotlib.pyplot as plt; plt.ion()
+import os, rasterio
+import rasterio.plot
+import scipy.spatial as sp
+
+envData = pd.read_csv('sulariEnv.csv', index_col='SampleID')
+
+plotPoints = gpd.points_from_xy( envData.Longitude, envData.Latitude, crs="EPSG:4326" )
+sulariPlotsDF = gpd.GeoDataFrame(envData[[ 'PlotID', 'soil_respiration', 
+                    'MBC', 'season', 'Land_type', 'pH', 'N', 'C']], geometry=plotPoints)
+
+sulariPlot_utm = sulariPlotsDF.to_crs('EPSG:32633')
+
+pd.DataFrame(sulariPlot_utm)
+
+dir(sulariPlot_utm['geometry'])
+
+sulariPlot_utm['xx'] = sulariPlot_utm['geometry'].x
+sulariPlot_utm['yy'] = sulariPlot_utm['geometry'].y
+
+sulariPlot_utm.head()[['xx','yy']].to_csv("sulariSpatial.csv")
+
+##########################################################
+
+
+Yabu <- Y
+Yabu[Y==0] <- NA ## to avoid zeroes?
+Yabu = log(Yabu) ## take log of abundances. They basically decided on the same transformations as Sulari and I.
+Yabu <- scale(Yabu) ## scale, after log? Heavily transformed data. Let's hope they know what they are talking about. 
+
+
+## make our second, presence absence matrix:
+Ypa = 1*(Y>0)
+
+## bring them together for a final Y matrix
+Y = cbind(Ypa,Yabu)
+
+## I think HMSC won't accept missing data. I guess we could interpolate. 
+## for now, just use what we have:
+
+ccases <- complete.cases(XData) ## 112 samples, we only lose 8 
+XData = XData[ccases,] 
+Y = Y[ccases,] 
+
+ny = dim(Y)[1]
+ns = dim(Y)[2]/2
+
+all(rownames(XData) == rownames(Y))
+
+sample.id = row.names(Y)
+studyDesign = data.frame(Sample=as.factor(sample.id))
+rL.Sample = setPriors(HmscRandomLevel(units = studyDesign$Sample), nfMin = 5, nfMax = 10) ## not sure how to optimize the number of latent variables?
+
+
+# REGRESSION MODEL FOR ENVIRONMENTAL COVARIATES.
+XFormula = ~ soil_respiration + Land_type + pH + N + C + Temperature
+XFormula1 = ~ BacteriaDepth ## check this next. Sort of a null model, I guess.
+
+## how do we incorporate spatial patterns?
+
+## it is another "random effect" (I hate this amalgamation of frequentist and bayesian terminology)
+## with a specific sData argument
+
+
+studyDesign1 = data.frame(sample = as.factor(1:n)) 
+
+rL.spatial = HmscRandomLevel(sData = xycoords) 
+rL.spatial = setPriors(rL.spatial,nfMin=1,nfMax=1) #We limit the model to one latent variable for visualization purposes 
+m.spatial = Hmsc(Y=yprob, XData=XData, XFormula=~x1, studyDesign=studyDesign, ranLevels=list("sample"=rL.spatial),distr="probit")
+
+## describe model
+## set prior to probit for the P/A half of the matrix, we'll manually 
+## change the abundance matrix to matrix of gaussian  dists
+## just following their example here, but why gaussian? 
+
+m = Hmsc(Y=Y,
+         XData = XData,  XFormula = XFormula,
+         distr={"probit"} ,
+         studyDesign=studyDesign, 
+         phyloTree=phy_tree(psCleanedUp),
+         ranLevels={list(Sample=rL.Sample)})
+
+## change priors for abundance matrix to gaussian. 
+## really not sure why we do this, maybe computationally cheap.
+## or maybe I'm just confused.
+
+for (i in (ns+1):(2*ns)){
+   m$distr[i,1:2] = c(1,1)
+}
+
+## try sampling that model
+
+

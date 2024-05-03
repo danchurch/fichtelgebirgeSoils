@@ -4455,15 +4455,11 @@ psCleanedUp = prune_samples(!(rownames(sample_data(psCleanedUp)) %in% c("C1.1","
 ## remove species that are now zero
 psCleanedUp = prune_taxa( colSums(otu_table(psCleanedUp)) > 0, psCleanedUp)
 bactRaw <- otu_table(psCleanedUp)@.Data
-
 ## they include a term for sequencing depth
 BacteriaDepth<-log(rowSums(bactRaw))
-
 ## make pa matrix
 bact.pa<-ifelse(bactRaw>0,1,0)
-
 ## go to relative abundances
-
 rowsumsInv = 1/rowSums(bactRaw)
 nASVs <- dim(bactRaw)[2]
 scalarMat = matrix( rep(rowsumsInv, nASVs), ncol = nASVs)
@@ -4472,7 +4468,6 @@ bact.rel <- bactRaw * scalarMat
 ## sanity check
 bactRaw[1:5,1:5]
 bact.rel[1:5,1:5]
-
 ## check some ASVs
 20/sum(bactRaw[1,])
 244/sum(bactRaw[3,]) 
@@ -4484,21 +4479,15 @@ threshold.prev = 0.02 ## present in at least 2% of samples?, so 3 samples?
 ## skip this, because we already enforced some minimum cutoffs:
 #threshold.abu = 0.001 ## only OTU that reaches at least 0.1% abundance of one sample
 #####
-
 ny = dim(bactRaw)[1]
-
 cond1=!(colSums(bact.pa)<=threshold.prev*ny) ## present in at least n% of samples? We lose ~300 OTUs with this
 ###cond2=apply(bact.rel,2,max)>=threshold.abu ## in at least one sample, abundance reaches m%
 bactData <- bactRaw[,cond1]
-
 Y <- bactData
 ny <- dim(Y)[1]
 ns <- dim(Y)[2]
-
 BacteriaDepth<-log(rowSums(bactRaw))
-
 varsOfInterest = c("soil_respiration","Land_type","pH","N","C","Temperature","waterCont")
-
 XData<-data.frame(envData[,varsOfInterest],BacteriaDepth)
 ## let's try skipping the scaling, because the documentation says 
 ## that the X matrix is scaled by default.
@@ -4545,58 +4534,45 @@ Yabu <- scale(Yabu) ## scale, after log? Heavily transformed data. Let's hope th
 ## the documentation for ?Hmsc does recommend scaling the Y matrix when using "default priors".
 ## I'm not sure that we are. I thought the defaults were gaussian dists, so this would make since. 
 ## ugh, head hurts. Just follow, be a good scientist, just follow...
-
-
 ## make our second, presence absence matrix:
 Ypa = 1*(Y>0)
-
 ## bring them together for a final Y matrix
 Y = cbind(Ypa,Yabu)
-
 ## I think HMSC won't accept missing data. I guess we could interpolate. 
 ## for now, just use what we have:
-
 ccases <- complete.cases(XData) ## 112 samples, we only lose 8 
 XData = XData[ccases,] 
 Y = Y[ccases,] 
-
 ny = dim(Y)[1]
 ns = dim(Y)[2]/2
-
 all(rownames(XData) == rownames(Y))
-
 sample.id = row.names(Y)
 studyDesign = data.frame(Sample=as.factor(sample.id))
 #rL.Sample = setPriors(HmscRandomLevel(units = studyDesign$Sample), nfMin = 5, nfMax = 10) ## not sure how to optimize the number of latent variables?
 ## define our sample random factor with spatial componenet below, not here
-
 # REGRESSION MODEL FOR ENVIRONMENTAL COVARIATES.
 XFormula = ~ soil_respiration + Land_type + pH + N + C + Temperature
 XFormula1 = ~ BacteriaDepth ## check this next. Sort of a null model, I guess.
-
 ## how do we incorporate spatial patterns?
 ## it is another "random effect" (I hate this amalgamation of frequentist and bayesian terminology)
 ## with a specific sData argument
-
 xycoords = read.csv("sulariSpatial.csv", row.names=1)
-
 #studyDesign = data.frame(sample = as.factor(1:n)) 
-
-rL.spatial = HmscRandomLevel(sData = xycoords) 
-rL.spatial = setPriors(rL.spatial,nfMin=1,nfMax=3) #try 3. Not sure how to optimize this. But there may multiple spatial scales.
-
-
+#rL.spatial = HmscRandomLevel(sData = xycoords) 
+#rL.spatial = setPriors(rL.spatial,nfMin=1,nfMax=3) #try 3. Not sure how to optimize this. But there may multiple spatial scales.
+## try the lower memory option:
+rL.nngp = HmscRandomLevel(sData = xycoords, sMethod = 'NNGP', nNeighbours = 10) 
+rL.nngp = setPriors(rL.nngp,nfMin=1,nfMax=3) #try 3. Not sure how to optimize this. But there may multiple spatial scales.
 ## describe model
 ## set prior to probit for the P/A half of the matrix, we'll manually 
 ## change the abundance matrix to matrix of gaussian  dists
 ## just following their example here, but why gaussian? 
-
 m = Hmsc(Y=Y,
          XData = XData,  XFormula = XFormula,
          distr={"probit"} ,
          studyDesign=studyDesign, 
          phyloTree=phy_tree(psCleanedUp),
-         ranLevels={list(Sample=rL.spatial)})
+         ranLevels={list(Sample=rL.nngp)})
 
 ## not sure, do we actually need to explicitly model the remaining, sample-level variation 
 ## to recover the species-species level variation?
@@ -4623,7 +4599,7 @@ save(m, file="hmscSpatialmodel.rds")
 #echo "hmscSpatialmodel_sampled.rds" >> .gitignore
 
 ## direct transfer
-scp hmscSpatialmodel.rds test@132.180.112.115:/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis/
+system("scp hmscSpatialmodel.rds test@132.180.112.115:/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis/")
 
 ## on nanocomp:
 #echo "hmscSpatialmodel_sampled.rds" >> .gitignore
@@ -4631,4 +4607,38 @@ scp hmscSpatialmodel.rds test@132.180.112.115:/media/vol1/daniel/sulariArne/soil
 ## still being tracked. Must have been in that last commit? not sure.
 git rm -r --cached hmscSpatialmodel.rds
 
+## update remote, try running model
 
+conda activate spatialDirt
+
+nohup Rscript mcmcSample.R &> mcmcSample.log & ## and dies after a few seconds
+
+## no specific error reported, just "Killed" ...maxes out memory probably
+
+## maybe try "thinning" the posterior?
+## try line by line
+## on nanocomp computer
+
+R
+library(Hmsc)
+thin = 10
+samples = 1000
+nChains = 1
+nP = 1
+setwd("/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis")
+print(paste("start time is", Sys.time()))
+load("hmscSpatialmodel.rds")
+m = sampleMcmc(m, samples = samples, thin=thin, adaptNf=ceiling(0.4*samples*thin), transient = ceiling(0.5*samples*thin), nChains = nChains, nParallel = nP,verbose=1)
+
+save(m, file="hmscSpatialmodel_sampled.rds")
+print(paste("finish time is", Sys.time()))
+
+## that ain't working...too much memory. 
+## We can try using the less-memory hungry 
+## approaches to spatial sampling?:
+
+## new plan, get some PCNMs, use these instead of spatial latent variables,
+## should drop the memory use
+## use this for the presentation in two weeks
+
+## and make a request to de.NBI for an instance tha

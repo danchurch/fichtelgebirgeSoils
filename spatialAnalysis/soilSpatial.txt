@@ -4466,8 +4466,8 @@ bact.pa<-ifelse(bactRaw>0,1,0)
 
 rowsumsInv = 1/rowSums(bactRaw)
 nASVs <- dim(bactRaw)[2]
-scaleMat = matrix( rep(rowsumsInv, nASVs), ncol = nASVs)
-bact.rel <- bactRaw * scaleMat
+scalarMat = matrix( rep(rowsumsInv, nASVs), ncol = nASVs)
+bact.rel <- bactRaw * scalarMat
 
 ## sanity check
 bactRaw[1:5,1:5]
@@ -4500,11 +4500,14 @@ BacteriaDepth<-log(rowSums(bactRaw))
 varsOfInterest = c("soil_respiration","Land_type","pH","N","C","Temperature","waterCont")
 
 XData<-data.frame(envData[,varsOfInterest],BacteriaDepth)
-XData[,-2]=scale(XData[,-2])
+## let's try skipping the scaling, because the documentation says 
+## that the X matrix is scaled by default.
+#XData[,-2]=scale(XData[,-2])
+## probably still need to convert categoricals to factor
 XData$Land_type <- as.factor(XData$Land_type)
 
 ##########################################################
-
+## forgot something...
 ## we need spatial data. I don't trust lat/long. get the UTMs out of our python spd:
 import pandas as pd
 import geopandas as gpd
@@ -4530,6 +4533,8 @@ sulariPlot_utm['yy'] = sulariPlot_utm['geometry'].y
 
 sulariPlot_utm.head()[['xx','yy']].to_csv("sulariSpatial.csv")
 
+## back to R
+##########################################################
 ##########################################################
 
 
@@ -4537,6 +4542,9 @@ Yabu <- Y
 Yabu[Y==0] <- NA ## to avoid zeroes?
 Yabu = log(Yabu) ## take log of abundances. They basically decided on the same transformations as Sulari and I.
 Yabu <- scale(Yabu) ## scale, after log? Heavily transformed data. Let's hope they know what they are talking about. 
+## the documentation for ?Hmsc does recommend scaling the Y matrix when using "default priors".
+## I'm not sure that we are. I thought the defaults were gaussian dists, so this would make since. 
+## ugh, head hurts. Just follow, be a good scientist, just follow...
 
 
 ## make our second, presence absence matrix:
@@ -4559,24 +4567,24 @@ all(rownames(XData) == rownames(Y))
 
 sample.id = row.names(Y)
 studyDesign = data.frame(Sample=as.factor(sample.id))
-rL.Sample = setPriors(HmscRandomLevel(units = studyDesign$Sample), nfMin = 5, nfMax = 10) ## not sure how to optimize the number of latent variables?
-
+#rL.Sample = setPriors(HmscRandomLevel(units = studyDesign$Sample), nfMin = 5, nfMax = 10) ## not sure how to optimize the number of latent variables?
+## define our sample random factor with spatial componenet below, not here
 
 # REGRESSION MODEL FOR ENVIRONMENTAL COVARIATES.
 XFormula = ~ soil_respiration + Land_type + pH + N + C + Temperature
 XFormula1 = ~ BacteriaDepth ## check this next. Sort of a null model, I guess.
 
 ## how do we incorporate spatial patterns?
-
 ## it is another "random effect" (I hate this amalgamation of frequentist and bayesian terminology)
 ## with a specific sData argument
 
+xycoords = read.csv("sulariSpatial.csv", row.names=1)
 
-studyDesign1 = data.frame(sample = as.factor(1:n)) 
+#studyDesign = data.frame(sample = as.factor(1:n)) 
 
 rL.spatial = HmscRandomLevel(sData = xycoords) 
-rL.spatial = setPriors(rL.spatial,nfMin=1,nfMax=1) #We limit the model to one latent variable for visualization purposes 
-m.spatial = Hmsc(Y=yprob, XData=XData, XFormula=~x1, studyDesign=studyDesign, ranLevels=list("sample"=rL.spatial),distr="probit")
+rL.spatial = setPriors(rL.spatial,nfMin=1,nfMax=3) #try 3. Not sure how to optimize this. But there may multiple spatial scales.
+
 
 ## describe model
 ## set prior to probit for the P/A half of the matrix, we'll manually 
@@ -4588,16 +4596,39 @@ m = Hmsc(Y=Y,
          distr={"probit"} ,
          studyDesign=studyDesign, 
          phyloTree=phy_tree(psCleanedUp),
-         ranLevels={list(Sample=rL.Sample)})
+         ranLevels={list(Sample=rL.spatial)})
+
+## not sure, do we actually need to explicitly model the remaining, sample-level variation 
+## to recover the species-species level variation?
+
+#         ranLevels={list(Sample=rL.Sample,
+#                         Sample=rL.Spatial)})
 
 ## change priors for abundance matrix to gaussian. 
 ## really not sure why we do this, maybe computationally cheap.
-## or maybe I'm just confused.
+## or maybe I'm just confused. Anyway, we did scale everything,
+## so I guess gaussian makes sense.
 
 for (i in (ns+1):(2*ns)){
    m$distr[i,1:2] = c(1,1)
 }
 
-## try sampling that model
+## try sampling that model. Save it out, run it on the lab computer.
+
+save(m, file="hmscSpatialmodel.rds")
+
+## interesting, even without sampling, that is 128 mb, too big for
+## easy handling with github repo. 
+
+#echo "hmscSpatialmodel_sampled.rds" >> .gitignore
+
+## direct transfer
+scp hmscSpatialmodel.rds test@132.180.112.115:/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis/
+
+## on nanocomp:
+#echo "hmscSpatialmodel_sampled.rds" >> .gitignore
+
+## still being tracked. Must have been in that last commit? not sure.
+git rm -r --cached hmscSpatialmodel.rds
 
 

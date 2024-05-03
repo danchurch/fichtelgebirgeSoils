@@ -4,8 +4,7 @@ samples = 1000
 nChains = 4
 setwd("/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis")
 print(paste("start time is", Sys.time()))
-load("firstHMSCmodelCarbon4d.rds")
+load("hmscSpatialmodel.rds")
 m = sampleMcmc(m, samples = samples, thin=thin, adaptNf=ceiling(0.4*samples*thin), transient = ceiling(0.5*samples*thin), nChains = nChains, nParallel = 4,verbose=1)
-save(m, file="firstHMSCmodelCarbon4d_sampled.rds")
+save(m, file="hmscSpatialmodel_sampled.rds")
 print(paste("finish time is", Sys.time()))
- 

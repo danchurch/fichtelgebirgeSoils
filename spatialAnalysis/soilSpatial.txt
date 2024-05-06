@@ -4498,6 +4498,7 @@ XData$Land_type <- as.factor(XData$Land_type)
 ##########################################################
 ## forgot something...
 ## we need spatial data. I don't trust lat/long. get the UTMs out of our python spd:
+
 import pandas as pd
 import geopandas as gpd
 import matplotlib.pyplot as plt; plt.ion()
@@ -4508,6 +4509,7 @@ import scipy.spatial as sp
 envData = pd.read_csv('sulariEnv.csv', index_col='SampleID')
 
 plotPoints = gpd.points_from_xy( envData.Longitude, envData.Latitude, crs="EPSG:4326" )
+
 sulariPlotsDF = gpd.GeoDataFrame(envData[[ 'PlotID', 'soil_respiration', 
                     'MBC', 'season', 'Land_type', 'pH', 'N', 'C']], geometry=plotPoints)
 
@@ -4520,7 +4522,7 @@ dir(sulariPlot_utm['geometry'])
 sulariPlot_utm['xx'] = sulariPlot_utm['geometry'].x
 sulariPlot_utm['yy'] = sulariPlot_utm['geometry'].y
 
-sulariPlot_utm.head()[['xx','yy']].to_csv("sulariSpatial.csv")
+sulariPlot_utm[['xx','yy']].to_csv("sulariSpatial.csv")
 
 ## back to R
 ##########################################################
@@ -4642,3 +4644,185 @@ print(paste("finish time is", Sys.time()))
 ## use this for the presentation in two weeks
 
 ## and make a request to de.NBI for an instance tha
+
+## for now, let's get out some dbMEM/PCNMs
+
+##### dbMEM analysis ######
+
+## not sure how the new packages will affect all this:
+
+## following:
+https://cran.r-project.org/web/packages/adespatial/vignettes/tutorial.html
+
+library(ade4)
+library(adespatial)
+library(adegraphics)
+library(spdep)
+library(sp)
+
+data("mafragh")
+
+str(mafragh)
+
+names(mafragh)
+
+str(mafragh$env)
+
+head(mafragh$env)
+
+mxy <- as.matrix(mafragh$xy)
+rownames(mxy) <- NULL
+s.label(mxy, ppoint.pch = 15, ppoint.col = "darkseagreen4", Sp = mafragh$Spatial.contour)
+
+fpalette <- colorRampPalette(c("white", "darkseagreen2", "darkseagreen3", "palegreen4"))
+sp.flo <- SpatialPolygonsDataFrame(Sr = mafragh$Spatial, data = mafragh$flo, match.ID = FALSE)
+s.Spatial(sp.flo[,c(1, 11)], col = fpalette(3), nclass = 3)
+
+## 
+
+mafragh$Spatial
+
+class(mafragh$Spatial)
+
+nb.maf <- poly2nb(mafragh$Spatial)
+
+s.Spatial(mafragh$Spatial, nb = nb.maf, plabel.cex = 0, pnb.edge.col = 'red')
+
+set.seed(3)
+
+xyir <- mxy[sample(1:nrow(mafragh$xy), 20),]
+
+s.label(xyir)
+
+nbnear1 <- dnearneigh(xyir, 0, 50)
+
+nbnear2 <- dnearneigh(xyir, 0, 305)
+
+g1 <- s.label(xyir, nb = nbnear1, pnb.edge.col = "red", main = "neighbors if 0<d<50", plot = FALSE)
+g2 <- s.label(xyir, nb = nbnear2, pnb.edge.col = "red", main = "neighbors if 0<d<305", plot = FALSE)
+cbindADEg(g1, g2, plot = TRUE)
+
+### adapt to our data ##
+
+mxy <- as.matrix(mafragh$xy) ## matrix
+
+## ours are here:
+
+read.csv("sulariSpatial.csv", row.names=1)
+
+aa <- as.matrix(read.csv("sulariSpatial.csv", row.names=1))
+
+rownames(aa) <- NULL
+colnames(aa) <- c('x','y')
+mx <- min(aa[,1])
+my <- min(aa[,2])
+bb <- cbind(aa[,1] - mx, aa[,2] - my)
+
+s.label(bb, ppoint.pch = 15, ppoint.col = "darkseagreen4")
+
+listw.explore(bb)
+
+?listw.explore
+
+?chooseCN
+
+chooseCN(bb)
+
+## looks like we need to take care of the repeated plots.
+## can we average the species abundances at these?
+## or drop them? 
+
+## get repeated sites, in python:
+
+sulariEnvCSV="/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis/sulariEnv.csv"
+
+envData = pd.read_csv(sulariEnvCSV, index_col='SampleID')
+
+
+envData['PlotID'].unique()
+
+repFilt = envData['PlotID'].duplicated(keep=False)
+repeatedPlots = envData[repFilt].sort_values(by="PlotID")
+
+len(repeatedPlots["PlotID"].unique()) ## there are ten plots that were repeated through time
+
+repeatedPlots["PlotID"].unique() ## there are ten plots that were repeated through time
+
+
+repeatedPlots.head()
+
+
+repeatedPlots['season'].hist()
+
+envData['season'].hist()
+
+'P0103': ['S11', 'S53', 'S88', 'S105']
+'P0104': ['S1', 'S54', 'S103']
+
+repeatedPlots.loc['S11']
+repeatedPlots.loc['S53']
+
+repeatedPlots.loc['S1']
+
+envData.loc['S1']
+
+repeatedPlots.loc['S54']
+
+## this brings up the general question of time. We can follow sulari's lead on 
+## on the season as a categorical factor in general model for the moment, 
+## but I think we need a better solution in the long run, based on date. 
+
+## perhaps best to examine the ten plots that were repeated through time, 
+## model species reactions to seasonality as a trait. 
+
+## okay. but we need a quick and dirty for this week. Averages...
+
+
+repeatedPlots.head()
+
+envData['season'].hist()
+
+help(envData[repFilt].sort_values)
+
+dir(envData[repFilt])
+
+
+comData = pd.read_csv("/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/comdat.csv", 
+                      index_col=0).drop([ "C1.1", "C1.2", "C2.1", "C2.2"])
+
+
+comData.head()
+
+## we want to average the abundances of each otu for each group of repeated 
+## columns. For instance, 
+
+
+'P0103': ['S11', 'S53', 'S88', 'S105']
+
+
+
+(envData.index == comData.index).all()
+
+aa = comData.copy()
+
+aa['PlotID'] = envData['PlotID']
+bb = aa.groupby('PlotID').mean()
+
+## sanity check:
+aa[aa['PlotID'] == 'P0104']['ASV287']
+bb.loc["P0104"]['ASV287']
+aa[aa['PlotID'] == 'P0104']['ASV287'].mean()
+
+## okay, so for the moment, we shift our analysis from sample based
+## to plot based?
+
+## our new community matrix would then be? 
+
+## but we also have a denbi machine now. Should we even mess with the
+## PCNM analysis? We can try the latent variable approach and 
+## see if it is now possible with the large amount of RAM.
+
+## which means setting up a denbi machine and all that...
+## 
+
+

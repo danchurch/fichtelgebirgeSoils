@@ -142,6 +142,7 @@ dependencies:
   - packaging=24.0=pyhd8ed1ab_0
   - pandas=2.2.1=py312hfb8ada1_0
   - pcre2=10.43=hcad00b1_0
+  - perl=5.32.1=7_hd590300_perl5
   - pillow=10.2.0=py312hf3581a9_0
   - pip=24.0=pyhd8ed1ab_0
   - pixman=0.43.2=h59595ed_0
@@ -171,6 +172,7 @@ dependencies:
   - snappy=1.1.10=h9fff704_0
   - spdlog=1.12.0=hd2e6256_2
   - sqlite=3.45.2=h2c6b66d_0
+  - ssu-align=0.1.1=h031d066_6
   - threadpoolctl=3.4.0=pyhc1e730c_0
   - tiledb=2.21.1=ha9641ad_1
   - tk=8.6.13=noxft_h4845f30_101

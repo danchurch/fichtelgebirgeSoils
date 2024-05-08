@@ -40,7 +40,6 @@ rm -rf ~/miniconda3/miniconda.sh
 conda config --set auto_activate_base false
 
 ## get the mamba solver:
-
 conda update -n base conda
 conda install -n base conda-libmamba-solver
 conda config --set solver libmamba
@@ -1907,7 +1906,7 @@ legend(0.7, 1.1, cex = 2.2, title = "estimated correlation:",
 
 ## can we use our current spatialDirt yaml for this?
 
-conda env export > spatialDirt_15.4.24.yaml
+conda env export > spatialDirt.yaml
 
 ## update repo, clone onto lab
 ## on the lab comp, try to use it to make a new environment:
@@ -4818,6 +4817,8 @@ aa[aa['PlotID'] == 'P0104']['ASV287'].mean()
 
 ## our new community matrix would then be? 
 
+############# setup denbi for HMSC ###################
+
 ## but we also have a denbi machine now. Should we even mess with the
 ## PCNM analysis? We can try the latent variable approach and 
 ## see if it is now possible with the large amount of RAM.
@@ -4831,5 +4832,303 @@ aa[aa['PlotID'] == 'P0104']['ASV287'].mean()
 
 ssh -Yi /home/daniel/.ssh/ubuntu_e ubuntu@129.70.51.6 -p 30267
 
+## saved as
+denbiDirt
 
 ## where do we enable x11 port forwarding again?
+
+sudo vim /etc/ssh/ssh_config
+
+sudo systemctl restart sshd
+
+## fix github 
+## need a key:
+cd ~/.ssh
+ssh-keygen -t rsa -f denbiHMSC_2git
+git config --global user.email "danchurchthomas@gmail.com"
+git config --global user.name "danchurch"
+git remote add origin https://github.com/danchurch/fichtelgebirgeSoils.git
+git branch -M main
+git remote set-url origin git@github.com:danchurch/fichtelgebirgeSoils.git
+git push -u origin main
+
+ssh -vT git@github.com
+
+## for some reason, the ssh-agent isn't starting:
+
+## if I direct ssh to the key, works fine.
+ssh  -i ~/.ssh/denbiHMSC_2git -vT git@github.com
+
+## I have to manually start the ssh-agent now. Why?
+ssh-agent bash ## starts a new shell with active ssh-agent. weird
+ssh-add ~/.ssh/denbiHMSC_2git
+
+## adding this to the bashrc file. but use eval, don't want a new shell
+eval "$(ssh-agent)"
+ssh-add ~/.ssh/denbiHMSC_2git
+
+## update the fstab
+
+## where is our storage?
+
+lsblk ## vdd, but what is the uuid?
+
+lsblk -o NAME,SIZE,MOUNTPOINT,FSTYPE,TYPE | egrep -v "^loop"
+
+
+lsblk /dev/vdd
+
+lsblk -o NAME,SIZE,MOUNTPOINT,FSTYPE,TYPE,UUID | egrep -v "^loop"
+## no uuid, need to mount first?
+
+sudo mkdir /media/storage
+
+sudo mount /dev/vdd /vol/data ## wrong fs type?
+
+## not yet formatted?
+sudo mkfs.ext4 /dev/vdd
+
+sudo mount /dev/vdd /vol/data ## yup, works now
+
+## now we have a uuid:
+lsblk -o NAME,SIZE,MOUNTPOINT,FSTYPE,TYPE,UUID | egrep -v "^loop"
+
+##e3b057cc-7097-4d41-aed6-cb0c52fd85ee
+
+## add line to /etc/fstab
+UUID=e3b057cc-7097-4d41-aed6-cb0c52fd85ee       /vol/data      auto    defaults        0       2
+#
+
+## get conda working denbi
+
+mkdir -p ~/miniconda3
+
+wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda3/miniconda.sh
+
+bash ~/miniconda3/miniconda.sh -b -u -p ~/miniconda3
+
+
+~/miniconda3/bin/conda init bash
+
+conda config --set auto_activate_base false
+
+## didn't update my path. adding this to .profile on the denbi machine:
+export Path=/home/ubuntu/miniconda3/bin:$PATH
+
+
+## to get updated yaml and R, git the repo:
+## on local machine, update yaml
+conda env export > spatialDirt.yaml
+
+git clone https://github.com/danchurch/fichtelgebirgeSoils.git
+
+
+## update the one in the repo:
+yaml=/home/ubuntu/fichtelgebirgeSoils/spatialDirt.yaml
+
+conda config --add channels defaults
+conda config --add channels bioconda
+conda config --add channels conda-forge
+
+## is the samba solver in there already?
+conda update -n base conda
+conda install -n base conda-libmamba-solver
+conda config --set solver libmamba
+
+## try it out:
+conda env create --name spatialDirt --file=$yaml
+
+
+
+## seems like it didn't work. But not clear what failed.
+## graph-viz, maybe, cuz only error is:
+ERROR: Could not find a version that satisfies the requirement python-graphviz==0.20.3 (from versions: none)
+ERROR: No matching distribution found for python-graphviz==0.20.3
+## not sure what this will break, maybe the cooccurrence network programs
+
+## maybe jupyter? check
+
+conda activate spatialDirt
+
+jupyter notebook --no-browser --port=8080
+
+
+## nope, didn't work. 
+
+## outside the yaml listings, loosen up versions etc, might work
+pip install notebook
+
+conda activate spatialDirt 
+
+jupyter notebook
+
+## yup
+
+## to get a bash kernel on there? https://github.com/takluyver/bash_kernel
+
+pip install bash_kernel
+
+python -m bash_kernel.install
+
+## try port forwarding:
+
+conda activate spatialDirt 
+
+jupyter notebook --no-browser --port=8080
+
+
+## run this locally to activate the tcp forwarding
+ssh -L 8080:localhost:8080 ubuntu@129.70.51.6 -p 30267
+
+## then copy the url from the denbi notebook process to local firefox
+
+## and need to update r?
+## to match the home comp, best to install 4.3.3
+
+## meh, just install the latest stable, it's close and simpler.
+## following: https://cran.r-project.org/
+
+# update indices
+sudo apt update -qq
+
+# install two helper packages we need
+sudo apt install --no-install-recommends software-properties-common dirmngr
+# add the signing key (by Michael Rutter) for these repos
+# To verify key, run gpg --show-keys /etc/apt/trusted.gpg.d/cran_ubuntu_key.asc 
+# Fingerprint: E298A3A825C0D65DFD57CBB651716619E084DAB9
+wget -qO- https://cloud.r-project.org/bin/linux/ubuntu/marutter_pubkey.asc | sudo tee -a /etc/apt/trusted.gpg.d/cran_ubuntu_key.asc
+# add the R 4.0 repo from CRAN -- adjust 'focal' to 'groovy' or 'bionic' as needed
+sudo add-apt-repository "deb https://cloud.r-project.org/bin/linux/ubuntu $(lsb_release -cs)-cran40/"
+
+sudo apt install --no-install-recommends r-base
+
+## get the R kernel for the notebooks:
+## doing the R installations outside conda, so:
+
+## we're missing some basics:
+
+conda deactivate
+
+sudo apt install make
+sudo apt install gcc
+sudo apt install g++
+
+## and other supporting packages
+sudo apt install libssl-dev
+sudo apt install libfontconfig1-dev
+sudo apt install libharfbuzz-dev libfribidi-dev
+sudo apt install libfreetype6-dev libpng-dev libtiff5-dev libjpeg-dev
+sudo apt install libcurl4-openssl-dev
+sudo apt install libxml2-dev
+
+sudo R
+
+install.packages('IRkernel') 
+
+IRkernel::installspec() ## nope
+
+## here it gets weird. The kernel needs the jupyter notebook,
+## which I installed the conda environment. Let's see if 
+## this works while inside the environment:
+
+conda activate spatialDirt
+
+sudo R
+
+IRkernel::installspec() ## nope
+
+remove.packages(IRkernel)
+
+IRkernel::installspec() ## nope
+
+install.packages('IRkernel')  ## no errors
+## check for kernel on notebook
+
+library('IRkernel') 
+
+IRkernel::installspec() ## nope
+
+## try github install?
+
+
+install.packages('devtools')
+
+ERROR: dependencies ‘usethis’, ‘miniUI’, ‘pkgdown’, ‘rcmdcheck’, ‘roxygen2’, ‘rversions’, ‘urlchecker’
+
+install.packages('openssl')
+
+library(devtools)
+
+devtools::install_github('IRkernel/IRkernel')
+
+library('IRkernel') 
+
+IRkernel::installspec() ## nope
+
+## is the issue with the limited install of jupyter within an environment?
+
+conda list
+
+conda remove jupyter
+
+pip uninstall notebook
+
+## outside of environment again:
+install.packages("BiocManager")
+
+## get phyloseq and HMSC while we are at it:
+BiocManager::install("phyloseq") ## failed
+
+## but this is all getting really messy. 
+## maybe let's try this approach:
+https://docs.anaconda.com/free/working-with-conda/packages/using-r-language/
+
+## most of what we are doing right now we are doing in R
+## so let's let's build an environment that can handle HMSC and phyloseq together, 
+## just for the denbi computer:
+
+conda remove -n spatialDirt --all
+
+## looks like this has jupyter notebook builtin, anyway, probably has the kernel
+conda create -n r_env r-essentials r-base
+
+## now will these fit in this environment?
+conda activate r_env
+
+conda install conda-forge::r-hmsc
+
+conda install bioconda::bioconductor-phyloseq
+
+## no errors reported. 
+
+## will this overwhelm the storage we have on our front node?
+## so far not bad, but should move activity to our big drives
+
+
+conda activate r_env
+
+jupyter notebook --no-browser --port=8080
+## run this locally to activate the tcp forwarding
+ssh -L 8080:localhost:8080 ubuntu@129.70.51.6 -p 30267
+
+## works, R and python kernels in there. will pip get us the bash kernel?
+
+## our instance, the conda base env and the conda R env all have their own python, so
+## be careful 
+
+conda activate
+
+conda activate r_env
+
+conda deactivate
+
+pip install bash_kernel
+python -m bash_kernel.install
+
+## and seems to work. Notebooks on the denbi instance, inside the r_env, have all three kernels.
+
+## can we move our git repo to the volume without hurting anything?
+
+mv ~/fichtelgebirgeSoils /vol/data
+
+## 

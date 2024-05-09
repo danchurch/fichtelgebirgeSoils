@@ -4722,42 +4722,38 @@ envSpatData <- merge(x=envData, y=xycoords, by=0)
 rownames(envSpatData) <- envSpatData$Row.names
 envSpatData <- envSpatData[,-1]
 envSpatData <- envSpatData[rownames(envData),]
-
-head(envSpatData)
-
-head(envData)
-
 aa <- as.matrix(read.csv("sulariSpatial.csv", row.names=1), rownames=1)
 
 ## there are repeats, and we need to jitter these
 
 dupRows <- rownames(aa)[duplicated(aa)]
-
-
 envSpatData['xxJit'] <- envSpatData['xx']
 envSpatData['yyJit'] <- envSpatData['yy']
-
-###################### 9.5.2024################
 for (i in dupRows){
-    print(envSpatData[i,"xx"])
-    print(jitter(envSpatData[i,"xx"]))
-    #print(envSpatData[i,"yy"])
+    envSpatData[i,'xxJit'] <- jitter(envSpatData[i,"xx"],1,2)
+    envSpatData[i,'yyJit'] <- jitter(envSpatData[i,"yy"],1,2)
+    print(envSpatData[i,c('xx','yy')])
+    print(envSpatData[i,c('xxJit','yyJit')])
+    print("#################################")
 }
 
-vector <- c("www.one","www.two","www.one","www.three")
-duplicated(vector) | duplicated(vector, fromLast=TRUE)
+## sanity checks
+envSpatData[dupRows,c('xx','xxJit','yy','yyJit')]
 
-View(envSpatData)
+envSpatData[,c('xx','xxJit','yy','yyJit')]
 
+any(duplicated(envSpatData[,c('xxJit','yyJit')]))
 
+## looks okay, use this as our new spatial data 
 
-rownames(aa) <- NULL
-colnames(aa) <- c('x','y')
-mx <- min(aa[,1])
-my <- min(aa[,2])
-bb <- cbind(aa[,1] - mx, aa[,2] - my)
+xyJit = envSpatData[,c('xxJit','yyJit')]
+rownames(xyJit) <- NULL
+colnames(xyJit) <- c('x','y')
+mx <- min(xyJit[,1])
+my <- min(xyJit[,2])
+xyJit00 <- cbind(xyJit[,1] - mx, aa[,2] - my)
 
-s.label(bb, ppoint.pch = 15, ppoint.col = "darkseagreen4")
+s.label(xyJit00, ppoint.pch = 15, ppoint.col = "darkseagreen4")
 
 
 ## which are repeated?:
@@ -4878,7 +4874,8 @@ aa[aa['PlotID'] == 'P0104']['ASV287'].mean()
 ssh -Yi /home/daniel/.ssh/ubuntu_e ubuntu@129.70.51.6 -p 30267
 
 ## saved as
-denbiDirt
+
+alias denbiDirt="ssh -Yi /home/daniel/.ssh/ubuntu_e ubuntu@129.70.51.6 -p 30267"
 
 ## where do we enable x11 port forwarding again?
 

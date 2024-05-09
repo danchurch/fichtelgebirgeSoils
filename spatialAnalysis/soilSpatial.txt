@@ -4653,6 +4653,12 @@ print(paste("finish time is", Sys.time()))
 
 ## not sure how the new packages will affect all this:
 
+install.packages("ade4")
+install.packages("adespatial")
+install.packages("adegraphics")
+install.packages("spdep")
+install.packages("sp")
+
 ## following:
 https://cran.r-project.org/web/packages/adespatial/vignettes/tutorial.html
 
@@ -4710,9 +4716,40 @@ mxy <- as.matrix(mafragh$xy) ## matrix
 
 ## ours are here:
 
-read.csv("sulariSpatial.csv", row.names=1)
+envData = read.csv("sulariEnv.csv", row.names=1)
+xycoords = read.csv("sulariSpatial.csv", row.names=1)
+envSpatData <- merge(x=envData, y=xycoords, by=0)
+rownames(envSpatData) <- envSpatData$Row.names
+envSpatData <- envSpatData[,-1]
+envSpatData <- envSpatData[rownames(envData),]
 
-aa <- as.matrix(read.csv("sulariSpatial.csv", row.names=1))
+head(envSpatData)
+
+head(envData)
+
+aa <- as.matrix(read.csv("sulariSpatial.csv", row.names=1), rownames=1)
+
+## there are repeats, and we need to jitter these
+
+dupRows <- rownames(aa)[duplicated(aa)]
+
+
+envSpatData['xxJit'] <- envSpatData['xx']
+envSpatData['yyJit'] <- envSpatData['yy']
+
+###################### 9.5.2024################
+for (i in dupRows){
+    print(envSpatData[i,"xx"])
+    print(jitter(envSpatData[i,"xx"]))
+    #print(envSpatData[i,"yy"])
+}
+
+vector <- c("www.one","www.two","www.one","www.three")
+duplicated(vector) | duplicated(vector, fromLast=TRUE)
+
+View(envSpatData)
+
+
 
 rownames(aa) <- NULL
 colnames(aa) <- c('x','y')
@@ -4721,6 +4758,11 @@ my <- min(aa[,2])
 bb <- cbind(aa[,1] - mx, aa[,2] - my)
 
 s.label(bb, ppoint.pch = 15, ppoint.col = "darkseagreen4")
+
+
+## which are repeated?:
+
+
 
 listw.explore(bb)
 
@@ -5015,8 +5057,10 @@ conda deactivate
 sudo apt install make
 sudo apt install gcc
 sudo apt install g++
+sudo apt install gfortran
 
 ## and other supporting packages
+sudo apt-get install liblapack-dev libblas-dev
 sudo apt install libssl-dev
 sudo apt install libfontconfig1-dev
 sudo apt install libharfbuzz-dev libfribidi-dev
@@ -5103,6 +5147,19 @@ conda install conda-forge::r-hmsc
 conda install bioconda::bioconductor-phyloseq
 
 ## no errors reported. 
+
+## adespatial, etc, for PCNM?
+
+conda activate r_env
+conda install conda-forge::r-ade4
+conda install conda-forge::r-adespatial
+
+library(ade4)
+library(adespatial)
+library(adegraphics)
+library(spdep)
+library(sp)
+
 
 ## will this overwhelm the storage we have on our front node?
 ## so far not bad, but should move activity to our big drives
@@ -5258,7 +5315,6 @@ m = Hmsc(Y=Y,
          ranLevels={list("sample"=rL.sample, "site_spatial" = rL.site_spatial)})
 
 
-
 ## try running this:
 
 thin = 1
@@ -5271,7 +5327,11 @@ m = sampleMcmc(m, samples = samples, thin=thin, adaptNf=ceiling(0.4*samples*thin
 save(m, file="hmscSpatialmodel_sampled.rds")
 print(paste("finish time is", Sys.time()))
 
+## this dies, goes over memory limits (120gig)
 
+## so, what now? 
+## try using PCNMs as a separate variable 
+## 
 
 
 
@@ -5312,7 +5372,6 @@ studyDesign = data.frame(
 )
 
 ## which looks like (head):
-
 
 dim(studyDesign) ## 100 by 2, 100 samples, ours should be 120 by 2
 
@@ -5363,4 +5422,9 @@ m.spatial = sampleMcmc(m.spatial, thin = 1, samples = 10, transient = 5,
 ## and a smaller spatial level, that takes just the unique locations
 
 ## okay, so how to apply to our setup?
+
+
+
 ########################################################################
+
+

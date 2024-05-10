@@ -5544,7 +5544,19 @@ plot(mem.gab.sel$MEM.select, SpORcoords = xyJit00)
 
 ## neighborhoos graphs:
 par(mfrow=c(1,2))
+
 nbtri <- tri2nb(xyJit00)
+
+class(xyJit00)
+
+s.label(xyJit00, nb = nbtri, pnb.edge.col = "red", main = "Delauney")
+
+s.label(as.data.frame(xyJit00), nb = nbtri, pnb.edge.col = "red", main = "Delauney")
+
+adegraphics::s.label(as.data.frame(xyJit00), nb = nbtri, pnb.edge.col = "red", main = "Delauney")
+
+ade4::s.label(xyJit00, nb = nbtri, pnb.edge.col = "red", main = "Delauney")
+
 s.label(xyJit00, nb = nbtri, pnb.edge.col = "red", main = "Delauney")
 
 dev.new()

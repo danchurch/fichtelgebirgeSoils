@@ -4716,6 +4716,16 @@ mxy <- as.matrix(mafragh$xy) ## matrix
 
 ## ours are here:
 
+## on denbi
+conda activate r_env
+soil
+R
+library(ade4)
+library(adespatial)
+library(adegraphics)
+library(spdep)
+library(sp)
+
 envData = read.csv("sulariEnv.csv", row.names=1)
 xycoords = read.csv("sulariSpatial.csv", row.names=1)
 envSpatData <- merge(x=envData, y=xycoords, by=0)
@@ -4723,9 +4733,7 @@ rownames(envSpatData) <- envSpatData$Row.names
 envSpatData <- envSpatData[,-1]
 envSpatData <- envSpatData[rownames(envData),]
 aa <- as.matrix(read.csv("sulariSpatial.csv", row.names=1), rownames=1)
-
-## there are repeats, and we need to jitter these
-
+## there are repeats, and we need to jitter these, as a temporary solution
 dupRows <- rownames(aa)[duplicated(aa)]
 envSpatData['xxJit'] <- envSpatData['xx']
 envSpatData['yyJit'] <- envSpatData['yy']
@@ -4743,8 +4751,8 @@ envSpatData[dupRows,c('xx','xxJit','yy','yyJit')]
 envSpatData[,c('xx','xxJit','yy','yyJit')]
 
 any(duplicated(envSpatData[,c('xxJit','yyJit')]))
-
 ## looks okay, use this as our new spatial data 
+## to find PCNMs
 
 xyJit = envSpatData[,c('xxJit','yyJit')]
 rownames(xyJit) <- NULL
@@ -4755,12 +4763,19 @@ xyJit00 <- cbind(xyJit[,1] - mx, aa[,2] - my)
 
 s.label(xyJit00, ppoint.pch = 15, ppoint.col = "darkseagreen4")
 
+## looks good, save this, reuse to keep things constant
+save(xyJit00, file="xyJit00.rda")
 
-## which are repeated?:
+load(file="xyJit00.rda")
+
+## now keep moving down the pipe
+
+## let's try using their GUI tool for exploring neighborhoods, etc
 
 
+listw.explore()
 
-listw.explore(bb)
+listw.explore(xyJit00)
 
 ?listw.explore
 
@@ -5167,6 +5182,9 @@ conda activate r_env
 jupyter notebook --no-browser --port=8080
 ## run this locally to activate the tcp forwarding
 ssh -L 8080:localhost:8080 ubuntu@129.70.51.6 -p 30267
+## saving this as 
+
+alias denbiDirtTCP="ssh -L 8080:localhost:8080 ubuntu@129.70.51.6 -p 30267"
 
 ## works, R and python kernels in there. will pip get us the bash kernel?
 

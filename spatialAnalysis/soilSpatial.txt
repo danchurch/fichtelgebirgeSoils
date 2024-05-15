@@ -6290,6 +6290,10 @@ ls /home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnaly
 ## get rid of line breaks:
 seqtk seq -l 0 sulariCleanedUP16s.fna > sulariCleanedUP16s_noLB.fna
 
+mv sulariCleanedUP16s_noLB.fna sulariCleanedUP16s.fna
+
+
+
 ls /home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis/sulariCleanedUP16s_noLB.fna
 
 ## Dimitri says use sina to do an alignment, outside of arb because arb has an old version of sina:
@@ -6320,7 +6324,7 @@ cd /media/vol/phylo_dbs/silva/silva138.1
 
 conda activate sina
 
-sulariRepSeqs=/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis/sulariCleanedUP16s_noLB.fna
+sulariRepSeqs=/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis/sulariCleanedUP16s.fna
 silvaDB=/media/vol/phylo_dbs/silva/silva138.1/SILVA_138.1_SSURef_NR99_12_06_20_opt.arb
 sina \
     --threads 3 \
@@ -6328,6 +6332,24 @@ sina \
     -i $sulariRepSeqs \
     -o sulariRepSeqs_aligned.arb
 
-## now can we 
+## default outputs an arb database
+## which won't merge, issues with name server or something, don't understand
 
 
+cd /media/vol1/daniel/sulariArne/soilAnalysis/files2big4github
+
+wget https://www.arb-silva.de/fileadmin/arb_web_db/release_138_1/ARB_files/SILVA_138.1_SSURef_NR99_12_06_20_opt.arb.gz
+
+gunzip SILVA_138.1_SSURef_NR99_12_06_20_opt.arb.gz
+
+## and arb not installed:
+
+cd /media/vol1/daniel/arbInstall
+
+wget --recursive \
+  --no-parent -nH --cut-dirs=2 \
+  http://download.arb-home.de/release/latest/
+sudo bash /usr/arb/SH/arb_installubuntu4arb.sh arb
+## etc etc
+
+## try again on 

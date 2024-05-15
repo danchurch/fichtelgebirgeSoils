@@ -6076,7 +6076,7 @@ m0 = Hmsc(Y=Y,
          XData = XData,  XFormula = XFormula0,
          distr={"probit"} ,
          studyDesign=studyDesign, 
-         #phyloTree=phy_tree(psCleanedUp), ## try without 
+         phyloTree=phy_tree(psCleanedUp), ## try without 
          ranLevels={list("sample"=rL.sample, "site_spatial" = rL.site_spatial)})
 
 ## change priors for abundance matrix to gaussian. 
@@ -6239,5 +6239,95 @@ udaeoASVs ## ASV621 is our new udaeo
 plt.close('all')
 mapOneASV("ASV621", color="red", jitter=0, showLand=True)
 
+#### okay presentation done, back to getting HMSC to work #####
+
+## there seemed to be several issues,
+## start with the phylogenetic tree - not ultrametric, apparently
+
+## did I mess up the fasttree2 settings? is the tree rooted?
+## line 3074 above 
+
+ssuAlignOut="/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis/sulariAbundantASV16s_ali/sulariAbundantASV16s_ali.bacteria.afa"
+
+ls $ssuAlignOut
+
+FastTree -h
+
+FastTree -gtr -nt < $ssuAlignOut > sulariFastTree.nwk 
+
+## let's get the silva tree on ARB:
+
+sudo chown daniel:daniel /media/vol
+mkdir /media/vol/phylo_dbs
+
+mkdir -p /media/vol/phylo_dbs/silva/silva138.1
+
+cd /media/vol/phylo_dbs/silva/silva138.1
+
+## nice "skeleton" of small subunit tree of life available from ARB/SILVA folks:
+wget https://www.arb-silva.de/fileadmin/arb_web_db/release_138_1/ARB_files/SILVA_138.1_SSURef_NR99_12_06_20_opt.arb.gz
+gunzip SILVA_138.1_SSURef_NR99_12_06_20_opt.arb.gz
+
+## can we open this in ARB?
+
+## where are our ref sequences? 
+
+## old ones are here:
+sulariAbundantRefSeqs="/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis/sulariAbundantASV16s_ali/sulariAbundantASV16s_ali.bacteria.fa"
+
+## but maybe we should make a new one?:
+
+R
+
+library('phyloseq')
+load("psCleanedUP.rda")
+Biostrings::writeXStringSet(refseq(psCleanedUp), "sulariCleanedUP16s.fna", append=FALSE,
+                                  compress=FALSE, compression_level=NA, format="fasta")
+
+## so these are at: 
+ls /home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis/sulariCleanedUP16s.fna
+
+## get rid of line breaks:
+seqtk seq -l 0 sulariCleanedUP16s.fna > sulariCleanedUP16s_noLB.fna
+
+ls /home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis/sulariCleanedUP16s_noLB.fna
+
+## Dimitri says use sina to do an alignment, outside of arb because arb has an old version of sina:
+
+## sina folks recommend conda:
+conda activate sina
+
+## the command that dimitri gave me for this:
+sina \
+    --threads 12 \
+    --db /home/dmeier/ARB/SILVA_138.1_SSURef_NR99_pin50_algn70.arb \
+    -i MnOX_Chris_ASVs.fasta \
+    -o MnOX_Chris_ASVs_aligned.arb \
+    --search \
+    --search-min-sim 0.7 \
+    --search-no-fast \
+    --fs-kmer-no-fast \
+    --auto-filter-field tax_slv\
+    --lca-fields tax_slv,tax_gtdb \
+    --outtype csv \
+    -o MnOX_Chris_ASVs_LCA_classified.tsv
+
+
+cd /media/vol/phylo_dbs/silva/silva138.1
+
+
+## modified for this job
+
+conda activate sina
+
+sulariRepSeqs=/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis/sulariCleanedUP16s_noLB.fna
+silvaDB=/media/vol/phylo_dbs/silva/silva138.1/SILVA_138.1_SSURef_NR99_12_06_20_opt.arb
+sina \
+    --threads 3 \
+    --db $silvaDB \
+    -i $sulariRepSeqs \
+    -o sulariRepSeqs_aligned.arb
+
+## now can we 
 
 

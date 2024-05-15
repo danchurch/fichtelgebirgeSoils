@@ -1362,6 +1362,7 @@ sulariEnvCSV="/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/s
 envData = pd.read_csv(sulariEnvCSV, index_col='SampleID')
 comData = pd.read_csv("/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/comdat.csv", 
                       index_col=0) 
+
 controls=[ 'C1.1', 'C1.2', 'C2.1', 'C2.2']
 envData.drop(controls, axis='rows', inplace=True)
 comData.drop(controls, axis='rows', inplace=True)
@@ -5860,7 +5861,6 @@ all(rownames(XData) == rownames(Y))
 # spatial data
 ## but we want these on a plot level:
 
-
 ## study design 
 
 ## sample effects
@@ -5953,6 +5953,291 @@ det(phylcor) ## should be > 0, it's not
 
 duplicated(phylcor) ## no dups...
 
-## try some quick fixes: https://github.com/richfitz/diversitree/issues/17
+## try some quick fixes?: https://github.com/richfitz/diversitree/issues/17
+
+## but not now. Let's try the model without phylogeny. If this doesn't work, 
+## this will have to wait for now, just present the preliminary results 
+
+######### spatial HMSC model, no phylogeny ###############
+
+denbiDirt
+
+soil
+conda activate r_env
+
+R
+
+library(Hmsc)
+library(phyloseq)
+library(ape)
+
+rm(list=ls())
+## merge the spatial and env data:
+xycoords = read.csv("sulariSpatial.csv", row.names=1)
+envData <- read.csv("sulariEnv.csv", row.names="SampleID")
+aa <- merge(x=envData, y=xycoords, by=0, )
+row.names(aa) <- aa$Row.names
+aa[1] <- NULL
+aa <- aa[rownames(envData),]
+envData <- aa; rm(aa)
+## this time, use our ps object with phylogeny and clustered OTUs:
+load("psCleanedUP.rda")
+psCleanedUp = prune_samples(!(rownames(sample_data(psCleanedUp)) %in% c("C1.1","C1.2","C2.1","C2.2")), psCleanedUp)
+## remove species that are now zero
+psCleanedUp = prune_taxa( colSums(otu_table(psCleanedUp)) > 0, psCleanedUp)
+bactRaw <- otu_table(psCleanedUp)@.Data
+## they include a term for sequencing depth
+BacteriaDepth<-log(rowSums(bactRaw))
+## make pa matrix
+bact.pa<-ifelse(bactRaw>0,1,0)
+## go to relative abundances
+rowsumsInv = 1/rowSums(bactRaw)
+nASVs <- dim(bactRaw)[2]
+scalarMat = matrix( rep(rowsumsInv, nASVs), ncol = nASVs)
+bact.rel <- bactRaw * scalarMat
+
+## sanity check
+bactRaw[1:5,1:5]
+bact.rel[1:5,1:5]
+## check some ASVs
+20/sum(bactRaw[1,])
+244/sum(bactRaw[3,]) 
+
+## looks sane
+
+## thresholds:
+threshold.prev = 0.02 ## present in at least 2% of samples?, so 3 samples?
+## try a secondary reduction in diversity, for memory purposes:
+threshold.abu = 0.003 ## only OTU that reaches at least 0.3% abundance of one sample
+ny = dim(bactRaw)[1]
+cond1=!(colSums(bact.pa)<=threshold.prev*ny) ## present in at least n% of samples? We lose ~300 OTUs with this
+cond2=apply(bact.rel,2,max)>=threshold.abu 
+bactData <- bactRaw[, cond1 & cond2 ] 
+################################################
+sum(bactData > 0)
+sum(bact.pa)
+dim(bactData)
+dim(bact.pa)
+
+
+Y <- bactData
+ny <- dim(Y)[1]
+ns <- dim(Y)[2]
+BacteriaDepth<-log(rowSums(bactRaw))
+varsOfInterest = c("PlotID","soil_respiration","Land_type","pH","N","C","Temperature","waterCont","xx","yy")
+XData<-data.frame(envData[,varsOfInterest],BacteriaDepth)
+## let's try skipping the scaling, because the documentation says 
+## that the X matrix is scaled by default.
+#XData[,-2]=scale(XData[,-2])
+## probably still need to convert categoricals to factor
+XData$Land_type <- as.factor(XData$Land_type)
+## community data
+Yabu <- Y
+Yabu[Y==0] <- NA ## to avoid zeroes?
+Yabu = log(Yabu) ## take log of abundances. They basically decided on the same transformations as Sulari and I.
+Yabu <- scale(Yabu) ## scale, after log? Heavily transformed data. Let's hope they know what they are talking about. 
+## the documentation for ?Hmsc does recommend scaling the Y matrix when using "default priors".
+## I'm not sure that we are. I thought the defaults were gaussian dists, so this would make since. 
+## ugh, head hurts. Just follow, be a good scientist, just follow...
+## make our second, presence absence matrix:
+Ypa = 1*(Y>0)
+## bring them together for a final Y matrix
+Y = cbind(Ypa,Yabu)
+## I think HMSC won't accept missing data. I guess we could interpolate. 
+## for now, just use what we have:
+ccases <- complete.cases(XData) ## 112 samples, we only lose 8 
+XData = XData[ccases,] 
+Y = Y[ccases,] 
+ny = dim(Y)[1]
+ns = dim(Y)[2]/2
+all(rownames(XData) == rownames(Y))
+## sample effects
+sample.id = row.names(Y)
+## plot effects, also for spatial
+samplePlotid = XData$PlotID
+studyDesign = data.frame("sample"=as.factor(sample.id), "site_spatial"=as.factor(samplePlotid))
+plot_coords <- XData[,c("PlotID","xx","yy")]
+plot_coords <- plot_coords[!duplicated(plot_coords),] ## remove duplicated plot rows
+rownames(plot_coords) <- plot_coords$PlotID 
+plot_coords$PlotID <- NULL
+## cleanup XData a bit:
+varsOfmodel <- c("soil_respiration","Land_type","pH","N","C","Temperature","waterCont","BacteriaDepth")
+XData <- XData[,c(varsOfmodel)]
+## regression model for environmental covariates.
+XFormula0 = ~ soil_respiration + Land_type + pH + N + C + Temperature
+XFormula1 = ~ BacteriaDepth ## check this next. Sort of a null model, I guess.
+## random level for plots
+rL.sample = HmscRandomLevel(units = sample.id)
+## random level for spatial dist
+rL.site_spatial = HmscRandomLevel(sData = plot_coords)
+rL.site_spatial = setPriors(rL.site_spatial,nfMin=1,nfMax=3) #try 3. Not sure how to optimize this. But there may multiple spatial scales.
+
+m0 = Hmsc(Y=Y,
+         XData = XData,  XFormula = XFormula0,
+         distr={"probit"} ,
+         studyDesign=studyDesign, 
+         #phyloTree=phy_tree(psCleanedUp), ## try without 
+         ranLevels={list("sample"=rL.sample, "site_spatial" = rL.site_spatial)})
+
+## change priors for abundance matrix to gaussian. 
+for (i in (ns+1):(2*ns)){
+   m0$distr[i,1:2] = c(1,1)
+}
+
+save(m0, file="m0.rda")
+
+## on denbi bash
+vim m0mcmcSample.R
+
+#####################################################
+
+library(Hmsc)
+
+load("m0.rda")
+
+print(paste("start time is", Sys.time()))
+
+thin = 1
+samples = 1000
+nChains = 4
+nP = 3
+m0 = sampleMcmc(m0, samples = samples, thin=thin, adaptNf=ceiling(0.4*samples*thin), transient = ceiling(0.5*samples*thin), nChains = nChains, nParallel = nP,verbose=1)
+
+save(m0, file="m0_sampled.rds")
+print(paste("finish time is", Sys.time()))
+
+#####################################################
+
+soil
+conda activate r_env
+
+nohup Rscript m0mcmcSample.R &> m0mcmcSample.log &
+
+## running for now.
+## nope, killed. but went for much longer. progress.
+## now try reduced diversity
+
+## and fucked. bugs in the software.
+
+##################################################
+
+## create a report for github
+## maybe add it to this issue:
+https://github.com/hmsc-r/HMSC/issues/183
+
+sink(file="rEnv.txt")
+R.Version()
+installed.packages()
+sink()
+
+## R code for report ##
+
+
+XFormula0 = ~ soil_respiration + Land_type + pH + N + C + Temperature
+
+m0 = Hmsc(Y=Y,
+         XData = XData,  XFormula = XFormula0,
+         distr={"probit"} ,
+         studyDesign=studyDesign, 
+         ranLevels={list("sample"=rL.sample, "site_spatial" = rL.site_spatial)})
+
+
+write.csv(Y, file="Y.csv")
+write.csv(XData, file="XData.csv")
+
+################ make some graphics for presentation ##################################
+
+## for research update
+
+## can we get a map of udeabacter?
+
+## we had a function for this way back, around line 1360
+
+## bring it back:
+
+## on local tower 
+
+conda activate spatialDirt
+
+python3
+
+import pandas as pd
+import geopandas as gpd
+import matplotlib.pyplot as plt; plt.ion()
+import matplotlib.colors 
+import os
+import scipy.spatial as sp
+import numpy as np
+from scipy import stats
+from matplotlib.patches import Patch
+import rasterio
+import rasterio.plot
+
+
+sulariEnvCSV="/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis/sulariEnv.csv"
+envData = pd.read_csv(sulariEnvCSV, index_col='SampleID')
+comData = pd.read_csv("/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/comdat.csv", 
+                      index_col=0) 
+controls=[ 'C1.1', 'C1.2', 'C2.1', 'C2.2']
+comData.drop(controls, axis='rows', inplace=True)
+plotPoints = gpd.points_from_xy( envData.Longitude, envData.Latitude, crs="EPSG:4326" )
+
+sulariPlotsDF = gpd.GeoDataFrame(envData[[ 'PlotID', 'soil_respiration',
+                    'MBC', 'season', 'Land_type', 'pH', 'N', 'C']], geometry=plotPoints)
+
+sulariPlotsDF.to_crs('EPSG:32633', inplace=True)
+landColorDict = {
+'Arableland':'#862d2d',
+'Forest'    :'#006600',
+'Grassland' :'#FF7F00'
+}
+fichtelMap = rasterio.open("studyAreaClipped_UTM.tif")
+
+fig,ax = plt.subplots()
+
+## how can we generalize this so it can handle multiple ASVs? 
+
+def mapOneASV(asv, ax=None, color="b", jitter=0, showLand=False):
+    if ax is None: ax = plt.gca()
+    jitX = sulariPlotsDF['geometry'].x.apply(lambda x: x + np.random.normal(loc=0, scale=jitter))
+    jitY = sulariPlotsDF['geometry'].y.apply(lambda x: x + np.random.normal(loc=0, scale=jitter))
+    asvPlotPoints = gpd.points_from_xy( jitX, jitY, crs="EPSG:32633" )
+    asvGEO = gpd.GeoDataFrame(pd.concat([comData[asv], sulariPlotsDF['Land_type']], axis=1), geometry=asvPlotPoints, crs="EPSG:32633")
+    if showLand: 
+        asvGEO['landCols'] = [ landColorDict[i] for i in asvGEO['Land_type'] ]
+    else: 
+        asvGEO['landCols'] = "k"
+    rasterio.plot.show(fichtelMap, ax=ax)
+    asvGEO.plot(
+        marker="o",
+        ax=ax,
+        linewidth=2,
+        edgecolor=asvGEO['landCols'],
+        facecolor=color,
+        markersize=asvGEO[asv]*10000)
+    return(asvGEO)
+
+mapOneASV("ASV2", color="b", jitter=0, showLand=True)
+
+## works. Now, which were Udeaobacter?
+
+## back in R for a second...where is udaeobacter?
+
+library(phyloseq)
+
+load("psCleanedUP.rda")
+
+genera <- tax_table(psCleanedUp)@.Data[,'Genus']
+filtUdaeo <- genera == "Candidatus Udaeobacter"
+filtUdaeo[is.na(filtUdaeo)]  <- FALSE
+sum(filtUdaeo)
+udaeoASVs <- names(genera[filtUdaeo])
+udaeoASVs ## ASV621 is our new udaeo
+
+### back in python
+
+plt.close('all')
+mapOneASV("ASV621", color="red", jitter=0, showLand=True)
+
 
 

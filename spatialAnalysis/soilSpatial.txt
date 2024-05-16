@@ -6369,4 +6369,28 @@ sudo bash /usr/arb/SH/arb_installubuntu4arb.sh arb
 
 ## try again on nanoComp 
 
-## and that did not work.
+## and that did not work. all asvs went into archea, for some reason. 
+## let's try a different approach - make the denovo 16s tree, then 
+## import it into ARB and root it. See if this fixes our not-ultrametic
+## problem.
+
+## if not, drop phylogeny, and keep on debugging HMSC models
+
+## so, make a tree with the cleaned up 
+## I think we can do this locally, not on the lab computer or denbi
+
+## so remake the tree:
+
+
+## line 3074 above , now using the cleanup OTUs
+conda activate spatialDirt
+
+ssu-align -n bacteria sulariCleanedUP16s.fna sulariAbundantASV16s_ali
+
+## then a strict mask, don't trust any ambiguous calls
+ssu-mask --pf 0.9999 --pt 0.9999 sulariAbundantASV16s_ali
+
+ssu-mask --stk2afa sulariAbundantASV16s_ali
+
+grep ">" sulariAbundantASV16s_ali/sulariAbundantASV16s_ali.bacteria.afa | wc -l ## 4300 sequences
+grep ">" sulariAbundantASV16s.fna | wc -l ## 4370 sequences

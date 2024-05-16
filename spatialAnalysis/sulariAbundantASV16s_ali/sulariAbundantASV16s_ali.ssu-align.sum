@@ -1,0 +1,57 @@
+# _ssu-align :: align SSU rRNA sequences
+# SSU-ALIGN 0.1.1 (Feb 2016)
+# Copyright (C) 2016 Howard Hughes Medical Institute
+# Freely distributed under the BSD open source license.
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# command: _ssu-align -n bacteria sulariCleanedUP16s.fna sulariAbundantASV16s_ali
+# date:    Thu May 16 08:49:28 2024
+#
+# Validating input sequence file ... done.
+#
+# Stage 1: Determining SSU start/end positions and best-matching models...
+#
+# output file name                           description                                
+# -----------------------------------------  -------------------------------------------
+  sulariAbundantASV16s_ali.tab               locations/scores of hits defined by HMM(s)
+  sulariAbundantASV16s_ali.bacteria.hitlist  list of sequences to align with bacteria CM
+  sulariAbundantASV16s_ali.bacteria.fa          3314 sequences to align with bacteria CM
+#
+# Stage 2: Aligning each sequence to its best-matching model...
+#
+# output file name                           description
+# -----------------------------------------  ---------------------------------------
+  sulariAbundantASV16s_ali.bacteria.stk      bacteria alignment
+  sulariAbundantASV16s_ali.bacteria.cmalign  bacteria cmalign output
+  sulariAbundantASV16s_ali.bacteria.ifile    bacteria insert info
+  sulariAbundantASV16s_ali.scores            list of CM/HMM scores for each sequence
+#
+# Summary statistics:
+#
+# model or       number  fraction        average   average               
+# category      of seqs  of total         length  coverage    nucleotides
+# ------------  -------  --------  -------------  --------  -------------
+  *input*          3314    1.0000         253.13    1.0000         838885
+#
+  bacteria         3314    1.0000         251.58    0.9939         833736
+#
+  *all-models*     3314    1.0000         251.58    0.9939         833736
+  *no-models*         0    0.0000              -         -              0
+#
+# Speed statistics:
+#
+# stage      num seqs  seq/sec  seq/sec/model    nucleotides    nt/sec
+# ---------  --------  -------  -------------  -------------  --------
+  search         3314   92.406         92.406         838885   23391.1
+  alignment      3314   30.341         30.341         833736    7633.3
+#
+#
+# List of executed commands saved in:     sulariAbundantASV16s_ali.ssu-align.log.
+# Output printed to the screen saved in:  sulariAbundantASV16s_ali.ssu-align.sum.
+#
+# All output files created in directory ./sulariAbundantASV16s_ali/
+#
+# CPU time (search):     00:00:35.86  (hh:mm:ss)
+# CPU time (alignment):  00:01:49.22  (hh:mm:ss)
+# CPU time (total):      00:02:25.33  (hh:mm:ss)
+#
+# SSU-ALIGN-SUCCESS

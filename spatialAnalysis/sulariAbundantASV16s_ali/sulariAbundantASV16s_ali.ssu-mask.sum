@@ -1,0 +1,22 @@
+# _ssu-mask :: mask SSU rRNA alignments
+# SSU-ALIGN 0.1.1 (Feb 2016)
+# Copyright (C) 2016 Howard Hughes Medical Institute
+# Freely distributed under the BSD open source license.
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# command: _ssu-mask --stk2afa sulariAbundantASV16s_ali
+# date:    Thu May 16 08:52:04 2024
+#
+# Converting Stockholm alignments to aligned FASTA...
+#
+# Stockholm aln file name                aligned FASTA file name              
+# -------------------------------------  -------------------------------------
+  sulariAbundantASV16s_ali.bacteria.stk  sulariAbundantASV16s_ali.bacteria.afa
+#
+# List of executed commands saved in:     sulariAbundantASV16s_ali.ssu-mask.log.
+# Output printed to the screen saved in:  sulariAbundantASV16s_ali.ssu-mask.sum.
+#
+# All output files created in directory ./sulariAbundantASV16s_ali/
+#
+# CPU time:  00:00:00.04  (hh:mm:ss)
+# 
+# SSU-ALIGN-SUCCESS

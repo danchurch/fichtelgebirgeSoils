@@ -6412,7 +6412,7 @@ library(ape)
 library(phyloseq) 
 library(Hmsc) 
 
-load("psCleanedUP.rda")
+load("psCleanedUp.rda")
 
 aa = ape::read.tree("sulariFastTree.nwk")
 
@@ -6435,20 +6435,581 @@ plot_tree(psCleanedUp, color="Kingdom")
 dev.off()
 
 taxa_names(archeaPS) ## can we use this?
+
 rooted_tree = root(aa, outgroup = taxa_names(archeaPS), resolve.root = TRUE)
+
+
 phy_tree(psCleanedUp) <- rooted_tree
 plot_tree(psCleanedUp, color="Kingdom")
 
 ## that looks better
 is.rooted(phy_tree(psCleanedUp))
 
-png('unrooted.png')
+#png('unrooted.png')
 plot_tree(psCleanedUp, color="Kingdom")
+#dev.off()
+
+class(phy_tree(psCleanedUp))
+
+## can we give this to our phanghorn, in a different env?
+tree = phy_tree(psCleanedUp)
+save(tree, file="rooted_tree.rda")
 
 ## update notebook with this...
 
 load("psCleanedUp.rda")
 
+
 ## okay, does HMSC consider this tree ultrametric?
 
 ##### try again on HMSC with new tree #######3
+
+## as above on line 5961
+
+denbiDirt
+
+soil
+
+conda activate r_env
+
+R
+
+library(Hmsc)
+library(phyloseq)
+library(ape)
+
+
+rm(list=ls())
+## merge the spatial and env data:
+xycoords = read.csv("sulariSpatial.csv", row.names=1)
+envData <- read.csv("sulariEnv.csv", row.names="SampleID")
+aa <- merge(x=envData, y=xycoords, by=0, )
+row.names(aa) <- aa$Row.names
+aa[1] <- NULL
+aa <- aa[rownames(envData),]
+envData <- aa; rm(aa)
+
+## this time, use our ps object with phylogeny and clustered OTUs:
+load("psCleanedUp.rda")
+psCleanedUp = prune_samples(!(rownames(sample_data(psCleanedUp)) %in% c("C1.1","C1.2","C2.1","C2.2")), psCleanedUp)
+## remove species that are now zero
+psCleanedUp = prune_taxa( colSums(otu_table(psCleanedUp)) > 0, psCleanedUp)
+bactRaw <- otu_table(psCleanedUp)@.Data
+## they include a term for sequencing depth
+BacteriaDepth<-log(rowSums(bactRaw))
+## make pa matrix
+bact.pa<-ifelse(bactRaw>0,1,0)
+## go to relative abundances
+rowsumsInv = 1/rowSums(bactRaw)
+nASVs <- dim(bactRaw)[2]
+scalarMat = matrix( rep(rowsumsInv, nASVs), ncol = nASVs)
+bact.rel <- bactRaw * scalarMat
+
+## sanity check
+bactRaw[1:5,1:5]
+bact.rel[1:5,1:5]
+## check some ASVs
+33/sum(bactRaw[1,])
+415/sum(bactRaw[3,]) 
+
+## thresholds:
+threshold.prev = 0.05 ## present in at least 5% of samples
+## try a secondary reduction in diversity, for memory purposes:
+threshold.abu = 0.003 ## only OTU that reaches at least 0.3% abundance of one sample
+ny = dim(bactRaw)[1]
+cond1=!(colSums(bact.pa)<=threshold.prev*ny) ## present in at least n% of samples? We lose ~300 OTUs with this
+cond2=apply(bact.rel,2,max)>=threshold.abu 
+bactData <- bactRaw[, cond1 & cond2 ] 
+################################################
+sum(bactData > 0)
+sum(bact.pa)
+dim(bactData)
+dim(bact.pa)
+
+
+Y <- bactData
+ny <- dim(Y)[1]
+ns <- dim(Y)[2]
+BacteriaDepth<-log(rowSums(bactRaw))
+varsOfInterest = c("PlotID","soil_respiration","Land_type","pH","N","C","Temperature","waterCont","xx","yy")
+XData<-data.frame(envData[,varsOfInterest],BacteriaDepth)
+## let's try skipping the scaling, because the documentation says 
+## that the X matrix is scaled by default.
+#XData[,-2]=scale(XData[,-2])
+## probably still need to convert categoricals to factor
+XData$Land_type <- as.factor(XData$Land_type)
+## community data
+Yabu <- Y
+Yabu[Y==0] <- NA ## to avoid zeroes?
+Yabu = log(Yabu) ## take log of abundances. They basically decided on the same transformations as Sulari and I.
+Yabu <- scale(Yabu) ## scale, after log? Heavily transformed data. Let's hope they know what they are talking about. 
+## the documentation for ?Hmsc does recommend scaling the Y matrix when using "default priors".
+## I'm not sure that we are. I thought the defaults were gaussian dists, so this would make since. 
+## ugh, head hurts. Just follow, be a good scientist, just follow...
+## make our second, presence absence matrix:
+Ypa = 1*(Y>0)
+## bring them together for a final Y matrix
+Y = cbind(Ypa,Yabu)
+## I think HMSC won't accept missing data. I guess we could interpolate. 
+## for now, just use what we have:
+ccases <- complete.cases(XData) ## 112 samples, we only lose 8 
+XData = XData[ccases,] 
+Y = Y[ccases,] 
+ny = dim(Y)[1]
+ns = dim(Y)[2]/2
+all(rownames(XData) == rownames(Y))
+## sample effects
+sample.id = row.names(Y)
+## plot effects, also for spatial
+samplePlotid = XData$PlotID
+studyDesign = data.frame("sample"=as.factor(sample.id), "site_spatial"=as.factor(samplePlotid))
+plot_coords <- XData[,c("PlotID","xx","yy")]
+plot_coords <- plot_coords[!duplicated(plot_coords),] ## remove duplicated plot rows
+rownames(plot_coords) <- plot_coords$PlotID 
+plot_coords$PlotID <- NULL
+## cleanup XData a bit:
+varsOfmodel <- c("soil_respiration","Land_type","pH","N","C","Temperature","waterCont","BacteriaDepth")
+XData <- XData[,c(varsOfmodel)]
+## regression model for environmental covariates.
+XFormula0 = ~ soil_respiration + Land_type + pH + N + C + Temperature
+XFormula1 = ~ BacteriaDepth ## check this next. Sort of a null model, I guess.
+## random level for plots
+rL.sample = HmscRandomLevel(units = sample.id)
+## random level for spatial dist
+rL.site_spatial = HmscRandomLevel(sData = plot_coords)
+rL.site_spatial = setPriors(rL.site_spatial,nfMin=1,nfMax=3) #try 3. Not sure how to optimize this. But there may multiple spatial scales.
+
+m0 = Hmsc(Y=Y,
+         XData = XData,  XFormula = XFormula0,
+         distr={"probit"} ,
+         studyDesign=studyDesign, 
+         phyloTree=phy_tree(psCleanedUp), 
+         ranLevels={list("sample"=rL.sample, "site_spatial" = rL.site_spatial)})
+
+## change priors for abundance matrix to gaussian. 
+for (i in (ns+1):(2*ns)){
+   m0$distr[i,1:2] = c(1,1)
+}
+
+print(paste("start time is", Sys.time()))
+
+thin = 1
+samples = 1000
+nChains = 4
+nP = 10
+m0 = sampleMcmc(m0, samples = samples, thin=thin, adaptNf=ceiling(0.4*samples*thin), transient = ceiling(0.5*samples*thin), nChains = nChains, nParallel = nP,verbose=1)
+
+## same error for tree - why?
+## https://github.com/hmsc-r/HMSC/issues/140
+
+
+load(psCleanedUP.rda)
+
+
+
+ape::is.ultrametric(phy_tree(psCleanedUp)) ## nope
+
+tre <- (phy_tree(psCleanedUp)) 
+phylcor <- vcv(tre)
+## phylcor need to be inverted, and for that its determinant should be >0
+det(phylcor) ## 0, that is a problem...
+## check the rank
+attr(chol(phylcor, pivot=TRUE), "rank")
+## dim is 3313, and rank 3313
+dim(phylcor)
+which(duplicated(phylcor)) ## 0, no dups...
+
+## ugh, not sure 
+
+#conda activate r_env
+#conda install bioconda::r-phangorn
+
+## phanghorn won't work in our environment, try the system R:
+
+install.packages("BiocManager")
+BiocManager::install("phyloseq")
+install.packages("phangorn")
+
+R
+
+library(ape)
+library("phangorn")
+library(phyloseq)
+
+aa = ape::read.tree("sulariFastTree.nwk")
+
+load( "rooted_tree.rda")
+
+ape::is.ultrametric(tree) ## nope
+
+ape::is.ultrametric(aa) ## nope
+
+ape::is.rooted(aa) ## nope
+
+tree<-nnls.tree(cophenetic(aa),aa,
+        rooted=TRUE,trace=0)
+
+tree<-nnls.tree(cophenetic(tree),tree, rooted=TRUE,trace=0)
+
+ape::is.ultrametric(tree) 
+
+ape::is.rooted(tree) 
+
+## that helps. can we plug this object into the other R environment?
+
+save(tree, file='ultraTree.rda')
+
+load('ultraTree.rda')
+
+ape::is.ultrametric(tree)  ## works. Add this to our psobject instead?
+
+ape::is.rooted(tree)  ## works. Add this to our psobject instead?
+
+
+### start over  with phyloseq
+
+load("psCleanedUp.rda")
+
+psCleanedUp
+
+plot_tree(psCleanedUp, color="Kingdom")
+
+aa <- phy_tree(psCleanedUp)
+
+
+ape::is.rooted(aa)  ## works. Add this to our psobject instead?
+
+
+
+ultratree <- nnls.tree(cophenetic(aa),aa, method="ultrametric",trace=0)
+
+ape::is.ultrametric(ultratree)  ## yup
+ape::is.rooted(ultratree)  ## yup
+
+phy_tree(psCleanedUp) <- ultratree
+
+ape::is.ultrametric(phy_tree(psCleanedUp))  ## yup
+ape::is.rooted(phy_tree(psCleanedUp)) ## yup
+
+dev.new()
+
+plot_tree(psCleanedUp, color="Kingdom")
+
+save(psCleanedUp, file="psCleanedUp.rda")
+
+## and back to hmsc, r_env
+
+## still getting the ultrametric error:
+
+tre <- phy_tree(psCleanedUp)
+
+is.ultrametric(tre)
+phylcor <- vcv(tre)
+
+## phylcor need to be inverted, and for that its determinant should be >0
+
+det(phylcor) ## 0, why???
+
+attr(chol(phylcor, pivot=TRUE), "rank")
+
+## dim is 1440, and rank 1400
+
+dim(phylcor)
+
+## not sure.
+## write a report for the developers, move on without phylogeny
+which(duplicated(phylcor))  ## none. not sure.
+
+## I see two possibilities - the assymetry between the tree and the 
+## thinned data are causing problems, or the hurdle model, with it's 
+## double entries for all OTUs is causing the problem.
+
+## but we need some success here. Just try running the model without 
+## phylogeny. 
+
+
+
+R
+
+library(Hmsc)
+library(phyloseq)
+library(ape)
+
+
+rm(list=ls()) ## merge the spatial and env data:
+xycoords = read.csv("sulariSpatial.csv", row.names=1)
+envData <- read.csv("sulariEnv.csv", row.names="SampleID")
+aa <- merge(x=envData, y=xycoords, by=0, )
+row.names(aa) <- aa$Row.names
+aa[1] <- NULL
+aa <- aa[rownames(envData),]
+envData <- aa; rm(aa)
+
+## this time, use our ps object with phylogeny and clustered OTUs:
+load("psCleanedUp.rda")
+psCleanedUp = prune_samples(!(rownames(sample_data(psCleanedUp)) %in% c("C1.1","C1.2","C2.1","C2.2")), psCleanedUp)
+## remove species that are now zero
+psCleanedUp = prune_taxa( colSums(otu_table(psCleanedUp)) > 0, psCleanedUp)
+bactRaw <- otu_table(psCleanedUp)@.Data
+## they include a term for sequencing depth
+BacteriaDepth<-log(rowSums(bactRaw))
+## make pa matrix
+bact.pa<-ifelse(bactRaw>0,1,0)
+## go to relative abundances
+rowsumsInv = 1/rowSums(bactRaw)
+nASVs <- dim(bactRaw)[2]
+scalarMat = matrix( rep(rowsumsInv, nASVs), ncol = nASVs)
+bact.rel <- bactRaw * scalarMat
+
+## sanity check
+bactRaw[1:5,1:5]
+bact.rel[1:5,1:5]
+## check some ASVs
+33/sum(bactRaw[1,])
+415/sum(bactRaw[3,]) 
+
+## thresholds:
+threshold.prev = 0.05 ## present in at least 5% of samples
+## try a secondary reduction in diversity, for memory purposes:
+threshold.abu = 0.003 ## only OTU that reaches at least 0.3% abundance of one sample
+ny = dim(bactRaw)[1]
+cond1=!(colSums(bact.pa)<=threshold.prev*ny) ## present in at least n% of samples? We lose ~300 OTUs with this
+cond2=apply(bact.rel,2,max)>=threshold.abu 
+bactData <- bactRaw[, cond1 & cond2 ] 
+################################################
+sum(bactData > 0)
+sum(bact.pa)
+dim(bactData)
+dim(bact.pa)
+
+
+Y <- bactData
+ny <- dim(Y)[1]
+ns <- dim(Y)[2]
+BacteriaDepth<-log(rowSums(bactRaw))
+varsOfInterest = c("PlotID","soil_respiration","Land_type","pH","N","C","Temperature","waterCont","xx","yy")
+XData<-data.frame(envData[,varsOfInterest],BacteriaDepth)
+## let's try skipping the scaling, because the documentation says 
+## that the X matrix is scaled by default.
+#XData[,-2]=scale(XData[,-2])
+## probably still need to convert categoricals to factor
+XData$Land_type <- as.factor(XData$Land_type)
+## community data
+Yabu <- Y
+Yabu[Y==0] <- NA ## to avoid zeroes?
+Yabu = log(Yabu) ## take log of abundances. They basically decided on the same transformations as Sulari and I.
+Yabu <- scale(Yabu) ## scale, after log? Heavily transformed data. Let's hope they know what they are talking about. 
+## the documentation for ?Hmsc does recommend scaling the Y matrix when using "default priors".
+## I'm not sure that we are. I thought the defaults were gaussian dists, so this would make since. 
+## ugh, head hurts. Just follow, be a good scientist, just follow...
+## make our second, presence absence matrix:
+Ypa = 1*(Y>0)
+## bring them together for a final Y matrix
+Y = cbind(Ypa,Yabu)
+## I think HMSC won't accept missing data. I guess we could interpolate. 
+## for now, just use what we have:
+ccases <- complete.cases(XData) ## 112 samples, we only lose 8 
+XData = XData[ccases,] 
+Y = Y[ccases,] 
+ny = dim(Y)[1]
+ns = dim(Y)[2]/2
+all(rownames(XData) == rownames(Y))
+## sample effects
+sample.id = row.names(Y)
+## plot effects, also for spatial
+samplePlotid = XData$PlotID
+studyDesign = data.frame("sample"=as.factor(sample.id), "site_spatial"=as.factor(samplePlotid))
+plot_coords <- XData[,c("PlotID","xx","yy")]
+plot_coords <- plot_coords[!duplicated(plot_coords),] ## remove duplicated plot rows
+rownames(plot_coords) <- plot_coords$PlotID 
+plot_coords$PlotID <- NULL
+## cleanup XData a bit:
+varsOfmodel <- c("soil_respiration","Land_type","pH","N","C","Temperature","waterCont","BacteriaDepth")
+XData <- XData[,c(varsOfmodel)]
+## regression model for environmental covariates.
+XFormula0 = ~ soil_respiration + Land_type + pH + N + C + Temperature
+XFormula1 = ~ BacteriaDepth ## check this next. Sort of a null model, I guess.
+## random level for plots
+rL.sample = HmscRandomLevel(units = sample.id)
+## random level for spatial dist
+rL.site_spatial = HmscRandomLevel(sData = plot_coords)
+rL.site_spatial = setPriors(rL.site_spatial,nfMin=1,nfMax=3) #try 3. Not sure how to optimize this. But there may multiple spatial scales.
+
+m0 = Hmsc(Y=Y,
+         XData = XData,  XFormula = XFormula0,
+         distr={"probit"} ,
+         studyDesign=studyDesign, 
+         ranLevels={list("sample"=rL.sample, "site_spatial" = rL.site_spatial)})
+
+## change priors for abundance matrix to gaussian. 
+for (i in (ns+1):(2*ns)){
+   m0$distr[i,1:2] = c(1,1)
+}
+
+print(paste("start time is", Sys.time()))
+
+thin = 1
+samples = 1000
+nChains = 4
+nP = 10
+
+m0 = sampleMcmc(m0, samples = samples, thin=thin, adaptNf=ceiling(0.4*samples*thin), transient = ceiling(0.5*samples*thin), nChains = nChains, nParallel = nP,verbose=1)
+
+## some other problem now, don't understand the error
+
+## what if we run a simpler model.
+## try abundances without the hurdle model, just to see if it works:
+
+conda activate r_env
+
+soil
+
+R
+library(Hmsc)
+library(phyloseq)
+library(ape)
+
+
+rm(list=ls()) ## merge the spatial and env data:
+xycoords = read.csv("sulariSpatial.csv", row.names=1)
+envData <- read.csv("sulariEnv.csv", row.names="SampleID")
+aa <- merge(x=envData, y=xycoords, by=0, )
+row.names(aa) <- aa$Row.names
+aa[1] <- NULL
+aa <- aa[rownames(envData),]
+envData <- aa; rm(aa)
+## this time, use our ps object with phylogeny and clustered OTUs:
+load("psCleanedUp.rda")
+psCleanedUp = prune_samples(!(rownames(sample_data(psCleanedUp)) %in% c("C1.1","C1.2","C2.1","C2.2")), psCleanedUp)
+## remove species that are now zero
+psCleanedUp = prune_taxa( colSums(otu_table(psCleanedUp)) > 0, psCleanedUp)
+bactRaw <- otu_table(psCleanedUp)@.Data
+## make pa matrix
+bact.pa<-ifelse(bactRaw>0,1,0)
+## go to relative abundances
+rowsumsInv = 1/rowSums(bactRaw)
+nASVs <- dim(bactRaw)[2]
+scalarMat = matrix( rep(rowsumsInv, nASVs), ncol = nASVs)
+bact.rel <- bactRaw * scalarMat
+## thresholds:
+threshold.prev = 0.05 ## present in at least 5% of samples
+## try a secondary reduction in diversity, for memory purposes:
+threshold.abu = 0.01 ## only OTU that reaches at least 0.3% abundance of one sample
+ny = dim(bactRaw)[1]
+cond1=!(colSums(bact.pa)<=threshold.prev*ny) ## present in at least n% of samples?
+cond2=apply(bact.rel,2,max)>=threshold.abu 
+bactData <- bactRaw[, cond1 & cond2 ] 
+################################################
+sum(bactData > 0)
+sum(bact.pa)
+dim(bactData)
+dim(bact.pa)
+Y <- bactData
+ny <- dim(Y)[1]
+ns <- dim(Y)[2]
+BacteriaDepth<-log(rowSums(bactRaw))
+varsOfInterest = c("PlotID","soil_respiration","Land_type","pH","N","C","Temperature","waterCont","xx","yy")
+XData<-data.frame(envData[,varsOfInterest],BacteriaDepth)
+#XData[,-2]=scale(XData[,-2]) ## think this is done by default?
+## probably still need to convert categoricals to factor
+XData$Land_type <- as.factor(XData$Land_type)
+## community data
+Yabu <- Y
+Yabu[Y==0] <- NA ## to avoid zeroes?
+Yabu = log(Yabu) ## take log of abundances. They basically decided on the same transformations as Sulari and I.
+Yabu <- scale(Yabu) ## scale, after log? Heavily transformed data. Let's hope they know what they are talking about. 
+## the documentation for ?Hmsc does recommend scaling the Y matrix when using "default priors".
+## I'm not sure that we are. I thought the defaults were gaussian dists, so this would make since. 
+## ugh, head hurts. Just follow, be a good scientist, just follow...
+## make our second, presence absence matrix:
+Ypa = 1*(Y>0)
+## bring them together for a final Y matrix
+##################################################################
+## I think HMSC won't accept missing data. I guess we could interpolate. 
+## for now, just use what we have:
+ccases <- complete.cases(XData) ## 112 samples, we only lose 8 
+XData = XData[ccases,] 
+Y = Y[ccases,] 
+Ypa = Ypa[ccases,]
+Yabu = Yabu[ccases,]
+Ycombo = cbind(Ypa,Yabu)
+ny = dim(Y)[1]
+ns = dim(Y)[2]/2
+all(rownames(XData) == rownames(Y))
+## sample effects
+sample.id = row.names(Y)
+## plot effects, also for spatial
+samplePlotid = XData$PlotID
+studyDesign = data.frame("sample"=as.factor(sample.id), "site_spatial"=as.factor(samplePlotid))
+plot_coords <- XData[,c("PlotID","xx","yy")]
+plot_coords <- plot_coords[!duplicated(plot_coords),] ## remove duplicated plot rows
+rownames(plot_coords) <- plot_coords$PlotID 
+plot_coords$PlotID <- NULL
+## cleanup XData a bit:
+varsOfmodel <- c("soil_respiration","Land_type","pH","N","C","Temperature","waterCont","BacteriaDepth")
+XData <- XData[,c(varsOfmodel)]
+## regression model for environmental covariates.
+XFormula0 = ~ soil_respiration + Land_type + pH + N + C + Temperature
+XFormula1 = ~ BacteriaDepth ## check this next. Sort of a null model, I guess.
+## random level for plots
+rL.sample = HmscRandomLevel(units = sample.id)
+## random level for spatial dist
+rL.site_spatial = HmscRandomLevel(sData = plot_coords)
+rL.site_spatial = setPriors(rL.site_spatial,nfMin=1,nfMax=3) #try 3. Not sure how to optimize this. But there may multiple spatial scales.
+m_pa = Hmsc(Y=Ypa,
+         XData = XData,  XFormula = XFormula0,
+         distr={"probit"} ,
+         studyDesign=studyDesign, 
+         ranLevels={list("sample"=rL.sample, "site_spatial" = rL.site_spatial)})
+m_abu = Hmsc(Y=Yabu,
+         XData = XData,  XFormula = XFormula0,
+         distr={"normal"} ,
+         studyDesign=studyDesign, 
+         ranLevels={list("sample"=rL.sample, "site_spatial" = rL.site_spatial)})
+m_combo = Hmsc(Y=Ycombo,
+         XData = XData,  XFormula = XFormula0,
+         distr={"probit"} ,
+         studyDesign=studyDesign, 
+         ranLevels={list("sample"=rL.sample, "site_spatial" = rL.site_spatial)})
+
+m_combo_nosp = Hmsc(Y=Ycombo,
+                    XData = XData,  XFormula = XFormula0,
+                    distr={"probit"} ,
+                    studyDesign=studyDesign, 
+                    ranLevels={list("sample"=rL.sample)})
+
+## change priors for abundance matrix to gaussian. 
+for (i in (ns+1):(2*ns)){
+   m_combo$distr[i,1:2] = c(1,1)
+}
+print(paste("start time is", Sys.time()))
+thin = 5
+samples = 1000
+nChains = 2
+nP = 8
+
+m_pa = sampleMcmc(m_pa, samples = samples, thin=thin, adaptNf=ceiling(0.4*samples*thin), transient = ceiling(0.5*samples*thin), nChains = nChains, nParallel = nP,verbose=1)
+m_abu = sampleMcmc(m_abu, samples = samples, thin=thin, adaptNf=ceiling(0.4*samples*thin), transient = ceiling(0.5*samples*thin), nChains = nChains, nParallel = nP,verbose=1)
+m_combo = sampleMcmc(m_combo, samples = samples, thin=thin, adaptNf=ceiling(0.4*samples*thin), transient = ceiling(0.5*samples*thin), nChains = nChains, nParallel = nP,verbose=1)
+
+m_combo_nosp = sampleMcmc(m_combo_nosp, samples = samples, thin=thin, adaptNf=ceiling(0.4*samples*thin), transient = ceiling(0.5*samples*thin), nChains = nChains, nParallel = nP,verbose=1)
+
+## dropping the spatial component seems to have fixed the "missing value" error...why?
+
+## the last model reports that it has a posterior sampling, with some weird warnings:
+1: In for (v in val) { ... : closing unused connection 5 (<-localhost:11362)
+2: In for (v in val) { ... : closing unused connection 4 (<-localhost:11362)
+
+## it is 100M. these things get big quickly
+
+## save it, look at it tomorrow:
+
+save(m_combo_nosp, file="m_combo_nosp.rda") ## then moved to "tooBig" folder
+
+## tomorrow, 
+## explore non spatial model
+## try non-spatial model with more species?
+## try using a fake, simple spatial design and see if the complexity 
+## is causing the problem?
+
+

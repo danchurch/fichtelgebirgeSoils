@@ -3,8 +3,8 @@
 # Copyright (C) 2016 Howard Hughes Medical Institute
 # Freely distributed under the BSD open source license.
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# command: _ssu-align -n bacteria sulariCleanedUP16s.fna sulariAbundantASV16s_ali
-# date:    Thu May 16 08:49:28 2024
+# command: _ssu-align -n bacteria sulariCleanedUp16s.fna sulariAbundantASV16s_ali
+# date:    Thu May 16 10:39:37 2024
 #
 # Validating input sequence file ... done.
 #
@@ -41,8 +41,8 @@
 #
 # stage      num seqs  seq/sec  seq/sec/model    nucleotides    nt/sec
 # ---------  --------  -------  -------------  -------------  --------
-  search         3314   92.406         92.406         838885   23391.1
-  alignment      3314   30.341         30.341         833736    7633.3
+  search         3314   90.263         90.263         838885   22848.5
+  alignment      3314   29.029         29.029         833736    7303.1
 #
 #
 # List of executed commands saved in:     sulariAbundantASV16s_ali.ssu-align.log.
@@ -50,8 +50,8 @@
 #
 # All output files created in directory ./sulariAbundantASV16s_ali/
 #
-# CPU time (search):     00:00:35.86  (hh:mm:ss)
-# CPU time (alignment):  00:01:49.22  (hh:mm:ss)
-# CPU time (total):      00:02:25.33  (hh:mm:ss)
+# CPU time (search):     00:00:36.72  (hh:mm:ss)
+# CPU time (alignment):  00:01:54.16  (hh:mm:ss)
+# CPU time (total):      00:02:31.17  (hh:mm:ss)
 #
 # SSU-ALIGN-SUCCESS

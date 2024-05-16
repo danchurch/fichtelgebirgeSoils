@@ -3103,9 +3103,9 @@ sudo bash arb_installubuntu4arb.sh
 ## looks like a nice tree
 ## no use for it right now.  
 
-## the next step would be to see if we can get it into R:
-
-R
+## for arb:
+## 1. import alignment, keeping gaps (necessary? not sure)
+## 2. go to "tree admin", import, change suffix seach to "nwk"
 
 library(phyloseq)
 library(vegan)
@@ -6390,7 +6390,65 @@ ssu-align -n bacteria sulariCleanedUP16s.fna sulariAbundantASV16s_ali
 ## then a strict mask, don't trust any ambiguous calls
 ssu-mask --pf 0.9999 --pt 0.9999 sulariAbundantASV16s_ali
 
+## get a fasta alignment
 ssu-mask --stk2afa sulariAbundantASV16s_ali
 
-grep ">" sulariAbundantASV16s_ali/sulariAbundantASV16s_ali.bacteria.afa | wc -l ## 4300 sequences
-grep ">" sulariAbundantASV16s.fna | wc -l ## 4370 sequences
+grep ">" sulariAbundantASV16s_ali/sulariAbundantASV16s_ali.bacteria.afa | wc -l ## 3314 sequences
+
+grep ">" sulariCleanedUP16s.fna | wc -l ## 3314 sequences, same. Good sign, I guess. Last time some sequences were unalignable.
+
+
+ssuAlignOut="/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis/sulariAbundantASV16s_ali/sulariAbundantASV16s_ali.bacteria.afa"
+
+ls $ssuAlignOut
+
+FastTree -gtr -nt < $ssuAlignOut > sulariFastTree.nwk 
+
+## look at it with APE and arb:
+## arb crashed. that old dinosaur
+
+R 
+library(ape) 
+library(phyloseq) 
+library(Hmsc) 
+
+load("psCleanedUP.rda")
+
+aa = ape::read.tree("sulariFastTree.nwk")
+
+## what should we use as an outgroup? Archea?
+
+psCleanedUp
+
+unique(tax_table(psCleanedUp)[,"Kingdom"])
+
+archFilter <- tax_table(psCleanedUp)[,"Kingdom"] == "Archaea"
+archFilter <- archFilter@.Data[,1]
+archeaPS = prune_taxa( archFilter, psCleanedUp)
+
+taxa_names(archeaPS)
+
+## just checking, do the archea lump together?
+
+png('unrooted.png')
+plot_tree(psCleanedUp, color="Kingdom")
+dev.off()
+
+taxa_names(archeaPS) ## can we use this?
+rooted_tree = root(aa, outgroup = taxa_names(archeaPS), resolve.root = TRUE)
+phy_tree(psCleanedUp) <- rooted_tree
+plot_tree(psCleanedUp, color="Kingdom")
+
+## that looks better
+is.rooted(phy_tree(psCleanedUp))
+
+png('unrooted.png')
+plot_tree(psCleanedUp, color="Kingdom")
+
+## update notebook with this...
+
+load("psCleanedUp.rda")
+
+## okay, does HMSC consider this tree ultrametric?
+
+##### try again on HMSC with new tree #######3

@@ -4,7 +4,7 @@
 # Freely distributed under the BSD open source license.
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # command: _ssu-mask --stk2afa sulariAbundantASV16s_ali
-# date:    Thu May 16 08:52:04 2024
+# date:    Thu May 16 10:45:28 2024
 
 Printing global hask key as read from ssu.pm:
 
@@ -41,43 +41,43 @@ Global hash key: ps2pdf               value: ps2pdf
 Global hash key: ssu-align            value: ssu-align
 Global hash key: ssu-merge            value: ssu-merge
 
-Executing:      ssu-esl-alimask -h > /dev/null  2> sulariAbundantASV16s_ali/ssutmp0erraa649169
+Executing:      ssu-esl-alimask -h > /dev/null  2> sulariAbundantASV16s_ali/ssutmp0erraa662569
 Returned:       0
 Output (STDOUT) sent to /dev/null.
 Output (STDERR): ***NONE***
 
-About to remove file (sulariAbundantASV16s_ali/ssutmp0erraa649169) with perl's unlink function ... done.
+About to remove file (sulariAbundantASV16s_ali/ssutmp0erraa662569) with perl's unlink function ... done.
 
-Executing:      ssu-esl-alimanip -h > /dev/null  2> sulariAbundantASV16s_ali/ssutmp1erraa649169
+Executing:      ssu-esl-alimanip -h > /dev/null  2> sulariAbundantASV16s_ali/ssutmp1erraa662569
 Returned:       0
 Output (STDOUT) sent to /dev/null.
 Output (STDERR): ***NONE***
 
-About to remove file (sulariAbundantASV16s_ali/ssutmp1erraa649169) with perl's unlink function ... done.
+About to remove file (sulariAbundantASV16s_ali/ssutmp1erraa662569) with perl's unlink function ... done.
 
-Executing:      ssu-esl-ssdraw -h > /dev/null  2> sulariAbundantASV16s_ali/ssutmp2erraa649169
+Executing:      ssu-esl-ssdraw -h > /dev/null  2> sulariAbundantASV16s_ali/ssutmp2erraa662569
 Returned:       0
 Output (STDOUT) sent to /dev/null.
 Output (STDERR): ***NONE***
 
-About to remove file (sulariAbundantASV16s_ali/ssutmp2erraa649169) with perl's unlink function ... done.
+About to remove file (sulariAbundantASV16s_ali/ssutmp2erraa662569) with perl's unlink function ... done.
 
-Executing:      ssu-esl-reformat -h > /dev/null  2> sulariAbundantASV16s_ali/ssutmp3erraa649169
+Executing:      ssu-esl-reformat -h > /dev/null  2> sulariAbundantASV16s_ali/ssutmp3erraa662569
 Returned:       0
 Output (STDOUT) sent to /dev/null.
 Output (STDERR): ***NONE***
 
-About to remove file (sulariAbundantASV16s_ali/ssutmp3erraa649169) with perl's unlink function ... done.
+About to remove file (sulariAbundantASV16s_ali/ssutmp3erraa662569) with perl's unlink function ... done.
 
-Executing:      ssu-esl-reformat -o sulariAbundantASV16s_ali/sulariAbundantASV16s_ali.bacteria.afa --small --informat pfam afa sulariAbundantASV16s_ali/sulariAbundantASV16s_ali.bacteria.stk > sulariAbundantASV16s_ali/ssutmp4outaa649169  2> sulariAbundantASV16s_ali/ssutmp4erraa649169
+Executing:      ssu-esl-reformat -o sulariAbundantASV16s_ali/sulariAbundantASV16s_ali.bacteria.afa --small --informat pfam afa sulariAbundantASV16s_ali/sulariAbundantASV16s_ali.bacteria.stk > sulariAbundantASV16s_ali/ssutmp4outaa662569  2> sulariAbundantASV16s_ali/ssutmp4erraa662569
 Returned:       0
 Output (STDOUT): ***NONE***
 Output (STDERR): ***NONE***
 
-About to remove file (sulariAbundantASV16s_ali/ssutmp4outaa649169) with perl's unlink function ... done.
+About to remove file (sulariAbundantASV16s_ali/ssutmp4outaa662569) with perl's unlink function ... done.
 
-About to remove file (sulariAbundantASV16s_ali/ssutmp4erraa649169) with perl's unlink function ... done.
+About to remove file (sulariAbundantASV16s_ali/ssutmp4erraa662569) with perl's unlink function ... done.
 
-Thu 16 May 2024 08:52:04 AM CEST
+Thu 16 May 2024 10:45:28 AM CEST
 Linux oemiknano-ESPRIMO-P758 5.4.0-176-generic #196-Ubuntu SMP Fri Mar 22 16:46:39 UTC 2024 x86_64 x86_64 x86_64 GNU/Linux
 # SSU-ALIGN-SUCCESS

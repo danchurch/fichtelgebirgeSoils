@@ -1,5 +1,5 @@
-# command:    ssu-cmsearch --hmm-cW 1.5 --no-null3 --noalign --cm-name bacteria -T -1 --tab sulariAbundantASV16s_ali/sulariAbundantASV16s_ali.tab --viterbi /home/daniel/miniconda3/envs/spatialDirt/share/ssu-align-0.1.1/ssu-align-0p1.cm sulariCleanedUP16s.fna
-# date:       Thu May 16 08:49:28 2024
+# command:    ssu-cmsearch --hmm-cW 1.5 --no-null3 --noalign --cm-name bacteria -T -1 --tab sulariAbundantASV16s_ali/sulariAbundantASV16s_ali.tab --viterbi /home/daniel/miniconda3/envs/spatialDirt/share/ssu-align-0.1.1/ssu-align-0p1.cm sulariCleanedUp16s.fna
+# date:       Thu May 16 10:39:37 2024
 # num seqs:   3314
 # dbsize(Mb): 1.677770
 #
@@ -3411,4 +3411,4 @@
 #
 #    run time  (hr:min:sec)
 # -----------
-#    00:00:35
+#    00:00:36

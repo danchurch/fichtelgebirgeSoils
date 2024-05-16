@@ -3,8 +3,8 @@
 # Copyright (C) 2016 Howard Hughes Medical Institute
 # Freely distributed under the BSD open source license.
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# command: _ssu-align -n bacteria sulariCleanedUP16s.fna sulariAbundantASV16s_ali
-# date:    Thu May 16 08:49:28 2024
+# command: _ssu-align -n bacteria sulariCleanedUp16s.fna sulariAbundantASV16s_ali
+# date:    Thu May 16 10:39:37 2024
 
 Printing global hask key as read from ssu.pm:
 
@@ -41,93 +41,93 @@ Global hash key: ps2pdf               value: ps2pdf
 Global hash key: ssu-align            value: ssu-align
 Global hash key: ssu-merge            value: ssu-merge
 
-Executing:      ssu-esl-seqstat -h > /dev/null  2> sulariAbundantASV16s_ali/ssutmp0erraa648919
+Executing:      ssu-esl-seqstat -h > /dev/null  2> sulariAbundantASV16s_ali/ssutmp0erraa661808
 Returned:       0
 Output (STDOUT) sent to /dev/null.
 Output (STDERR): ***NONE***
 
-About to remove file (sulariAbundantASV16s_ali/ssutmp0erraa648919) with perl's unlink function ... done.
+About to remove file (sulariAbundantASV16s_ali/ssutmp0erraa661808) with perl's unlink function ... done.
 
-Executing:      ssu-cmsearch -h > /dev/null  2> sulariAbundantASV16s_ali/ssutmp1erraa648919
+Executing:      ssu-cmsearch -h > /dev/null  2> sulariAbundantASV16s_ali/ssutmp1erraa661808
 Returned:       0
 Output (STDOUT) sent to /dev/null.
 Output (STDERR): ***NONE***
 
-About to remove file (sulariAbundantASV16s_ali/ssutmp1erraa648919) with perl's unlink function ... done.
+About to remove file (sulariAbundantASV16s_ali/ssutmp1erraa661808) with perl's unlink function ... done.
 
-Executing:      ssu-esl-sfetch -h > /dev/null  2> sulariAbundantASV16s_ali/ssutmp2erraa648919
+Executing:      ssu-esl-sfetch -h > /dev/null  2> sulariAbundantASV16s_ali/ssutmp2erraa661808
 Returned:       0
 Output (STDOUT) sent to /dev/null.
 Output (STDERR): ***NONE***
 
-About to remove file (sulariAbundantASV16s_ali/ssutmp2erraa648919) with perl's unlink function ... done.
+About to remove file (sulariAbundantASV16s_ali/ssutmp2erraa661808) with perl's unlink function ... done.
 
-Executing:      ssu-esl-reformat -h > /dev/null  2> sulariAbundantASV16s_ali/ssutmp3erraa648919
+Executing:      ssu-esl-reformat -h > /dev/null  2> sulariAbundantASV16s_ali/ssutmp3erraa661808
 Returned:       0
 Output (STDOUT) sent to /dev/null.
 Output (STDERR): ***NONE***
 
-About to remove file (sulariAbundantASV16s_ali/ssutmp3erraa648919) with perl's unlink function ... done.
+About to remove file (sulariAbundantASV16s_ali/ssutmp3erraa661808) with perl's unlink function ... done.
 
-Executing:      ssu-cmalign -h > /dev/null  2> sulariAbundantASV16s_ali/ssutmp4erraa648919
+Executing:      ssu-cmalign -h > /dev/null  2> sulariAbundantASV16s_ali/ssutmp4erraa661808
 Returned:       0
 Output (STDOUT) sent to /dev/null.
 Output (STDERR): ***NONE***
 
-About to remove file (sulariAbundantASV16s_ali/ssutmp4erraa648919) with perl's unlink function ... done.
+About to remove file (sulariAbundantASV16s_ali/ssutmp4erraa661808) with perl's unlink function ... done.
 
-Executing:      ssu-esl-seqstat --rna -a sulariCleanedUP16s.fna > sulariAbundantASV16s_ali/sulariAbundantASV16s_ali.seqstat  2> sulariAbundantASV16s_ali/ssutmp5erraa648919
+Executing:      ssu-esl-seqstat --rna -a sulariCleanedUp16s.fna > sulariAbundantASV16s_ali/sulariAbundantASV16s_ali.seqstat  2> sulariAbundantASV16s_ali/ssutmp5erraa661808
 Returned:       0
 Output (STDOUT) saved in file sulariAbundantASV16s_ali/sulariAbundantASV16s_ali.seqstat.
 Output (STDERR): ***NONE***
 
-About to remove file (sulariAbundantASV16s_ali/ssutmp5erraa648919) with perl's unlink function ... done.
+About to remove file (sulariAbundantASV16s_ali/ssutmp5erraa661808) with perl's unlink function ... done.
 
 About to remove file (sulariAbundantASV16s_ali/sulariAbundantASV16s_ali.seqstat) with perl's unlink function ... done.
 
-Executing:      ssu-cmsearch --hmm-cW 1.5 --no-null3 --noalign --cm-name bacteria -T -1 --tab sulariAbundantASV16s_ali/sulariAbundantASV16s_ali.tab --viterbi /home/daniel/miniconda3/envs/spatialDirt/share/ssu-align-0.1.1/ssu-align-0p1.cm sulariCleanedUP16s.fna > sulariAbundantASV16s_ali/sulariAbundantASV16s_ali.cmsearch  2> sulariAbundantASV16s_ali/ssutmp6erraa648919
+Executing:      ssu-cmsearch --hmm-cW 1.5 --no-null3 --noalign --cm-name bacteria -T -1 --tab sulariAbundantASV16s_ali/sulariAbundantASV16s_ali.tab --viterbi /home/daniel/miniconda3/envs/spatialDirt/share/ssu-align-0.1.1/ssu-align-0p1.cm sulariCleanedUp16s.fna > sulariAbundantASV16s_ali/sulariAbundantASV16s_ali.cmsearch  2> sulariAbundantASV16s_ali/ssutmp6erraa661808
 Returned:       0
 Output (STDOUT) saved in file sulariAbundantASV16s_ali/sulariAbundantASV16s_ali.cmsearch.
 Output (STDERR): ***NONE***
 
-About to remove file (sulariAbundantASV16s_ali/ssutmp6erraa648919) with perl's unlink function ... done.
+About to remove file (sulariAbundantASV16s_ali/ssutmp6erraa661808) with perl's unlink function ... done.
 
 About to remove file (sulariAbundantASV16s_ali/sulariAbundantASV16s_ali.cmsearch) with perl's unlink function ... done.
 
-Executing:      ssu-esl-sfetch --index sulariCleanedUP16s.fna > sulariAbundantASV16s_ali/ssutmp7outaa648919  2> sulariAbundantASV16s_ali/ssutmp7erraa648919
+Executing:      ssu-esl-sfetch --index sulariCleanedUp16s.fna > sulariAbundantASV16s_ali/ssutmp7outaa661808  2> sulariAbundantASV16s_ali/ssutmp7erraa661808
 Returned:       0
 Output (STDOUT): 
-Creating SSI index for sulariCleanedUP16s.fna...    done.
+Creating SSI index for sulariCleanedUp16s.fna...    done.
 Indexed 3314 sequences (3314 names).
-SSI index written to file sulariCleanedUP16s.fna.ssi
+SSI index written to file sulariCleanedUp16s.fna.ssi
 
 Output (STDERR): ***NONE***
 
-About to remove file (sulariAbundantASV16s_ali/ssutmp7outaa648919) with perl's unlink function ... done.
+About to remove file (sulariAbundantASV16s_ali/ssutmp7outaa661808) with perl's unlink function ... done.
 
-About to remove file (sulariAbundantASV16s_ali/ssutmp7erraa648919) with perl's unlink function ... done.
+About to remove file (sulariAbundantASV16s_ali/ssutmp7erraa661808) with perl's unlink function ... done.
 
-Executing:      ssu-esl-sfetch -Cf sulariCleanedUP16s.fna sulariAbundantASV16s_ali/sulariAbundantASV16s_ali.bacteria.sfetch | ssu-esl-reformat -o sulariAbundantASV16s_ali/sulariAbundantASV16s_ali.bacteria.fa --informat fasta -r fasta - > sulariAbundantASV16s_ali/ssutmp8outaa648919  2> sulariAbundantASV16s_ali/ssutmp8erraa648919
+Executing:      ssu-esl-sfetch -Cf sulariCleanedUp16s.fna sulariAbundantASV16s_ali/sulariAbundantASV16s_ali.bacteria.sfetch | ssu-esl-reformat -o sulariAbundantASV16s_ali/sulariAbundantASV16s_ali.bacteria.fa --informat fasta -r fasta - > sulariAbundantASV16s_ali/ssutmp8outaa661808  2> sulariAbundantASV16s_ali/ssutmp8erraa661808
 Returned:       0
 Output (STDOUT): ***NONE***
 Output (STDERR): ***NONE***
 
-About to remove file (sulariAbundantASV16s_ali/ssutmp8outaa648919) with perl's unlink function ... done.
+About to remove file (sulariAbundantASV16s_ali/ssutmp8outaa661808) with perl's unlink function ... done.
 
-About to remove file (sulariAbundantASV16s_ali/ssutmp8erraa648919) with perl's unlink function ... done.
+About to remove file (sulariAbundantASV16s_ali/ssutmp8erraa661808) with perl's unlink function ... done.
 
 About to remove file (sulariAbundantASV16s_ali/sulariAbundantASV16s_ali.bacteria.sfetch) with perl's unlink function ... done.
 
-Executing:      ssu-cmalign --cm-name bacteria --mxsize 4096 --no-null3 --sub --ifile sulariAbundantASV16s_ali/sulariAbundantASV16s_ali.bacteria.ifile -o sulariAbundantASV16s_ali/sulariAbundantASV16s_ali.bacteria.stk /home/daniel/miniconda3/envs/spatialDirt/share/ssu-align-0.1.1/ssu-align-0p1.cm sulariAbundantASV16s_ali/sulariAbundantASV16s_ali.bacteria.fa > sulariAbundantASV16s_ali/sulariAbundantASV16s_ali.bacteria.cmalign  2> sulariAbundantASV16s_ali/ssutmp9erraa648919
+Executing:      ssu-cmalign --cm-name bacteria --mxsize 4096 --no-null3 --sub --ifile sulariAbundantASV16s_ali/sulariAbundantASV16s_ali.bacteria.ifile -o sulariAbundantASV16s_ali/sulariAbundantASV16s_ali.bacteria.stk /home/daniel/miniconda3/envs/spatialDirt/share/ssu-align-0.1.1/ssu-align-0p1.cm sulariAbundantASV16s_ali/sulariAbundantASV16s_ali.bacteria.fa > sulariAbundantASV16s_ali/sulariAbundantASV16s_ali.bacteria.cmalign  2> sulariAbundantASV16s_ali/ssutmp9erraa661808
 Returned:       0
 Output (STDOUT) saved in file sulariAbundantASV16s_ali/sulariAbundantASV16s_ali.bacteria.cmalign.
 Output (STDERR): ***NONE***
 
-About to remove file (sulariAbundantASV16s_ali/ssutmp9erraa648919) with perl's unlink function ... done.
+About to remove file (sulariAbundantASV16s_ali/ssutmp9erraa661808) with perl's unlink function ... done.
 
 About to remove file (sulariAbundantASV16s_ali/sulariAbundantASV16s_ali.nomatch) with perl's unlink function ... done.
 
-About to remove file (sulariCleanedUP16s.fna.ssi) with perl's unlink function ... done.
+About to remove file (sulariCleanedUp16s.fna.ssi) with perl's unlink function ... done.
 
-Thu 16 May 2024 08:51:53 AM CEST
+Thu 16 May 2024 10:42:08 AM CEST
 Linux oemiknano-ESPRIMO-P758 5.4.0-176-generic #196-Ubuntu SMP Fri Mar 22 16:46:39 UTC 2024 x86_64 x86_64 x86_64 GNU/Linux

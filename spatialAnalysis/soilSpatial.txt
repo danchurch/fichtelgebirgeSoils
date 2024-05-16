@@ -6299,6 +6299,9 @@ ls /home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnaly
 ## Dimitri says use sina to do an alignment, outside of arb because arb has an old version of sina:
 
 ## sina folks recommend conda:
+
+conda create -n sina sina
+
 conda activate sina
 
 ## the command that dimitri gave me for this:
@@ -6324,17 +6327,29 @@ cd /media/vol/phylo_dbs/silva/silva138.1
 
 conda activate sina
 
+ls $sulariRepSeqs
+ls $silvaDB
+
+## on nanocomp
+sulariRepSeqs=/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis/sulariCleanedUP16s.fna
+silvaDB=/media/vol1/daniel/sulariArne/soilAnalysis/files2big4github/SILVA_138.1_SSURef_NR99_12_06_20_opt.arb
+
+## on local tower
 sulariRepSeqs=/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis/sulariCleanedUP16s.fna
 silvaDB=/media/vol/phylo_dbs/silva/silva138.1/SILVA_138.1_SSURef_NR99_12_06_20_opt.arb
+
+conda activate sina
+
 sina \
     --threads 3 \
     --db $silvaDB \
     -i $sulariRepSeqs \
-    -o sulariRepSeqs_aligned.arb
+    -o sulariRepSeqs_aligned.fna \
+    -o sulariRepSeqs_aligned.arb \
+    -o sulariRepSeqs_aligned.csv 
 
 ## default outputs an arb database
 ## which won't merge, issues with name server or something, don't understand
-
 
 cd /media/vol1/daniel/sulariArne/soilAnalysis/files2big4github
 
@@ -6352,4 +6367,6 @@ wget --recursive \
 sudo bash /usr/arb/SH/arb_installubuntu4arb.sh arb
 ## etc etc
 
-## try again on 
+## try again on nanoComp 
+
+## and that did not work.

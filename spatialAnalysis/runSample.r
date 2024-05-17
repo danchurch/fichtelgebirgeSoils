@@ -3,7 +3,7 @@ load("m_hurdleSpatial.rda")
 
 thin = 5
 samples = 1000
-nChains = 3
+nChains = 2
 nP = 8
 m_hurdleSpatial = sampleMcmc(m_hurdleSpatial, 
                      samples = samples, 

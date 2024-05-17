@@ -7486,7 +7486,8 @@ m_hurdleSpatial = sampleMcmc(m_hurdleSpatial,
 ## threshold.prev = 0.05 
 ## threshold.abu = 0.002 
 ## otus = 1315, still a lot, but ram usage stays low
-## 3 chains doesn't add that much, but does seem to increase memory use. Consider keeping at 2 chains if RAM is a problem
+## looks like 3 chains is too much, go to 2 chains
+
 
 ################## runSample.r #######################
 
@@ -7495,7 +7496,7 @@ load("m_hurdleSpatial.rda")
 
 thin = 5
 samples = 1000
-nChains = 3
+nChains = 2
 nP = 8
 m_hurdleSpatial = sampleMcmc(m_hurdleSpatial, 
                      samples = samples, 
@@ -7508,3 +7509,8 @@ m_hurdleSpatial = sampleMcmc(m_hurdleSpatial,
 save(m_hurdleSpatial, file="m_hurdleSpatial_sampled.rda")
 
 ######################################################
+
+soil
+conda activate r_env
+
+nohup Rscript runSample.r &> runSample.log &

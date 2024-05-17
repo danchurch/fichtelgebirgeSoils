@@ -7393,6 +7393,7 @@ dim(bact.pa)
 denbiDirt
 
 conda activate r_env
+
 soil
 R
 
@@ -7511,6 +7512,16 @@ save(m_hurdleSpatial, file="m_hurdleSpatial_sampled.rda")
 ######################################################
 
 soil
+
 conda activate r_env
 
 nohup Rscript runSample.r &> runSample.log &
+
+## running for a while. to check on it:
+
+ssh -p 30267 -i /home/daniel/.ssh/ubuntu_e ubuntu@129.70.51.6 cat /vol/data/fichtelgebirgeSoils/spatialAnalysis/runSample.log
+ssh -p 30267 -i /home/daniel/.ssh/ubuntu_e ubuntu@129.70.51.6 ps 2140 ## parent process
+ssh -p 30267 -i /home/daniel/.ssh/ubuntu_e ubuntu@129.70.51.6 free -h
+
+
+

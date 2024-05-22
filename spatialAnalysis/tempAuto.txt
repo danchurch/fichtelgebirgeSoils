@@ -1,0 +1,72 @@
+## let's develop a strategy for check seasonal autocorrelation
+
+## we'll merge this later with the main text
+
+## the most basic strategy would be to put the abundances of the 
+## previous season as predictor for the current
+## but hurts my head - use multiple community matrices 
+## as a predictor for the current one? 
+
+## another possibility that seems more likely is that HMSC can 
+## treat time as a "spatial" variable
+
+## in addition to or instead of spatial patterns? It looks 
+## likes we can include as many "coordinates" as we want with 
+## our "spatial" random level.
+
+## can their be two spatial random effects? As in, a true spatial
+## and also a time random effect?
+
+## first step would be to identify just those sites that have 
+## repeated sampling. We did this before...
+
+import pandas as pd
+
+
+sulariEnvCSV="/home/daniel/Documents/projects/fichtelgebirge_project/sulariArneSoils/fichtelgebirgeSoils/spatialAnalysis/sulariEnv.csv"
+
+envData = pd.read_csv(sulariEnvCSV, index_col='SampleID')
+envData['PlotID'].unique()
+
+help(envData['PlotID'].duplicated)
+
+envData['PlotID'].duplicated(keep=False).to_list()
+
+envData['PlotID'].duplicated(keep=False).sum()
+
+repFilt = envData['PlotID'].duplicated(keep=False)
+
+repeatedPlots = envData[repFilt].sort_values(by="PlotID")
+
+repeatedPlots["PlotID"].unique() ## there are ten plots that were repeated through time
+
+repeatedPlots.head()
+
+len(repeatedPlots["PlotID"].unique()) ## there are ten plots that were repeated through time
+
+## how many different sampling times do each have?j
+repeatedPlots[["PlotID","Date"]].groupby("PlotID").nunique()
+
+## interesting, S89 and S102 are the same plot and date...
+ploti="P0228"
+repeatedPlots[repeatedPlots["PlotID"] == ploti] 
+
+repeatedPlots[repeatedPlots["PlotID"] == ploti].iloc[0,:]
+
+repeatedPlots[repeatedPlots["PlotID"] == ploti].iloc[1,:]
+
+## also, different land types?
+## S89 is listed as arable land,
+## S102 listed as forest.
+## both are listed as P0228. Name implies forest.
+
+## will have to ask. Any other problems like that?
+
+## all samples:
+multLT = envData[["PlotID",'Land_type']].groupby("PlotID").nunique()
+
+(multLT["Land_type"] > 1).to_list()
+(multLT["Land_type"] > 1).sum() ## no, only looks like a problem at P0228, samples 89 and 102
+
+## ask sulari. For the moment, discard:
+

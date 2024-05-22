@@ -221,7 +221,9 @@ comData.head()
 
 dupsFilter = envData.Latitude.duplicated()
 dupped = envData[dupsFilter].sort_values(by="Latitude")
+
 dupped.groupby('Plot.ID').nunique()
+
 envData.iloc[0:5,0:8]
 
 ## nope...looks okay
@@ -7352,6 +7354,7 @@ m_hurdle_phylo  = sampleMcmc(m_combo,
                      verbose=1)
 
 
+
 ## we figured out how to make an ultrametric tree with somewhere around line 6680
 
 ## do we need to repeat this process whenever we set thresholds and subset 
@@ -7492,6 +7495,7 @@ m_hurdleSpatial = sampleMcmc(m_hurdleSpatial,
 
 ################## runSample.r #######################
 
+
 library(Hmsc)
 load("m_hurdleSpatial.rda")
 
@@ -7511,7 +7515,7 @@ save(m_hurdleSpatial, file="m_hurdleSpatial_sampled.rda")
 
 ######################################################
 
-soil
+soil 
 
 conda activate r_env
 
@@ -7520,8 +7524,24 @@ nohup Rscript runSample.r &> runSample.log &
 ## running for a while. to check on it:
 
 ssh -p 30267 -i /home/daniel/.ssh/ubuntu_e ubuntu@129.70.51.6 cat /vol/data/fichtelgebirgeSoils/spatialAnalysis/runSample.log
+
 ssh -p 30267 -i /home/daniel/.ssh/ubuntu_e ubuntu@129.70.51.6 ps 2140 ## parent process
+
 ssh -p 30267 -i /home/daniel/.ssh/ubuntu_e ubuntu@129.70.51.6 free -h
 
+ssh -p 30267 -i /home/daniel/.ssh/ubuntu_e ubuntu@129.70.51.6 ps -f 2140
+
+## not run, but might be useful if we need more data:
+c.Hmsc ## for combining chains from exact resamples
+
+## seems likely, because I think we set the burn too high and the thinning will take out a most of 
+## the sample anyway
+
+## so what to do now? look up scripts from generating sampling statistic, 
+## adapt to our data 
+
+## we will need to address seasonality somehow. How?
+
+## build a smaller model with just the sites that have repeated data
 
 

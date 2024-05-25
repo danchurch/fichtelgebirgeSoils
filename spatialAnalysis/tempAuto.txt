@@ -21,52 +21,152 @@
 ## repeated sampling. We did this before...
 
 import pandas as pd
-
+import natsort as ns
+import numpy as np
 
 sulariEnvCSV="/home/daniel/Documents/projects/fichtelgebirge_project/sulariArneSoils/fichtelgebirgeSoils/spatialAnalysis/sulariEnv.csv"
-
-envData = pd.read_csv(sulariEnvCSV, index_col='SampleID')
-envData['PlotID'].unique()
-
-help(envData['PlotID'].duplicated)
-
-envData['PlotID'].duplicated(keep=False).to_list()
-
-envData['PlotID'].duplicated(keep=False).sum()
-
+sulariUTM="/home/daniel/Documents/projects/fichtelgebirge_project/sulariArneSoils/fichtelgebirgeSoils/spatialAnalysis/sulariSpatial.csv"
+envData = (pd.read_csv(sulariEnvCSV, index_col='SampleID')
+               .drop(['Latitude', 'Longitude'], axis='columns'))
+spatData = pd.read_csv(sulariUTM, index_col='SampleID')
 repFilt = envData['PlotID'].duplicated(keep=False)
-
 repeatedPlots = envData[repFilt].sort_values(by="PlotID")
+repeatedPlots = repeatedPlots.merge(spatData, how='inner', left_index=True, right_index=True)
+## drop the P0228, not actually repeated:
+repeatedPlots.drop(['S89','S102'], axis='rows', inplace=True)
+## use natsort to clean up sample name order
+repeatedPlots = repeatedPlots.loc[ ns.natsorted(repeatedPlots.index)]
+repeatedPlots['Date'] = pd.to_datetime(repeatedPlots['Date'], yearfirst=True, errors='coerce')
 
-repeatedPlots["PlotID"].unique() ## there are ten plots that were repeated through time
-
-repeatedPlots.head()
-
-len(repeatedPlots["PlotID"].unique()) ## there are ten plots that were repeated through time
-
-## how many different sampling times do each have?j
+## how many different sampling times do each have?
 repeatedPlots[["PlotID","Date"]].groupby("PlotID").nunique()
 
-## interesting, S89 and S102 are the same plot and date...
-ploti="P0228"
-repeatedPlots[repeatedPlots["PlotID"] == ploti] 
+## I think the temporal unit should be season. 
+## we need to bin the dates then
 
-repeatedPlots[repeatedPlots["PlotID"] == ploti].iloc[0,:]
+repeatedPlots['Date'].duplicated().any() ##  no repeats, can be an index:
 
-repeatedPlots[repeatedPlots["PlotID"] == ploti].iloc[1,:]
+repeatedPlots = (repeatedPlots
+                    .sort_values(by='Date')
+                    .reset_index()
+                    .set_index('Date')
+)
 
-## also, different land types?
-## S89 is listed as arable land,
-## S102 listed as forest.
-## both are listed as P0228. Name implies forest.
+## we'll use a "meteorological" definition
 
-## will have to ask. Any other problems like that?
+repeatedPlots['season'] = 0
+## so winter of 2022 
+repeatedPlots.loc['2020-01-01':'2022-02-18', 'season'] = 1
+## spring of 2022
+repeatedPlots.loc['2022-03-01':'2022-05-31', 'season'] = 2
+## summer of 2022
+repeatedPlots.loc['2022-06-01':'2022-09-30', 'season'] = 3
+## fall of 2022
+repeatedPlots.loc['2022-10-01':'2022-12-31', 'season'] = 4
 
-## all samples:
-multLT = envData[["PlotID",'Land_type']].groupby("PlotID").nunique()
+repeatedPlots['season']
 
-(multLT["Land_type"] > 1).to_list()
-(multLT["Land_type"] > 1).sum() ## no, only looks like a problem at P0228, samples 89 and 102
+repeatedPlots.groupby('season').size() #actually fairly even distribution
 
-## ask sulari. For the moment, discard:
+## clean up rownames:
+repeatedPlots = repeatedPlots.loc[ ns.natsorted(repeatedPlots.index)]
+
+## save out for R
+repeatedPlots.to_csv("repeatedPlotsEnv.csv")
+
+## so we can use this dataframe in R to subset the phyloseq object
+## down to size
+
+## when reloading, date format is lost
+repeatedPlots = pd.read_csv("repeatedPlotsEnv.csv", index_col='SampleID')
+repeatedPlots['Date'] = pd.to_datetime(repeatedPlots['Date'], yearfirst=True, errors='coerce')
+
+#### R , hmsc spatiotemproal model ####
+
+library(Hmsc)
+library(phyloseq)
+library(ape)
+
+rm(list=ls())
+envData <- read.csv("repeatedPlotsEnv.csv", row.names="SampleID")
+load("psCleanedUp.rda")
+
+## trim down to repeated sites, removed zeroed species
+repeatedSitesPS = prune_samples(rownames(envData), psCleanedUp)
+repeatedSitesPS = prune_taxa( colSums(otu_table(repeatedSitesPS)) > 0, repeatedSitesPS)
+bactRaw <- otu_table(repeatedSitesPS)@.Data
+bact.pa<-ifelse(bactRaw>0,1,0)
+rowsumsInv = 1/rowSums(bactRaw)
+
+nASVs <- dim(bactRaw)[2]
+scalarMat = matrix( rep(rowsumsInv, nASVs), ncol = nASVs)
+bact.rel <- bactRaw * scalarMat
+threshold.prev = 0.05 ## present in at least n% of samples
+threshold.abu = 0.002 ## only OTU that reaches at least n% abundance of one sample
+ny = dim(bactRaw)[1]
+cond1=!(colSums(bact.pa)<=threshold.prev*ny) ## present in at least n% of samples?
+cond2=apply(bact.rel,2,max)>=threshold.abu
+bactData <- bactRaw[, cond1 & cond2 ]
+sum(bactData > 0)
+sum(bact.pa)
+dim(bactData)
+dim(bact.pa)
+
+Y <- bactData
+ny <- dim(Y)[1]
+ns <- dim(Y)[2]
+varsOfInterest = c("PlotID","soil_respiration","Land_type","pH","N","C","Temperature","waterCont","xx","yy")
+XData<-data.frame(envData[,varsOfInterest])
+XData$Land_type <- as.factor(XData$Land_type)
+Yabu <- Y
+Yabu[Y==0] <- NA ## to avoid zeroes?
+Yabu = log(Yabu) ## take log of abundances. They basically decided on the same transformations as Sulari and I.
+Yabu <- scale(Yabu) ## scale, after log? Heavily transformed data. Let's hope they know what they are talking about.
+Ypa = 1*(Y>0)
+
+ccases <- complete.cases(XData) ## we only lose 1, down to 33 samples
+XData = XData[ccases,]
+Y = Y[ccases,]
+Ypa = Ypa[ccases,]
+Yabu = Yabu[ccases,]
+Ycombo = cbind(Ypa,Yabu)
+ny = dim(Y)[1]
+ns = dim(Y)[2]/2
+all(rownames(XData) == rownames(Y))
+
+rownames(XData) 
+
+rownames(Y)
+
+sample.id = row.names(Y)
+samplePlotid = XData$PlotID
+studyDesign = data.frame("sample"=as.factor(sample.id), "site_spatial"=as.factor(samplePlotid))
+plot_coords <- XData[,c("PlotID","xx","yy")]
+plot_coords <- plot_coords[!duplicated(plot_coords),] ## remove duplicated plot rows
+rownames(plot_coords) <- plot_coords$PlotID
+plot_coords$PlotID <- NULL
+varsOfmodel <- c("soil_respiration","Land_type","pH","N","C","Temperature","waterCont")
+XData <- XData[,c(varsOfmodel)]
+XFormula0 = ~ soil_respiration + Land_type + pH + N + C + Temperature
+rL.sample = HmscRandomLevel(units = sample.id)
+
+## now, how to insert the temporal effects here?
+## we could try testing temporal effects only, or in combination
+## with space
+## I think the point of using this approach is to incorporate 
+## all data, or as much as possible, so let's throw it all in there...
+## but how?
+
+## two options - convert to season, or do number-days
+## seasonality is intriguing, because of all the corellated 
+## predictors, temperature moisture, etc
+
+## will they let us do two separated auto-correlated random effects?
+
+
+
+rL.site_spatial = HmscRandomLevel(sData = plot_coords)
+
+rL.site_spatial = setPriors(rL.site_spatial,nfMin=1,nfMax=3) #try 3. Not sure how to optimize this. But there may multiple spatial scales.
+
 

@@ -7545,3 +7545,109 @@ c.Hmsc ## for combining chains from exact resamples
 ## build a smaller model with just the sites that have repeated data
 
 
+import pandas as pd
+
+sulariEnvCSV="/home/daniel/Documents/projects/fichtelgebirge_project/sulariArneSoils/fichtelgebirgeSoils/spatialAnalysis/sulariEnv.csv"
+
+envData = pd.read_csv(sulariEnvCSV, index_col='SampleID')
+envData['PlotID'].unique()
+
+envData['PlotID'].duplicated(keep=False).to_list()
+
+envData['PlotID'].duplicated(keep=False).sum()
+
+repFilt = envData['PlotID'].duplicated(keep=False)
+
+repeatedPlots = envData[repFilt].sort_values(by="PlotID")
+
+repeatedPlots["PlotID"].unique() ## there are ten plots that were repeated through time
+
+repeatedPlots.head()
+
+len(repeatedPlots["PlotID"].unique()) ## there are ten plots that were repeated through time
+
+## how many different sampling times do each have?j
+repeatedPlots[["PlotID","Date"]].groupby("PlotID").nunique()
+
+## interesting, S89 and S102 are the same plot and date...
+
+ploti="P0228"
+
+ploti="P0103"
+
+repeatedPlots[repeatedPlots["PlotID"] == ploti] 
+
+ploti="P0228"
+repeatedPlots[repeatedPlots["PlotID"] == ploti].iloc[0,:]
+
+repeatedPlots[repeatedPlots["PlotID"] == ploti].iloc[1,:]
+
+## also, different land types?
+## S89 is listed as arable land,
+## S102 listed as forest.
+## both are listed as P0228. Name implies forest.
+## have the same sampling date
+
+## will have to ask. Any other problems like that?
+
+## all samples:
+multLT = envData[["PlotID",'Land_type']].groupby("PlotID").nunique()
+
+(multLT["Land_type"] > 1).to_list()
+(multLT["Land_type"] > 1).sum() ## no, only looks like a problem at P0228, samples 89 and 102
+
+## ask sulari. For the moment, discard. Not sure, maybe we should restart Hmsc models
+
+## let's keep them going, just to know how long it will take if we run it again. 
+
+## from the name and missing data, makes more sense to remove S89. This is the more
+## likely error. Switch over to R to see if this improves our NMS:
+
+library(vegan)
+
+comData = read.csv("/home/daniel/Documents/projects/fichtelgebirge_project/sulariArneSoils/fichtelgebirgeSoils/sulariData/comdat.csv", row.names=1)
+envData = read.csv("sulariEnv.csv", row.names=1)
+## get rid of controls
+notControls=!(row.names(comData) %in% c("C1.1", "C1.2", "C2.1", "C2.2"))
+comData <- comData[notControls,]
+## get rid of S89, think it is an error
+comData <- comData[!(rownames(comData) == "S89"),]
+comNMS <- metaMDS(comData, try=40)
+
+write.csv(comNMS$points, file='comNMS.csv')
+
+## and python for plotting as before:
+
+python3
+import matplotlib.pyplot as plt
+plt.ion()
+import pandas as pd
+envData = pd.read_csv('sulariEnv.csv', index_col='SampleID')
+nmsPts = pd.read_csv("comNMS.csv", index_col=0)
+envData.drop('S89', inplace=True)
+colorDict = {
+'Arableland':'#862d2d',
+'Forest'    :'#006600',
+'Grassland' :'#FF7F00'
+}
+landCols = [ colorDict[i] for i in envData['Land_type'] ]
+
+plt.close('all')
+fig, ax = plt.subplots()
+ax.scatter(x=nmsPts["MDS1"],
+           y=nmsPts["MDS2"],
+           c=landCols,
+           s=190,
+          )
+
+Arableland_patch = Patch(color='#862d2d', label='Arableland')
+Forest_patch = Patch(color='#006600', label='Forest')
+Grassland_patch = Patch(color='#FF7F00', label='Grassland')
+ax.legend(handles=[Forest_patch, Arableland_patch, Grassland_patch])
+
+## yes, this loses on of the weird farmland points, but the 
+## nms is otherwise almost identical. 
+
+## won't worry about for the moment. 
+
+## and on with temporal analysis

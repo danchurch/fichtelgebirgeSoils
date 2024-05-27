@@ -1634,8 +1634,132 @@ net_pears <- netConstruct(amgut2.filt.phy,
                           thresh = 0.3,
                           verbose = 3)
 
-## let's try it on our data.
+## try everything out for a bit, then update yaml backup for the repo
 
+
+conda activate spatialDirt 
+
+python
+
+import pandas as pd
+import geopandas as gpd
+import matplotlib.pyplot as plt; plt.ion()
+import os, rasterio
+import rasterio.plot
+import scipy.spatial as sp
+from sklearn.linear_model import LinearRegression
+import numpy as np
+from scipy import stats
+from matplotlib.patches import Patch
+from matplotlib_scalebar.scalebar import ScaleBar
+import pymc as pm
+
+
+spatDir="/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis"
+## ^different on laptop
+os.chdir(spatDir)
+
+## we just want a map of points right now:
+
+## on officeComp
+#sulariEnvCSV="/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/Envt_Matrix.csv"
+## on laptop
+#sulariEnvCSV="/home/daniel/Documents/projects/fichtelgebirge_project/sulariArneSoils/fichtelgebirgeSoils/sulariData/Envt_Matrix.csv"
+
+envData = pd.read_csv(sulariEnvCSV)
+## get rid of spaces
+envData.rename({"Sample ID":"SampleID"}, axis="columns", inplace=True)
+## we need to clean up the plot.ID. Sulari recorded season in the plot IDs,
+## using letter codes. Also she has one double sampling, with an underscore
+envData['Plot.ID'] = envData['Plot.ID'].str.slice(0,5)
+
+## let's get rid of decimals in the names, weird for python work:
+envData.rename({"Plot.ID":"PlotID", 
+       "soil.respiration":"soil_respiration",
+              "Land.type":"Land_type"}, 
+                axis="columns", inplace=True)
+
+envData.head()
+
+## so we don't have to repeat:
+envData.to_csv('/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis/sulariEnv.csv', index=False)
+
+envData.head()
+
+
+envData = pd.read_csv('/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis/sulariEnv.csv', index_col='SampleID')
+ 
+
+## if we need to drop controls
+envData.drop([ "C1.1", "C1.2", "C2.1", "C2.2"], inplace=True)
+
+## her otu table is really large:
+##### R ###
+library('phyloseq')
+load("/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/sularilogMin50ps.rda")
+logMin50ps
+comdat <- as.data.frame(otu_table(logMin50ps))
+write.csv(comdat, file="/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/comdat.csv")
+############
+
+## back in python
+
+comData = pd.read_csv("/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/comdat.csv", index_col=0)
+
+comData.drop([ "C1.1", "C1.2", "C2.1", "C2.2"], inplace=True)
+
+comData.head()
+
+## the map below looks funny...looks like every forest plot has 
+## a grassland under it...
+
+dupsFilter = envData.Latitude.duplicated()
+dupped = envData[dupsFilter].sort_values(by="Latitude")
+
+dupped.groupby('Plot.ID').nunique()
+
+envData.iloc[0:5,0:8]
+
+## nope...looks okay
+
+## we want a geodf...
+
+plotPoints = gpd.points_from_xy( envData.Longitude, envData.Latitude, crs="EPSG:4326" )
+
+sulariPlotsDF = gpd.GeoDataFrame(envData[[ 'PlotID', 'soil_respiration', 
+                    'MBC', 'season', 'Land_type', 'pH', 'N', 'C']], geometry=plotPoints)
+
+## to convert to UTM? looks like we are in zone 33
+## looks like:
+## EPSG:32633
+
+sulariPlot_utm = sulariPlotsDF.to_crs('EPSG:32633')
+
+sulariPlot_utm.tail()
+
+## can we import our georeferenced tif of the study area?
+## lat/lon
+#fichtelMap = rasterio.open("studyAreaClipped_modified.tif")
+## UTM
+
+fichtelMap = rasterio.open("studyAreaClipped_UTM.tif")
+
+## color code our points according to land type?
+cdik={
+"Arableland":"b",
+"Grassland":"y",
+"Forest":"g",
+}
+sulariPlotsDF['landColors'] = [ cdik[i] for i in sulariPlotsDF['Land_type'] ]
+sulariPlot_utm['landColors'] = [ cdik[i] for i in sulariPlotsDF['Land_type'] ]
+
+fig, ax = plt.subplots()
+rasterio.plot.show(fichtelMap, ax=ax)
+sulariPlot_utm.plot(
+    marker="o",
+    ax=ax,
+    edgecolor='k',
+    facecolor=sulariPlotsDF['landColors'],
 ## we can use a centered log transformation, pearson correlation as per the examples 
 ## on the NetCoMi github
 
@@ -1756,12 +1880,6 @@ devtools::install_github("stefpeschel/NetCoMi",
 
 
 library(devtools)
-install_github("zdk123/SpiecEasi")
-
-## which needs:
-
-## which needs fortran ??
-sudo apt install gfortran
 ## and the following are not there:
 ld -llapack --verbose
 ld -lblas --verbose
@@ -1892,124 +2010,6 @@ legend(0.7, 1.1, cex = 2.2, title = "estimated correlation:",
        legend = c("+","-"), lty = 1, lwd = 3, col = c("#009900","red"), 
        bty = "n", horiz = TRUE)
 
-## plan for the day:
-
-## rerun network analysis with environment variables land-use and respiration
-
-## if it works, update notebook with it:
-
-
-
-### on another note, we need to run jupyter on the lab computer...
-
-## means 
-## - install jupyter
-## - clone repo to lab comp
-##  maybe best to do this as we did on my own computer, within a conda env
-
-## can we use our current spatialDirt yaml for this?
-
-conda env export > spatialDirt.yaml
-
-## update repo, clone onto lab
-## on the lab comp, try to use it to make a new environment:
-
-cd /media/vol1/daniel/sulariArne/soilAnalysis
-
-wget https://raw.githubusercontent.com/danchurch/fichtelgebirgeSoils/main/spatialDirt_15.4.24.yaml 
-
-conda update -n base conda
-
-conda install -n base conda-libmamba-solver
-
-conda config --set solver libmamba
-
-## get the standard channels
-
-conda config --add channels defaults
-conda config --add channels bioconda
-conda config --add channels conda-forge
-
-conda env create --name spatialDirt --file=spatialDirt_15.4.24.yaml
-
-## lots of errors...let's see...installing kernels as above
-
-## is the R kernel on there?
-
-## try: 
-## https://stackoverflow.com/questions/44056164/jupyter-client-has-to-be-installed-but-jupyter-kernelspec-version-exited-wit
-
-## in a sudo R sesh on lab comp:
-
-install.packages('IRkernel')
-
-system.file('kernelspec', package = 'IRkernel')
-
-## gives us:
-"/usr/local/lib/R/site-library/IRkernel/kernelspec"
-
-
-## which we can give to our notebook
-jupyter kernelspec install "/usr/local/lib/R/site-library/IRkernel/kernelspec" \
-  --name "R" \
-  --user 
-
-jupyter kernelspec list
-
-cd /media/vol1/daniel/miniconda3/envs/spatialDirt
-
-
-
-## as per this site:
-https://stackoverflow.com/questions/69244218/how-to-run-a-jupyter-notebook-through-a-remote-server-on-local-machine
-
-jupyter notebook --no-browser --port=8080
-
-ssh -L 8080:localhost:8080 test@132.180.112.115
-
-## almost works. wants passwords and tokens and stuff:
-https://jupyter-server.readthedocs.io/en/latest/operators/public-server.html
-
-## for now use tokens...
-
-
-## we need to synch up with git
-
-## on the nanocomp
-
-## as per above, the nanocomp computer repo needs 
-## to be given permissions, etc.
-
-cd /media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis
-
-git config --global user.email "danchurchthomas@gmail.com"
-
-git config --global user.name "danchurch"
-
-git remote add origin https://github.com/danchurch/fichtelgebirgeSoils.git
-git branch -M main
-git remote set-url origin git@github.com:danchurch/fichtelgebirgeSoils.git
-
-git push -u origin main
-
-## nope, don't think I put keys for lab comp on there
-
-cd ~/.ssh
-ssh-keygen -t rsa -f nanoComp2git
-
-## and as per here:
-https://stackoverflow.com/questions/13509293/git-fatal-could-not-read-from-remote-repository
-## the ssh-agent had to be started up and informed about the new key:
-
-eval `ssh-agent -s`
-ssh-add ~/.ssh/nanoComp2git
-
-## and this had to be added to the bashrc. weird. never had to do that before...
-
-## anyway, github seems synched. 
-## and does that mean we can carefully work remotely with the jupyter notebook now?
-
-## when we actually get comfortable with this, we can get back to editing this
 ## text file local. For now, both vim and jupyter are on the nanocomp computer:
 
 
@@ -2176,9 +2176,131 @@ plot(preds.mean,nres, las = 1)
 abline(a=0,b=0)
 
 ## generalized linear models (link function, different dists) possible, just a couple
-## for univariate models:
+## try everything out for a bit, then update yaml backup for the repo
 
-y = 1*(L+ rnorm(n, sd = 1)>0)
+
+conda activate spatialDirt 
+
+python
+
+import pandas as pd
+import geopandas as gpd
+import matplotlib.pyplot as plt; plt.ion()
+import os, rasterio
+import rasterio.plot
+import scipy.spatial as sp
+from sklearn.linear_model import LinearRegression
+import numpy as np
+from scipy import stats
+from matplotlib.patches import Patch
+from matplotlib_scalebar.scalebar import ScaleBar
+import pymc as pm
+
+
+spatDir="/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis"
+## ^different on laptop
+os.chdir(spatDir)
+
+## we just want a map of points right now:
+
+## on officeComp
+#sulariEnvCSV="/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/Envt_Matrix.csv"
+## on laptop
+#sulariEnvCSV="/home/daniel/Documents/projects/fichtelgebirge_project/sulariArneSoils/fichtelgebirgeSoils/sulariData/Envt_Matrix.csv"
+
+envData = pd.read_csv(sulariEnvCSV)
+## get rid of spaces
+envData.rename({"Sample ID":"SampleID"}, axis="columns", inplace=True)
+## we need to clean up the plot.ID. Sulari recorded season in the plot IDs,
+## using letter codes. Also she has one double sampling, with an underscore
+envData['Plot.ID'] = envData['Plot.ID'].str.slice(0,5)
+
+## let's get rid of decimals in the names, weird for python work:
+envData.rename({"Plot.ID":"PlotID", 
+       "soil.respiration":"soil_respiration",
+              "Land.type":"Land_type"}, 
+                axis="columns", inplace=True)
+
+envData.head()
+
+## so we don't have to repeat:
+envData.to_csv('/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis/sulariEnv.csv', index=False)
+
+envData.head()
+
+
+envData = pd.read_csv('/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis/sulariEnv.csv', index_col='SampleID')
+ 
+
+## if we need to drop controls
+envData.drop([ "C1.1", "C1.2", "C2.1", "C2.2"], inplace=True)
+
+## her otu table is really large:
+##### R ###
+library('phyloseq')
+load("/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/sularilogMin50ps.rda")
+logMin50ps
+comdat <- as.data.frame(otu_table(logMin50ps))
+write.csv(comdat, file="/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/comdat.csv")
+############
+
+## back in python
+
+comData = pd.read_csv("/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/comdat.csv", index_col=0)
+
+comData.drop([ "C1.1", "C1.2", "C2.1", "C2.2"], inplace=True)
+
+comData.head()
+
+## the map below looks funny...looks like every forest plot has 
+## a grassland under it...
+
+dupsFilter = envData.Latitude.duplicated()
+dupped = envData[dupsFilter].sort_values(by="Latitude")
+
+dupped.groupby('Plot.ID').nunique()
+
+envData.iloc[0:5,0:8]
+
+## nope...looks okay
+
+## we want a geodf...
+
+plotPoints = gpd.points_from_xy( envData.Longitude, envData.Latitude, crs="EPSG:4326" )
+
+sulariPlotsDF = gpd.GeoDataFrame(envData[[ 'PlotID', 'soil_respiration', 
+                    'MBC', 'season', 'Land_type', 'pH', 'N', 'C']], geometry=plotPoints)
+
+## to convert to UTM? looks like we are in zone 33
+## looks like:
+## EPSG:32633
+
+sulariPlot_utm = sulariPlotsDF.to_crs('EPSG:32633')
+
+sulariPlot_utm.tail()
+
+## can we import our georeferenced tif of the study area?
+## lat/lon
+#fichtelMap = rasterio.open("studyAreaClipped_modified.tif")
+## UTM
+
+fichtelMap = rasterio.open("studyAreaClipped_UTM.tif")
+
+## color code our points according to land type?
+cdik={
+"Arableland":"b",
+"Grassland":"y",
+"Forest":"g",
+}
+sulariPlotsDF['landColors'] = [ cdik[i] for i in sulariPlotsDF['Land_type'] ]
+sulariPlot_utm['landColors'] = [ cdik[i] for i in sulariPlotsDF['Land_type'] ]
+
+fig, ax = plt.subplots()
+rasterio.plot.show(fichtelMap, ax=ax)
+sulariPlot_utm.plot(
+    marker="o",
+    ax=ax,
+    edgecolor='k',
 
 plot(x,y, las = 1)
 
@@ -2298,128 +2420,6 @@ x1 = rnorm(n)
 x2 = rnorm(n)
 XData = data.frame(x1=x1,x2=x2)
 alpha = c(0,0,0,0,0)
-beta1 = c(1,1,-1,-1,0)
-beta2 = c(1,-1,1,-1,0)
-sigma = c(1,1,1,1,1)
-
-L = matrix(NA,nrow=n,ncol=5)
-
-Y = matrix(NA,nrow=n,ncol=5)
-
-for (j in 1:5){
-L[,j] = alpha[j] + beta1[j]*x1 + beta2[j]*x2
-Y[,j] = L[,j] + rnorm(n, sd = sigma[j])
-}
-
-## build model
-
-m = Hmsc(Y = Y, XData = XData, XFormula = ~x1+x2)
-
-nChains = 2
-thin = 10
-samples = 1000
-transient = 500*thin
-verbose = 0
-
-m = sampleMcmc(m, thin = thin, samples = samples, transient = transient,
-               nChains = nChains, nParallel = nChains, verbose = verbose)
-
-mpost = convertToCodaObject(m)
-
-## check for convergence 
-effectiveSize(mpost$Beta)
-
-gelman.diag(mpost$Beta, multivariate=FALSE)$psrf
-## sample sizes should 
-
-par(mfrow=c(1,2))
-hist(effectiveSize(mpost$Beta), main="ess(beta)")
-hist(gelman.diag(mpost$Beta, multivariate=FALSE)$psrf, main="psrf(beta)")
-
-preds = computePredictedValues(m)
-
-evaluateModelFit(hM = m, predY = preds)
-
-partition = createPartition(m, nfolds = 2)
-
-preds = computePredictedValues(m, partition = partition, nParallel = nChains)
-
-evaluateModelFit(hM = m, predY = preds)
-
-postBeta = getPostEstimate(m, parName = "Beta")
-
-plotBeta(m, post = postBeta, param = "Support", supportLevel = 0.95)
-
-## so we can pick out the individual species response to environmental parameter
-## in a statistically sound way, no need for pvalue correction, etc.
-## this is a great improvement...
-
-### including species-species interations 
-
-## biotic interactions are included as latent variables in model, using 
-## a species-species covariance matrix
-
-studyDesign = data.frame(sample = as.factor(1:n))
-
-rL = HmscRandomLevel(units = studyDesign$sample)
-
-m = Hmsc(Y = Y, XData = XData, XFormula = ~x1+x2,
-      studyDesign = studyDesign, ranLevels = list(sample = rL))
-
-m = sampleMcmc(m, thin = thin, samples = samples, transient = transient,
-       nChains = nChains, nParallel = nChains, verbose = verbose)
-
-mpost = convertToCodaObject(m)
-
-par(mfrow=c(2,2))
-hist(effectiveSize(mpost$Beta), main="ess(beta)")
-hist(gelman.diag(mpost$Beta, multivariate=FALSE)$psrf, main="psrf(beta)")
-hist(effectiveSize(mpost$Omega[[1]]), main="ess(omega)")
-hist(gelman.diag(mpost$Omega[[1]], multivariate=FALSE)$psrf, main="psrf(omega)")
-
-postBeta = getPostEstimate(m, parName="Beta")
-plotBeta(m, post=postBeta, param="Support", supportLevel = 0.95)
-## you would expect these to be the same as above
-
-## and but now you also have a posterior for a latent variable 
-## that is describing species-species interactions
-
-OmegaCor = computeAssociations(m)
-supportLevel = 0.95
-toPlot = ((OmegaCor[[1]]$support>supportLevel)
-   + (OmegaCor[[1]]$support<(1-supportLevel))>0)*OmegaCor[[1]]$mean
-
-corrplot(toPlot, method = "color",
-         col = colorRampPalette(c("blue","white","red"))(200),
-         title = paste("random effect level:", m$rLNames[1]), mar=c(0,0,1,0))
-
-
-## and there is no correlation between species abundances,
-## because the data was not generated with any covariances
-## among the species abundances.
-
-## make a simpler model, drop one covariate...what happens?
-
-m = Hmsc(Y=Y, XData=XData, XFormula=~x1,
-         studyDesign=studyDesign, ranLevels=list(sample=rL))
-
-m = sampleMcmc(m, thin = thin, samples = samples, transient = transient,
-               nChains = nChains, nParallel = nChains, verbose = verbose)
-
-postBeta = getPostEstimate(m, parName="Beta")
-
-plotBeta(m, post=postBeta, param="Support", supportLevel = 0.95)
-
-OmegaCor = computeAssociations(m)
-
-?computeAssociations
-
-supportLevel = 0.95
-
-toPlot = ((OmegaCor[[1]]$support>supportLevel)
-         + (OmegaCor[[1]]$support<(1-supportLevel))>0)*OmegaCor[[1]]$mean
-
-corrplot(toPlot, method = "color",
          col=colorRampPalette(c("blue","white","red"))(200),
          title=paste("random effect level:", m$rLNames[1]), mar=c(0,0,1,0))
 
@@ -3109,121 +3109,121 @@ sudo bash arb_installubuntu4arb.sh
 ## 1. import alignment, keeping gaps (necessary? not sure)
 ## 2. go to "tree admin", import, change suffix seach to "nwk"
 
-library(phyloseq)
-library(vegan)
-library(Hmsc)
-library(corrplot)
-library(ape)
-library(MASS)
-library(fields) 
-library(knitr)
-
-setwd("/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis/")
-
-aa = ape::read.tree("sulariFastTree.nwk")
-
-plot(aa, show.tip.label = FALSE, no.margin = TRUE)
-
-## well, we can make an ape phylo object, and a nice looking tree
-## good sign. But to test this out, we need to get the 
-## community data into an HMSC model   
-## the asvs may cause problems.
-## check tomorrow or monday, I guess.
-
-## anyway, what's the point? The point is to find out if the 
-## respiration has a phylogenetic signal, beyond species 
-## level
-
-## so keep trying to adapt the tutorials with our data
-
-## review how they built their sim data:
-
-## for their species abundance, use matrix with rows as sites,
-## columns as species 
-
-## not sure, should we give the pseudocounts, or what?
-
-## honestly, I have no idea how the data are shaped 
-## after log transformation. 
-
-## the tutorial authors don't seem to care, funny. 
-## they mention that the Y in their example "might"
-## represent log transformed biomass. Not sure 
-## what that means for us. 
-
-## anyway, let's pretend it fits for us, keep moving.
-## they are using to numerical matrices, a community 
-## matrix and an environmental 
-
-XData = data.frame(climate = climate, habitat = habitat)
-
-XFormula = ~habitat + poly(climate,degree = 2,raw = TRUE)
-TrFormula = ~habitat.use + thermal.optimum
-studyDesign = data.frame(sample = sprintf('sample_%.3d',1:n), stringsAsFactors=TRUE)
-rL = HmscRandomLevel(units = studyDesign$sample)
-rL$nfMax = 15
-
-m = Hmsc(Y = Y, XData = XData, XFormula = XFormula,
-         TrData = traits, TrFormula = TrFormula,
-         phyloTree = phy,
-         studyDesign = studyDesign, ranLevels = list(sample = rL))
+## try everything out for a bit, then update yaml backup for the repo
 
 
-## our data:
-comData <- read.csv("../sulariData/comdat.csv", row.names=1)
-envData <- read.csv("sulariEnv.csv", row.names=1)
-notControls=!(row.names(comData) %in% c("C1.1", "C1.2", "C2.1", "C2.2"))
-comData = comData[notControls,]
-envData = envData[notControls,]
+conda activate spatialDirt 
 
-## they have a very simple set of environmental predictors
+python
 
-## I do not know if we can call this a zero-inflated dataset...
-## there are lots of zeros...but how do you test a massive
-## multivariate dataset like this?
+import pandas as pd
+import geopandas as gpd
+import matplotlib.pyplot as plt; plt.ion()
+import os, rasterio
+import rasterio.plot
+import scipy.spatial as sp
+from sklearn.linear_model import LinearRegression
+import numpy as np
+from scipy import stats
+from matplotlib.patches import Patch
+from matplotlib_scalebar.scalebar import ScaleBar
+import pymc as pm
 
-length(comData)
 
-dim(comData)
+spatDir="/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis"
+## ^different on laptop
+os.chdir(spatDir)
 
-120*4370 ## 524,400
-sum(comData > 0) ## 36,166
-sum(comData == 0) ## 488,234
-120*4370 ## 524,400
+## we just want a map of points right now:
 
-## so like 90% of our observations are zeros. 
-## of course we introduced a lot of these 
-## when we enforced a minimum abundance
+## on officeComp
+#sulariEnvCSV="/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/Envt_Matrix.csv"
+## on laptop
+#sulariEnvCSV="/home/daniel/Documents/projects/fichtelgebirge_project/sulariArneSoils/fichtelgebirgeSoils/sulariData/Envt_Matrix.csv"
 
-## I guess we treat zeros as missing values. 
-## how? 
+envData = pd.read_csv(sulariEnvCSV)
+## get rid of spaces
+envData.rename({"Sample ID":"SampleID"}, axis="columns", inplace=True)
+## we need to clean up the plot.ID. Sulari recorded season in the plot IDs,
+## using letter codes. Also she has one double sampling, with an underscore
+envData['Plot.ID'] = envData['Plot.ID'].str.slice(0,5)
 
-## let's check out their R scripts...
+## let's get rid of decimals in the names, weird for python work:
+envData.rename({"Plot.ID":"PlotID", 
+       "soil.respiration":"soil_respiration",
+              "Land.type":"Land_type"}, 
+                axis="columns", inplace=True)
+
+envData.head()
+
+## so we don't have to repeat:
+envData.to_csv('/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis/sulariEnv.csv', index=False)
+
+envData.head()
+
+
+envData = pd.read_csv('/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis/sulariEnv.csv', index_col='SampleID')
  
-threshold.prev = 0.1
-threshold.abu = 0.005
 
-dataDir="/home/daniel/Documents/projects/fichtelSoils/Odriozola_etal_2020/data"
+## if we need to drop controls
+envData.drop([ "C1.1", "C1.2", "C2.1", "C2.2"], inplace=True)
 
-Fungi <- read.csv(file.path(dataDir,"OtusFungi.csv"),header = TRUE,stringsAsFactors = F,sep=";")
-Fungi<-Fungi[,-1] 
-ny = dim(Fungi)[1]
+## her otu table is really large:
+##### R ###
+library('phyloseq')
+load("/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/sularilogMin50ps.rda")
+logMin50ps
+comdat <- as.data.frame(otu_table(logMin50ps))
+write.csv(comdat, file="/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/comdat.csv")
+############
 
-# Keep species meeting above established prevalence and abundance thresholds
+## back in python
 
-## here I think they create two community matrices, one presence
-## absence and one where zeros are treated as missing samples
-## the likelihood distribution for each species is then 
-## a mixture model of two distributions, one that tries
-## to model the creation of negative, non-observation 
-## zeroes as a limit of the sampling, and real zeroes 
-## that indicate rarity.  
+comData = pd.read_csv("/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/comdat.csv", index_col=0)
 
-Fungi.pa<-ifelse(Fungi>0,1,0)
-Fungi.rel<-Fungi/rep(rowSums(Fungi),times=length(Fungi))
+comData.drop([ "C1.1", "C1.2", "C2.1", "C2.2"], inplace=True)
 
-## subset the data a bit, to make it easier to deal with. 
+comData.head()
 
+## the map below looks funny...looks like every forest plot has 
+## a grassland under it...
+
+dupsFilter = envData.Latitude.duplicated()
+dupped = envData[dupsFilter].sort_values(by="Latitude")
+
+dupped.groupby('Plot.ID').nunique()
+
+envData.iloc[0:5,0:8]
+
+## nope...looks okay
+
+## we want a geodf...
+
+plotPoints = gpd.points_from_xy( envData.Longitude, envData.Latitude, crs="EPSG:4326" )
+
+sulariPlotsDF = gpd.GeoDataFrame(envData[[ 'PlotID', 'soil_respiration', 
+                    'MBC', 'season', 'Land_type', 'pH', 'N', 'C']], geometry=plotPoints)
+
+## to convert to UTM? looks like we are in zone 33
+## looks like:
+## EPSG:32633
+
+sulariPlot_utm = sulariPlotsDF.to_crs('EPSG:32633')
+
+sulariPlot_utm.tail()
+
+## can we import our georeferenced tif of the study area?
+## lat/lon
+#fichtelMap = rasterio.open("studyAreaClipped_modified.tif")
+## UTM
+
+fichtelMap = rasterio.open("studyAreaClipped_UTM.tif")
+
+## color code our points according to land type?
+cdik={
+"Arableland":"b",
+"Grassland":"y",
+"Forest":"g",
 ## they use a prevalence threshold of 10% of PA sums (0.1) or greater, throwing out other PA columns
 cond1=!(colSums(Fungi.pa)<=threshold.prev*ny)
 ## and only species contain at least one instance total relative abundance of 0.005 at a site
@@ -3364,123 +3364,123 @@ for (i in (ns+1):(2*ns)){
 }
 
 
-?sampleMcmc
-
-ceiling(0.4*samples*thin)
-
-m = sampleMcmc(m, samples = samples, thin=thin, adaptNf=ceiling(0.4*samples*thin), transient = ceiling(0.5*samples*thin), nChains = nChains, nParallel = 4,verbose=1)
-
-## seems to work. Can we set up something similar for our data?
-## first stab would be to ignore time and space and just include 
-## the environmental variables and time
-
-## we need to make sure the lab computer is set up:
-
-## on lab computer:
-library(Hmsc)
-library(phyloseq)
-library(vegan)
-library(corrplot)
-library(ape)
-library(MASS)
-library(fields) 
-library(knitr)
-
-## they worked from raw asv abundances, we'll
-## do the same.
-
-## that means sulari's original phyloseq object:
-
-load("../sulariData/sulariPhyloseqObject.rda")
-psNoControl = prune_samples(!(rownames(sample_data(ps)) %in% c("C1.1","C1.2","C2.1","C2.2")), ps)
-## remove species that are now zero
-psNoControl = prune_taxa( colSums(otu_table(psNoControl)) > 0, psNoControl)
-
-row.names(otu_table(psNoControl))
-
-dim(otu_table(psNoControl))
-
-bactRaw <- otu_table(psNoControl)@.Data
+## try everything out for a bit, then update yaml backup for the repo
 
 
-## make pa matrix
-bact.pa<-ifelse(bactRaw>0,1,0)
+conda activate spatialDirt 
+
+python
+
+import pandas as pd
+import geopandas as gpd
+import matplotlib.pyplot as plt; plt.ion()
+import os, rasterio
+import rasterio.plot
+import scipy.spatial as sp
+from sklearn.linear_model import LinearRegression
+import numpy as np
+from scipy import stats
+from matplotlib.patches import Patch
+from matplotlib_scalebar.scalebar import ScaleBar
+import pymc as pm
 
 
-## I think this needs help
-## do an element-wise multiplication
-rowsumsInv = 1/rowSums(bactRaw)
-nASVs <- dim(bactRaw)[2]
-scaleMat = matrix( rep(rowsumsInv, nASVs), ncol =nASVs)
-bact.rel <- bactRaw * scaleMat
-## sanity check
-bactRaw[1:5,1:5]
-bact.rel[1:5,1:5]
+spatDir="/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis"
+## ^different on laptop
+os.chdir(spatDir)
 
-## check some ASVs
-20/sum(bactRaw[1,])
-241/sum(bactRaw[2,]) 
-## looks sane
+## we just want a map of points right now:
+
+## on officeComp
+#sulariEnvCSV="/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/Envt_Matrix.csv"
+## on laptop
+#sulariEnvCSV="/home/daniel/Documents/projects/fichtelgebirge_project/sulariArneSoils/fichtelgebirgeSoils/sulariData/Envt_Matrix.csv"
+
+envData = pd.read_csv(sulariEnvCSV)
+## get rid of spaces
+envData.rename({"Sample ID":"SampleID"}, axis="columns", inplace=True)
+## we need to clean up the plot.ID. Sulari recorded season in the plot IDs,
+## using letter codes. Also she has one double sampling, with an underscore
+envData['Plot.ID'] = envData['Plot.ID'].str.slice(0,5)
+
+## let's get rid of decimals in the names, weird for python work:
+envData.rename({"Plot.ID":"PlotID", 
+       "soil.respiration":"soil_respiration",
+              "Land.type":"Land_type"}, 
+                axis="columns", inplace=True)
+
+envData.head()
+
+## so we don't have to repeat:
+envData.to_csv('/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis/sulariEnv.csv', index=False)
+
+envData.head()
 
 
-## let's use their thresholds.
-## we'll need to check these later on our positive controls
+envData = pd.read_csv('/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis/sulariEnv.csv', index_col='SampleID')
+ 
 
-#threshold.prev = 0.1 ## present in at least 10% of samples?
-threshold.prev = 0.02 ## present in at least 2% of samples?
-threshold.abu = 0.001 ## only OTU that reaches at least 0.1% abundance of one sample
+## if we need to drop controls
+envData.drop([ "C1.1", "C1.2", "C2.1", "C2.2"], inplace=True)
 
-ny = dim(bactRaw)[1]
+## her otu table is really large:
+##### R ###
+library('phyloseq')
+load("/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/sularilogMin50ps.rda")
+logMin50ps
+comdat <- as.data.frame(otu_table(logMin50ps))
+write.csv(comdat, file="/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/comdat.csv")
+############
 
-cond1=!(colSums(bact.pa)<=threshold.prev*ny) ## present in at least n% of samples?
-cond2=apply(bact.rel,2,max)>=threshold.abu ## in at least one sample, abundance reaches m%
-bactData <- bactRaw[,cond1 & cond2]
+## back in python
 
-Y = bactData
-ny = dim(Y)[1]
-ns = dim(Y)[2]
+comData = pd.read_csv("/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/comdat.csv", index_col=0)
 
-dim(bactRaw)
-dim(Y)
+comData.drop([ "C1.1", "C1.2", "C2.1", "C2.2"], inplace=True)
 
-dim(bactData) ## with 0.02 and 0.0001 we are down to 2900 asvs. Really strict. In the future, relax condition1
+comData.head()
 
-bactData[1:5,1:5] 
-Y[1:5,1:5] ## this includes ASV1, which is probably spurious. Ugh.
+## the map below looks funny...looks like every forest plot has 
+## a grassland under it...
 
-## do the ordinations looks similar?
+dupsFilter = envData.Latitude.duplicated()
+dupped = envData[dupsFilter].sort_values(by="Latitude")
 
-## first get a model running, see how long it takes
+dupped.groupby('Plot.ID').nunique()
 
-## environmental covariates (XData matrix) and read depth
+envData.iloc[0:5,0:8]
 
-## for first model run, ignore spatial and temporal aspects of data
-## and check effect of read depth?
+## nope...looks okay
 
-dataDir="/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis"
-Env <- read.csv(file.path(dataDir,"sulariEnv.csv"), row.names="SampleID")
-Env <- Env[!(rownames(Env) %in% c("C1.1","C1.2","C2.1","C2.2")),]
-BacteriaDepth<-log(rowSums(bactRaw))
+## we want a geodf...
 
-#c("PlotID","Date","soil_respiration","srpuc","MBC","season","Land_type","pH","N","C","CNR","Temperature","Moisture","Latitude","Longitude")
-varsOfInterest = c("soil_respiration","Land_type","pH","N","C","Temperature","Moisture")
-XData<-data.frame(Env[,varsOfInterest],BacteriaDepth)
-XData[,-2]=scale(XData[,-2])
-XData$Land_type <- as.factor(XData$Land_type)
+plotPoints = gpd.points_from_xy( envData.Longitude, envData.Latitude, crs="EPSG:4326" )
 
-## sanity check:
-head(Env[,varsOfInterest])
-head(XData)
-View(XData)
-## looks okay
+sulariPlotsDF = gpd.GeoDataFrame(envData[[ 'PlotID', 'soil_respiration', 
+                    'MBC', 'season', 'Land_type', 'pH', 'N', 'C']], geometry=plotPoints)
 
-## we'll do the hurdle model, with one PA and on relative abundance, log-transformed
+## to convert to UTM? looks like we are in zone 33
+## looks like:
+## EPSG:32633
 
-Yabu <- Y
-Yabu[Y==0] <- NA
-Yabu = log(Yabu) ## take log of abundances. They basically decided on the same transformations as Sulari and I.
+sulariPlot_utm = sulariPlotsDF.to_crs('EPSG:32633')
 
-## but here they do further transformations? they scale the data, center it on the mean and divide
+sulariPlot_utm.tail()
+
+## can we import our georeferenced tif of the study area?
+## lat/lon
+#fichtelMap = rasterio.open("studyAreaClipped_modified.tif")
+## UTM
+
+fichtelMap = rasterio.open("studyAreaClipped_UTM.tif")
+
+## color code our points according to land type?
+cdik={
+"Arableland":"b",
+"Grassland":"y",
+"Forest":"g",
+}
+sulariPlotsDF['landColors'] = [ cdik[i] for i in sulariPlotsDF['Land_type'] ]
 ## by the square of the variance...this is pretty transformed data by the end of it all
 
 ## I think this is just a z-score standardization
@@ -4304,134 +4304,134 @@ otu_table(ps)[,bactOfInt]
 ## for agglomerating back the tips
 
 ## how do abundances etc look now? 
+## try everything out for a bit, then update yaml backup for the repo
 
-c2.1ASVs <- c("ASV29","ASV39","ASV43","ASV62","ASV70","ASV86","ASV78","ASV200","ASV244","ASV275","ASV365","ASV943")
 
-otu_table(ps)[,c2.1ASVs]
+conda activate spatialDirt 
 
-otu_table(cc)[,c2.1ASVs]
+python
 
-## lost some...
-for (i in c2.1ASVs){
-  print(i)
-  print(otu_table(cc)[,i])
-} ## just ASV943, franconibacter
+import pandas as pd
+import geopandas as gpd
+import matplotlib.pyplot as plt; plt.ion()
+import os, rasterio
+import rasterio.plot
+import scipy.spatial as sp
+from sklearn.linear_model import LinearRegression
+import numpy as np
+from scipy import stats
+from matplotlib.patches import Patch
+from matplotlib_scalebar.scalebar import ScaleBar
+import pymc as pm
 
-## yup, the other franconibacter ASV has dissappeared: 
-otu_table(bb)[,"ASV943"] 
-otu_table(cc)[,"ASV943"] 
-## I think that is a good sign.
 
-## work with just the big ones:
-mcBiggest <- c("ASV29","ASV39","ASV43","ASV62","ASV70","ASV86","ASV78","ASV200")
-for (i in mcBiggest){
-  print(i)
-  print(otu_table(cc)[,i])
+spatDir="/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis"
+## ^different on laptop
+os.chdir(spatDir)
+
+## we just want a map of points right now:
+
+## on officeComp
+#sulariEnvCSV="/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/Envt_Matrix.csv"
+## on laptop
+#sulariEnvCSV="/home/daniel/Documents/projects/fichtelgebirge_project/sulariArneSoils/fichtelgebirgeSoils/sulariData/Envt_Matrix.csv"
+
+envData = pd.read_csv(sulariEnvCSV)
+## get rid of spaces
+envData.rename({"Sample ID":"SampleID"}, axis="columns", inplace=True)
+## we need to clean up the plot.ID. Sulari recorded season in the plot IDs,
+## using letter codes. Also she has one double sampling, with an underscore
+envData['Plot.ID'] = envData['Plot.ID'].str.slice(0,5)
+
+## let's get rid of decimals in the names, weird for python work:
+envData.rename({"Plot.ID":"PlotID", 
+       "soil.respiration":"soil_respiration",
+              "Land.type":"Land_type"}, 
+                axis="columns", inplace=True)
+
+envData.head()
+
+## so we don't have to repeat:
+envData.to_csv('/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis/sulariEnv.csv', index=False)
+
+envData.head()
+
+
+envData = pd.read_csv('/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis/sulariEnv.csv', index_col='SampleID')
+ 
+
+## if we need to drop controls
+envData.drop([ "C1.1", "C1.2", "C2.1", "C2.2"], inplace=True)
+
+## her otu table is really large:
+##### R ###
+library('phyloseq')
+load("/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/sularilogMin50ps.rda")
+logMin50ps
+comdat <- as.data.frame(otu_table(logMin50ps))
+write.csv(comdat, file="/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/comdat.csv")
+############
+
+## back in python
+
+comData = pd.read_csv("/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/comdat.csv", index_col=0)
+
+comData.drop([ "C1.1", "C1.2", "C2.1", "C2.2"], inplace=True)
+
+comData.head()
+
+## the map below looks funny...looks like every forest plot has 
+## a grassland under it...
+
+dupsFilter = envData.Latitude.duplicated()
+dupped = envData[dupsFilter].sort_values(by="Latitude")
+
+dupped.groupby('Plot.ID').nunique()
+
+envData.iloc[0:5,0:8]
+
+## nope...looks okay
+
+## we want a geodf...
+
+plotPoints = gpd.points_from_xy( envData.Longitude, envData.Latitude, crs="EPSG:4326" )
+
+sulariPlotsDF = gpd.GeoDataFrame(envData[[ 'PlotID', 'soil_respiration', 
+                    'MBC', 'season', 'Land_type', 'pH', 'N', 'C']], geometry=plotPoints)
+
+## to convert to UTM? looks like we are in zone 33
+## looks like:
+## EPSG:32633
+
+sulariPlot_utm = sulariPlotsDF.to_crs('EPSG:32633')
+
+sulariPlot_utm.tail()
+
+## can we import our georeferenced tif of the study area?
+## lat/lon
+#fichtelMap = rasterio.open("studyAreaClipped_modified.tif")
+## UTM
+
+fichtelMap = rasterio.open("studyAreaClipped_UTM.tif")
+
+## color code our points according to land type?
+cdik={
+"Arableland":"b",
+"Grassland":"y",
+"Forest":"g",
 }
+sulariPlotsDF['landColors'] = [ cdik[i] for i in sulariPlotsDF['Land_type'] ]
+sulariPlot_utm['landColors'] = [ cdik[i] for i in sulariPlotsDF['Land_type'] ]
 
-otu_table(cc)[,mcBiggest]
+fig, ax = plt.subplots()
+rasterio.plot.show(fichtelMap, ax=ax)
+sulariPlot_utm.plot(
+    marker="o",
+    ax=ax,
+    edgecolor='k',
+    facecolor=sulariPlotsDF['landColors'],
+    markersize=400) 
 
-otu_table(bb)[,mcBiggest]
-
-## check abundances 
-
-par(mfrow=c(2,1))
-rankAb(ps,"C1.1", ylimit=5000, ntax=30)
-rankAb(cc,"C1.1", ylimit=5000, ntax=30)
-par(mfrow=c(1,1))
-## main difference again is the merging of the two E. coli asvs
-
-par(mfrow=c(2,1))
-rankAb(ps,"C2.1", ylimit=10000, ntax=30)
-rankAb(cc,"C2.1", ylimit=10000, ntax=30)
-par(mfrow=c(1,1))
-
-## check ecological samples:
-
-par(mfrow=c(2,1))
-rankAb(ps,"S2", ylimit=1000, ntax=30)
-rankAb(bb,"S2", ylimit=1000, ntax=30)
-par(mfrow=c(1,1))
-
-#samp="S2"
-#samp="C1.1"
-samp="S12"
-sortOTUs <- sort(otu_table(bb)@.Data[samp,], decreasing=TRUE)
-filt = sortOTUs > 0
-sortOTUs <- sortOTUs[filt]
-tax_table(ps)[names(sortOTUs[1:4]),]
-par(mfrow=c(2,1))
-rankAb(ps,"S12", ylimit=1000, ntax=30)
-rankAb(bb,"S12", ylimit=1000, ntax=30)
-par(mfrow=c(1,1))
-tax_table(ps)[names(sortOTUs[1:30]),]
-
-## same error profile as before agglomeration.
-## great, shouldn't make too much of difference, 
-## can use the same down stream pipelines
-
-## the Candidatus udaeobacter OTUs are split. 
-## Do we have to accept this? 
-
-## is it possible to merge all these Udeabacters into just one otu?
-
-?merge_taxa
-
-data(esophagus)
-
-tree <- phy_tree(esophagus)
-otu  <- otu_table(esophagus)
-otutree0 <- phyloseq(otu, tree)
-otutree1 <- merge_taxa(otutree0, 1:8, 2)
-
-
-plot_tree(otutree0)
-
-dev.new()
-plot_tree(otutree1)
-
-plot_tree(esophagus, ladderize="left")
-
-
-sum(!is.na(genera)) ## most of our OTUs are not identified to genus...
-
-head(tax_table(ps))
-
-tax_table(ps)@.Data['ASV3180',]
-
-#bb <- tip_glom(ps, h=0.005) 
-
-genera <- tax_table(bb)@.Data[,'Genus']
-filtUdaeo <- genera == "Candidatus Udaeobacter"
-filtUdaeo[is.na(filtUdaeo)]  <- FALSE
-sum(filtUdaeo) ## 36 ASVs blast to Udeaobacter
-udaeoASVs <- names(genera[filtUdaeo])
-ee <- merge_taxa(bb, udaeoASVs, 1)
-
-
-par(mfrow=c(2,1))
-rankAb(bb,"S12", ylimit=1000, ntax=30)
-rankAb(ee,"S12", ylimit=1000, ntax=30)
-par(mfrow=c(1,1))
-
-## so merge tips back till we get a clean MC, remove ASV1, merge Udaeos, enforce a minimum cutoff, log transform. 
-## anything else?
-
-psControls = prune_samples((rownames(sample_data(ps)) %in% c("C1.1","C1.2","C2.1","C2.2")), ps)
-psControls = prune_taxa( colSums(otu_table(psControls)) > 0, psControls)
-
-plot_tree(psControls, label.tips="taxa_names", color="Plot.ID", size="abundance", title="original Mock Community")
-
-plot_tree(dd, label.tips="Genus", color="Plot.ID", size="abundance", title="original Mock Community and E. coli")
-
-## so clean up the notebook, and start again with the models. I think we can pretty much 
-## follow Tinkhonov 2019 and 2022, they do almost exactly what we want to do. 
-## use the hurdle models from the 2022 paper, better for microbial data
-
-## so, back onto the model building as above. As before, let's try without seasonal effects, it's simpler. 
-
-## this model would have 
-## environmental predictors, phylogeny, spatial patterns, species interactions. 
 
 ## first step, fill in the moisture data holes. Betty found this information today...
 ## done
@@ -4761,136 +4761,136 @@ any(duplicated(envSpatData[,c('xxJit','yyJit')]))
 
 xyJit = envSpatData[,c('xxJit','yyJit')]
 rownames(xyJit) <- NULL
-colnames(xyJit) <- c('x','y')
-mx <- min(xyJit[,1])
-my <- min(xyJit[,2])
-xyJit00 <- cbind(xyJit[,1] - mx, aa[,2] - my)
-
-s.label(xyJit00, ppoint.pch = 15, ppoint.col = "darkseagreen4")
-
-## looks good, save this, reuse to keep things constant
-save(xyJit00, file="xyJit00.rda")
-
-load(file="xyJit00.rda")
-
-## now keep moving down the pipe
-
-## let's try using their GUI tool for exploring neighborhoods, etc
+## try everything out for a bit, then update yaml backup for the repo
 
 
-listw.explore()
+conda activate spatialDirt 
 
-?nb2listw
+python
 
-?listw.explore
-
-?chooseCN
-
-## as before, is a choice between dalauney triangulation and 
-## gabriel algorithm for graph construction. Because I
-## jittered plots, I'm going to go for delauney. I don't 
-## want real neighbors cut up by the artificial "neighbors"
-## jittered points. Not sure if this is the right approach,
-## but seems like more neighbor options are better.
-
-## as far as neighbor weighting, I guess use "W" option,
-## which I think standardizes the weights by row in the
-## neighbor matrix, it generates the widest variation in
-## values, seems good. 
-
-## that means the following code to generate neighborhood
-## matrix and weights:
-
-nb <- chooseCN(coordinates(xyJit00), type = 1, plot.nb = FALSE)
-lw <- nb2listw(nb, style = 'S', zero.policy = TRUE)
-
-print(listw2mat(lw)[1:10, 1:10], digits = 3)
-
-print(listw2mat(lw)[1:20, 1:10], digits = 3)
-
-## interestingly, they have an automated selection method for this,
-## section 6.2 in the dray writeup, try this later:
-sel.lw <- listw.select(pca.hell$tab, candidates = cand.lw, nperm = 99)
-
-## we can refine this a bit after presentation on tuesday,
-## maybe weight neighbors by distance, etc.
-## but hopefully just not use this approach, figure out 
-## a memory efficient solution for HMSC with spatial latent
-## variables.. 
-
-## for now, try mems:
-
-mems <- mem(lw)
-
-barplot(attr(mems, "values"), 
-        main = "Eigenvalues of the spatial weighting matrix", cex.main = 0.7)
-
-plot(mems[,c(1, 5, 10, 20, 30, 40, 50, 60, 70)], SpORcoords = xyJit00)
-
-dev.new()
-
-plot(mems[,c(1:12)], SpORcoords = xyJit00)
-
-dev.new()
-plot(mems[,c(13:24)], SpORcoords = xyJit00)
-
-save(mems, file="mems.rda")
-
-## this will work for now. Continue below
-
-## looks like we need to take care of the repeated plots.
-## can we average the species abundances at these?
-## or drop them? 
-
-## get repeated sites, in python:
-
-sulariEnvCSV="/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis/sulariEnv.csv"
-
-envData = pd.read_csv(sulariEnvCSV, index_col='SampleID')
-
-envData['PlotID'].unique()
-
-repFilt = envData['PlotID'].duplicated(keep=False)
-repeatedPlots = envData[repFilt].sort_values(by="PlotID")
-
-len(repeatedPlots["PlotID"].unique()) ## there are ten plots that were repeated through time
-
-repeatedPlots["PlotID"].unique() ## there are ten plots that were repeated through time
+import pandas as pd
+import geopandas as gpd
+import matplotlib.pyplot as plt; plt.ion()
+import os, rasterio
+import rasterio.plot
+import scipy.spatial as sp
+from sklearn.linear_model import LinearRegression
+import numpy as np
+from scipy import stats
+from matplotlib.patches import Patch
+from matplotlib_scalebar.scalebar import ScaleBar
+import pymc as pm
 
 
-repeatedPlots.head()
+spatDir="/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis"
+## ^different on laptop
+os.chdir(spatDir)
+
+## we just want a map of points right now:
+
+## on officeComp
+#sulariEnvCSV="/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/Envt_Matrix.csv"
+## on laptop
+#sulariEnvCSV="/home/daniel/Documents/projects/fichtelgebirge_project/sulariArneSoils/fichtelgebirgeSoils/sulariData/Envt_Matrix.csv"
+
+envData = pd.read_csv(sulariEnvCSV)
+## get rid of spaces
+envData.rename({"Sample ID":"SampleID"}, axis="columns", inplace=True)
+## we need to clean up the plot.ID. Sulari recorded season in the plot IDs,
+## using letter codes. Also she has one double sampling, with an underscore
+envData['Plot.ID'] = envData['Plot.ID'].str.slice(0,5)
+
+## let's get rid of decimals in the names, weird for python work:
+envData.rename({"Plot.ID":"PlotID", 
+       "soil.respiration":"soil_respiration",
+              "Land.type":"Land_type"}, 
+                axis="columns", inplace=True)
+
+envData.head()
+
+## so we don't have to repeat:
+envData.to_csv('/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis/sulariEnv.csv', index=False)
+
+envData.head()
 
 
-repeatedPlots['season'].hist()
+envData = pd.read_csv('/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis/sulariEnv.csv', index_col='SampleID')
+ 
 
-envData['season'].hist()
+## if we need to drop controls
+envData.drop([ "C1.1", "C1.2", "C2.1", "C2.2"], inplace=True)
 
-'P0103': ['S11', 'S53', 'S88', 'S105']
-'P0104': ['S1', 'S54', 'S103']
+## her otu table is really large:
+##### R ###
+library('phyloseq')
+load("/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/sularilogMin50ps.rda")
+logMin50ps
+comdat <- as.data.frame(otu_table(logMin50ps))
+write.csv(comdat, file="/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/comdat.csv")
+############
 
-repeatedPlots.loc['S11']
-repeatedPlots.loc['S53']
+## back in python
 
-repeatedPlots.loc['S1']
+comData = pd.read_csv("/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/comdat.csv", index_col=0)
 
-envData.loc['S1']
+comData.drop([ "C1.1", "C1.2", "C2.1", "C2.2"], inplace=True)
 
-repeatedPlots.loc['S54']
+comData.head()
 
-## this brings up the general question of time. We can follow sulari's lead on 
-## on the season as a categorical factor in general model for the moment, 
-## but I think we need a better solution in the long run, based on date. 
+## the map below looks funny...looks like every forest plot has 
+## a grassland under it...
 
-## perhaps best to examine the ten plots that were repeated through time, 
-## model species reactions to seasonality as a trait. 
+dupsFilter = envData.Latitude.duplicated()
+dupped = envData[dupsFilter].sort_values(by="Latitude")
 
-## okay. but we need a quick and dirty for this week. Averages...
+dupped.groupby('Plot.ID').nunique()
+
+envData.iloc[0:5,0:8]
+
+## nope...looks okay
+
+## we want a geodf...
+
+plotPoints = gpd.points_from_xy( envData.Longitude, envData.Latitude, crs="EPSG:4326" )
+
+sulariPlotsDF = gpd.GeoDataFrame(envData[[ 'PlotID', 'soil_respiration', 
+                    'MBC', 'season', 'Land_type', 'pH', 'N', 'C']], geometry=plotPoints)
+
+## to convert to UTM? looks like we are in zone 33
+## looks like:
+## EPSG:32633
+
+sulariPlot_utm = sulariPlotsDF.to_crs('EPSG:32633')
+
+sulariPlot_utm.tail()
+
+## can we import our georeferenced tif of the study area?
+## lat/lon
+#fichtelMap = rasterio.open("studyAreaClipped_modified.tif")
+## UTM
+
+fichtelMap = rasterio.open("studyAreaClipped_UTM.tif")
+
+## color code our points according to land type?
+cdik={
+"Arableland":"b",
+"Grassland":"y",
+"Forest":"g",
+}
+sulariPlotsDF['landColors'] = [ cdik[i] for i in sulariPlotsDF['Land_type'] ]
+sulariPlot_utm['landColors'] = [ cdik[i] for i in sulariPlotsDF['Land_type'] ]
+
+fig, ax = plt.subplots()
+rasterio.plot.show(fichtelMap, ax=ax)
+sulariPlot_utm.plot(
+    marker="o",
+    ax=ax,
+    edgecolor='k',
+    facecolor=sulariPlotsDF['landColors'],
+    markersize=400) 
 
 
-repeatedPlots.head()
-
-envData['season'].hist()
-
+grassPatch = Patch(color='y', label='grassland',)
 help(envData[repFilt].sort_values)
 
 dir(envData[repFilt])
@@ -5382,148 +5382,148 @@ m = Hmsc(Y=Y,
          studyDesign=studyDesign, 
          phyloTree=phy_tree(psCleanedUp),
          ranLevels={list("sample"=rL.sample, "site_spatial" = rL.site_spatial)})
+## try everything out for a bit, then update yaml backup for the repo
 
 
-## try running this:
+conda activate spatialDirt 
 
-thin = 1
-samples = 1000
-nChains = 1
-nP = 1
-print(paste("start time is", Sys.time()))
-m = sampleMcmc(m, samples = samples, thin=thin, adaptNf=ceiling(0.4*samples*thin), transient = ceiling(0.5*samples*thin), nChains = nChains, nParallel = nP,verbose=1)
+python
 
-save(m, file="hmscSpatialmodel_sampled.rds")
-print(paste("finish time is", Sys.time()))
-
-## this dies, goes over memory limits (120gig)
-
-## so, what now? 
-## try using PCNMs as a separate variable 
-## 
-
+import pandas as pd
+import geopandas as gpd
+import matplotlib.pyplot as plt; plt.ion()
+import os, rasterio
+import rasterio.plot
+import scipy.spatial as sp
+from sklearn.linear_model import LinearRegression
+import numpy as np
+from scipy import stats
+from matplotlib.patches import Patch
+from matplotlib_scalebar.scalebar import ScaleBar
+import pymc as pm
 
 
+spatDir="/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis"
+## ^different on laptop
+os.chdir(spatDir)
 
-########################################################################
-## here is a toy example from https://github.com/hmsc-r/HMSC/issues/49
+## we just want a map of points right now:
 
-library(MASS)
+## on officeComp
+#sulariEnvCSV="/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/Envt_Matrix.csv"
+## on laptop
+#sulariEnvCSV="/home/daniel/Documents/projects/fichtelgebirge_project/sulariArneSoils/fichtelgebirgeSoils/sulariData/Envt_Matrix.csv"
 
-rm(list=ls())
+envData = pd.read_csv(sulariEnvCSV)
+## get rid of spaces
+envData.rename({"Sample ID":"SampleID"}, axis="columns", inplace=True)
+## we need to clean up the plot.ID. Sulari recorded season in the plot IDs,
+## using letter codes. Also she has one double sampling, with an underscore
+envData['Plot.ID'] = envData['Plot.ID'].str.slice(0,5)
 
-ns = 2
-n = 100
-n_sites = 10
-beta1 = c(-1,1)
-alpha = rep(0,ns)
-beta = cbind(alpha,beta1)
-x = cbind(rep(1,n),rnorm(n))
-Lf = x%*%t(beta)
-plot_coords = matrix(runif(2*n_sites), ncol = 2)
-rownames(plot_coords) = paste0("site_", letters[seq(1:n_sites)])
-xycoords = matrix(rep(t(plot_coords),10),ncol=2, byrow = T)
-sigma.spatial = c(2)
-alpha.spatial = c(0.35)
-Sigma = sigma.spatial^2*exp(-as.matrix(dist(xycoords))/alpha.spatial)
-eta1 = mvrnorm(mu=rep(0,n), Sigma=Sigma)
-lambda1 = c(1,2)
-Lr = eta1%*%t(lambda1)
-L = Lf + Lr
-yprob = 1*((L +matrix(rnorm(n*ns),ncol=ns))>0)
-XData = data.frame(x1=x[,2])
+## let's get rid of decimals in the names, weird for python work:
+envData.rename({"Plot.ID":"PlotID", 
+       "soil.respiration":"soil_respiration",
+              "Land.type":"Land_type"}, 
+                axis="columns", inplace=True)
 
-studyDesign = data.frame(
-    sample = as.factor(paste0("sample_", seq(1:n))),
-    site_spatial = as.factor(
-        rep( paste0("site_", letters[seq(1:n_sites)]), 10)
-    )
+envData.head()
+
+## so we don't have to repeat:
+envData.to_csv('/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis/sulariEnv.csv', index=False)
+
+envData.head()
+
+
+envData = pd.read_csv('/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis/sulariEnv.csv', index_col='SampleID')
+ 
+
+## if we need to drop controls
+envData.drop([ "C1.1", "C1.2", "C2.1", "C2.2"], inplace=True)
+
+## her otu table is really large:
+##### R ###
+library('phyloseq')
+load("/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/sularilogMin50ps.rda")
+logMin50ps
+comdat <- as.data.frame(otu_table(logMin50ps))
+write.csv(comdat, file="/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/comdat.csv")
+############
+
+## back in python
+
+comData = pd.read_csv("/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/comdat.csv", index_col=0)
+
+comData.drop([ "C1.1", "C1.2", "C2.1", "C2.2"], inplace=True)
+
+comData.head()
+
+## the map below looks funny...looks like every forest plot has 
+## a grassland under it...
+
+dupsFilter = envData.Latitude.duplicated()
+dupped = envData[dupsFilter].sort_values(by="Latitude")
+
+dupped.groupby('Plot.ID').nunique()
+
+envData.iloc[0:5,0:8]
+
+## nope...looks okay
+
+## we want a geodf...
+
+plotPoints = gpd.points_from_xy( envData.Longitude, envData.Latitude, crs="EPSG:4326" )
+
+sulariPlotsDF = gpd.GeoDataFrame(envData[[ 'PlotID', 'soil_respiration', 
+                    'MBC', 'season', 'Land_type', 'pH', 'N', 'C']], geometry=plotPoints)
+
+## to convert to UTM? looks like we are in zone 33
+## looks like:
+## EPSG:32633
+
+sulariPlot_utm = sulariPlotsDF.to_crs('EPSG:32633')
+
+sulariPlot_utm.tail()
+
+## can we import our georeferenced tif of the study area?
+## lat/lon
+#fichtelMap = rasterio.open("studyAreaClipped_modified.tif")
+## UTM
+
+fichtelMap = rasterio.open("studyAreaClipped_UTM.tif")
+
+## color code our points according to land type?
+cdik={
+"Arableland":"b",
+"Grassland":"y",
+"Forest":"g",
+}
+sulariPlotsDF['landColors'] = [ cdik[i] for i in sulariPlotsDF['Land_type'] ]
+sulariPlot_utm['landColors'] = [ cdik[i] for i in sulariPlotsDF['Land_type'] ]
+
+fig, ax = plt.subplots()
+rasterio.plot.show(fichtelMap, ax=ax)
+sulariPlot_utm.plot(
+    marker="o",
+    ax=ax,
+    edgecolor='k',
+    facecolor=sulariPlotsDF['landColors'],
+    markersize=400) 
+
+
+grassPatch = Patch(color='y', label='grassland',)
+forestPatch = Patch(color='g', label='forest')
+farmPatch = Patch(color='b', label='arable land')
+ax.legend(handles=[grassPatch, forestPatch, farmPatch], 
+          loc="lower left",
+          fontsize=15,
 )
 
-## which looks like (head):
+## if we want to compare just grassland and forest
 
-dim(studyDesign) ## 100 by 2, 100 samples, ours should be 120 by 2
-
-head(studyDesign)
-
-    sample site_spatial
-1 sample_1       site_a
-2 sample_2       site_b
-3 sample_3       site_c
-4 sample_4       site_d
-5 sample_5       site_e
-6 sample_6       site_f
-...
-95   sample_95       site_e
-96   sample_96       site_f
-97   sample_97       site_g
-98   sample_98       site_h
-99   sample_99       site_i
-100 sample_100       site_j
-
-rL.sample = HmscRandomLevel(units = paste0("sample_", seq(1:n)))
-
-## which looks like:
-
-rL.site_spatial = HmscRandomLevel(sData = plot_coords)
-
-## which looks like:
-            [,1]       [,2]
-site_a 0.1533385 0.05689525
-site_b 0.9485424 0.08859974
-site_c 0.8016374 0.43091557
-site_d 0.2752457 0.95630063
-site_e 0.5197353 0.80467514
-site_f 0.8858256 0.92483165
-site_g 0.7704075 0.34082201
-site_h 0.4504045 0.18109548
-site_i 0.4305480 0.49546759
-site_j 0.1909298 0.87398519
->
-
-m.spatial = Hmsc(Y=yprob, XData=XData, XFormula=~x1,
-studyDesign=studyDesign, ranLevels=list("sample"=rL.sample, "site_spatial" = rL.site_spatial),distr="probit")
-
-m.spatial = sampleMcmc(m.spatial, thin = 1, samples = 10, transient = 5,
-                    nChains = 2, verbose = 0,updater=list(GammaEta=FALSE))
-
-## so it seems like for above, we need the sample level (sulari's sample names)
-## and a smaller spatial level, that takes just the unique locations
-
-## okay, so how to apply to our setup?
-
-## applied above, and failed, too much memory. So go forth with
-## MEMs as spatial variables, see if this helps...
-
-########################################################################
-
-## use MEMs as spatial variables to hopefully save some memory
-## defined above, line 4800 or so...
-
-library(ade4)
-library(adespatial)
-
-library(adespatial)
-
-library(ade4)
-
-library(sp)
-library(spdep)
-library(vegan)
-
-
-## to work the examples
-data("mafragh")
-
-## mems
-load(file="mems.rda")
-
-## community data
-
-## on local tower
-dataDir="/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/"
-
-## on lab server
+plt.close('all')
+onlyGrassForest = sulariPlot_utm[sulariPlot_utm['Land.type'].apply(lambda x: x in ["Forest", "Grassland"])]
+fig, ax = plt.subplots()
 dataDir="/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/sulariData/"
 
 comData <- read.csv(paste0(dataDir,"comdat.csv"), row.names=1)
@@ -5652,8 +5652,94 @@ BacteriaDepth<-log(rowSums(bactRaw))
 ## make pa matrix
 bact.pa<-ifelse(bactRaw>0,1,0)
 ## go to relative abundances
-rowsumsInv = 1/rowSums(bactRaw)
-nASVs <- dim(bactRaw)[2]
+## try everything out for a bit, then update yaml backup for the repo
+
+
+conda activate spatialDirt 
+
+python
+
+import pandas as pd
+import geopandas as gpd
+import matplotlib.pyplot as plt; plt.ion()
+import os, rasterio
+import rasterio.plot
+import scipy.spatial as sp
+from sklearn.linear_model import LinearRegression
+import numpy as np
+from scipy import stats
+from matplotlib.patches import Patch
+from matplotlib_scalebar.scalebar import ScaleBar
+import pymc as pm
+
+
+spatDir="/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis"
+## ^different on laptop
+os.chdir(spatDir)
+
+## we just want a map of points right now:
+
+## on officeComp
+#sulariEnvCSV="/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/Envt_Matrix.csv"
+## on laptop
+#sulariEnvCSV="/home/daniel/Documents/projects/fichtelgebirge_project/sulariArneSoils/fichtelgebirgeSoils/sulariData/Envt_Matrix.csv"
+
+envData = pd.read_csv(sulariEnvCSV)
+## get rid of spaces
+envData.rename({"Sample ID":"SampleID"}, axis="columns", inplace=True)
+## we need to clean up the plot.ID. Sulari recorded season in the plot IDs,
+## using letter codes. Also she has one double sampling, with an underscore
+envData['Plot.ID'] = envData['Plot.ID'].str.slice(0,5)
+
+## let's get rid of decimals in the names, weird for python work:
+envData.rename({"Plot.ID":"PlotID", 
+       "soil.respiration":"soil_respiration",
+              "Land.type":"Land_type"}, 
+                axis="columns", inplace=True)
+
+envData.head()
+
+## so we don't have to repeat:
+envData.to_csv('/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis/sulariEnv.csv', index=False)
+
+envData.head()
+
+
+envData = pd.read_csv('/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis/sulariEnv.csv', index_col='SampleID')
+ 
+
+## if we need to drop controls
+envData.drop([ "C1.1", "C1.2", "C2.1", "C2.2"], inplace=True)
+
+## her otu table is really large:
+##### R ###
+library('phyloseq')
+load("/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/sularilogMin50ps.rda")
+logMin50ps
+comdat <- as.data.frame(otu_table(logMin50ps))
+write.csv(comdat, file="/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/comdat.csv")
+############
+
+## back in python
+
+comData = pd.read_csv("/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/comdat.csv", index_col=0)
+
+comData.drop([ "C1.1", "C1.2", "C2.1", "C2.2"], inplace=True)
+
+comData.head()
+
+## the map below looks funny...looks like every forest plot has 
+## a grassland under it...
+
+dupsFilter = envData.Latitude.duplicated()
+dupped = envData[dupsFilter].sort_values(by="Latitude")
+
+dupped.groupby('Plot.ID').nunique()
+
+envData.iloc[0:5,0:8]
+
+## nope...looks okay
+
 scalarMat = matrix( rep(rowsumsInv, nASVs), ncol = nASVs)
 bact.rel <- bactRaw * scalarMat
 ## thresholds:
@@ -5760,92 +5846,6 @@ print(paste("start time is", Sys.time()))
 m0 = sampleMcmc(m0, samples = samples, thin=thin, adaptNf=ceiling(0.4*samples*thin), transient = ceiling(0.5*samples*thin), nChains = nChains, nParallel = nP,verbose=1)
 save(m0, file="m0_sampled.rds")
 print(paste("finish time is", Sys.time()))
-
-#####################################################
-
-nohup Rscript m0mcmcSample.R &> m0mcmcSample.log & 
-
-## and nope...
-## so, what now? 
-
-## maybe the issue is the number of OTUs. Let's try to 
-## back down to lower diversity numbers:
-
-soil
-conda activate r_env
-
-R
-library(Hmsc)
-library(phyloseq)
-library(ape)
-
-rm(list=ls())
-## merge the spatial and env data:
-xycoords = read.csv("sulariSpatial.csv", row.names=1)
-envData <- read.csv("sulariEnv.csv", row.names="SampleID")
-aa <- merge(x=envData, y=xycoords, by=0, )
-row.names(aa) <- aa$Row.names
-aa[1] <- NULL
-aa <- aa[rownames(envData),]
-envData <- aa; rm(aa)
-## this time, use our ps object with phylogeny and clustered OTUs:
-load("psCleanedUP.rda")
-psCleanedUp = prune_samples(!(rownames(sample_data(psCleanedUp)) %in% c("C1.1","C1.2","C2.1","C2.2")), psCleanedUp)
-## remove species that are now zero
-psCleanedUp = prune_taxa( colSums(otu_table(psCleanedUp)) > 0, psCleanedUp)
-bactRaw <- otu_table(psCleanedUp)@.Data
-## they include a term for sequencing depth
-BacteriaDepth<-log(rowSums(bactRaw))
-## make pa matrix
-bact.pa<-ifelse(bactRaw>0,1,0)
-## go to relative abundances
-rowsumsInv = 1/rowSums(bactRaw)
-nASVs <- dim(bactRaw)[2]
-scalarMat = matrix( rep(rowsumsInv, nASVs), ncol = nASVs)
-bact.rel <- bactRaw * scalarMat
-
-## sanity check
-bactRaw[1:5,1:5]
-bact.rel[1:5,1:5]
-## check some ASVs
-20/sum(bactRaw[1,])
-244/sum(bactRaw[3,]) 
-
-## looks sane
-
-## thresholds:
-threshold.prev = 0.02 ## present in at least 2% of samples?, so 3 samples?
-## try a secondary reduction in diversity, for memory purposes:
-threshold.abu = 0.005 ## only OTU that reaches at least 0.1% abundance of one sample
-ny = dim(bactRaw)[1]
-cond1=!(colSums(bact.pa)<=threshold.prev*ny) ## present in at least n% of samples? We lose ~300 OTUs with this
-cond2=apply(bact.rel,2,max)>=threshold.abu ## in at least one sample, abundance reaches m%
-bactData <- bactRaw[, cond1 & cond2 ] 
-################################################
-sum(bactData > 0)
-sum(bact.pa)
-dim(bactData)
-dim(bact.pa)
-
-Y <- bactData
-ny <- dim(Y)[1]
-ns <- dim(Y)[2]
-BacteriaDepth<-log(rowSums(bactRaw))
-varsOfInterest = c("PlotID","soil_respiration","Land_type","pH","N","C","Temperature","waterCont","xx","yy")
-XData<-data.frame(envData[,varsOfInterest],BacteriaDepth)
-## let's try skipping the scaling, because the documentation says 
-## that the X matrix is scaled by default.
-#XData[,-2]=scale(XData[,-2])
-## probably still need to convert categoricals to factor
-XData$Land_type <- as.factor(XData$Land_type)
-
-## community data
-Yabu <- Y
-Yabu[Y==0] <- NA ## to avoid zeroes?
-Yabu = log(Yabu) ## take log of abundances. They basically decided on the same transformations as Sulari and I.
-Yabu <- scale(Yabu) ## scale, after log? Heavily transformed data. Let's hope they know what they are talking about. 
-## the documentation for ?Hmsc does recommend scaling the Y matrix when using "default priors".
-## I'm not sure that we are. I thought the defaults were gaussian dists, so this would make since. 
 ## ugh, head hurts. Just follow, be a good scientist, just follow...
 ## make our second, presence absence matrix:
 Ypa = 1*(Y>0)
@@ -7220,100 +7220,100 @@ m_combo = sampleMcmc(m_combo,
 ## revisit taxonomic issue one more time?
 
 ## theory - subsetting species renders our otherwise fine tree out of format
-## how to fix this?
+sulariPlot_utm['landColors'] = [ cdik[i] for i in sulariPlotsDF['Land_type'] ]
 
-## above code works, keep it, make yet another copy:
+fig, ax = plt.subplots()
+rasterio.plot.show(fichtelMap, ax=ax)
+sulariPlot_utm.plot(
+    marker="o",
+    ax=ax,
+    edgecolor='k',
+    facecolor=sulariPlotsDF['landColors'],
+    markersize=400) 
 
-############################ try again phylogeny #############################
 
+grassPatch = Patch(color='y', label='grassland',)
+forestPatch = Patch(color='g', label='forest')
+farmPatch = Patch(color='b', label='arable land')
+ax.legend(handles=[grassPatch, forestPatch, farmPatch], 
+          loc="lower left",
+          fontsize=15,
+)
 
-## go back to toy, low thresholds:
- 
+## if we want to compare just grassland and forest
 
-conda activate r_env
-soil
-R
+plt.close('all')
+onlyGrassForest = sulariPlot_utm[sulariPlot_utm['Land.type'].apply(lambda x: x in ["Forest", "Grassland"])]
+fig, ax = plt.subplots()
+rasterio.plot.show(fichtelMap, ax=ax)
+onlyGrassForest.plot(
+    marker="o",
+    ax=ax,
+    edgecolor='k',
+    linewidths=2,
+    facecolor=onlyGrassForest['landColors'],
+    markersize=200) 
+ax.ticklabel_format(style='plain', axis='y', useOffset=False)
+grassPatch = Patch(color='y', label='grassland',)
+forestPatch = Patch(color='g', label='forest')
+ax.legend(handles=[grassPatch, forestPatch], loc='lower left')
+ax.add_artist(ScaleBar(1, location='lower right')) 
+ax.set_xlim([265500, 286930])
+ax.set_ylim([5547227, 5570000])
+plt.savefig('forestVsGrasslandMapUTM.png', dpi=600, format='png')
 
-library(Hmsc)
-library(phyloseq)
-library(ape)
+## Look at the turnover data:
 
-rm(list=ls()) ## merge the spatial and env data:
-xycoords = read.csv("sulariSpatial.csv", row.names=1)
-envData <- read.csv("sulariEnv.csv", row.names="SampleID")
-aa <- merge(x=envData, y=xycoords, by=0, )
-row.names(aa) <- aa$Row.names
-aa[1] <- NULL
-aa <- aa[rownames(envData),]
-envData <- aa; rm(aa)
-## this time, use our ps object with phylogeny and clustered OTUs:
-load("psCleanedUp.rda")
-psCleanedUp = prune_samples(!(rownames(sample_data(psCleanedUp)) %in% c("C1.1","C1.2","C2.1","C2.2")), psCleanedUp)
-## remove species that are now zero
-psCleanedUp = prune_taxa( colSums(otu_table(psCleanedUp)) > 0, psCleanedUp)
-bactRaw <- otu_table(psCleanedUp)@.Data
-## make pa matrix
-bact.pa<-ifelse(bactRaw>0,1,0)
-## go to relative abundances
-rowsumsInv = 1/rowSums(bactRaw)
-nASVs <- dim(bactRaw)[2]
-scalarMat = matrix( rep(rowsumsInv, nASVs), ncol = nASVs)
-bact.rel <- bactRaw * scalarMat
-## thresholds:
-threshold.prev = 0.05 ## present in at least n% of samples
-## try a secondary reduction in diversity, for memory purposes:
-threshold.abu = 0.01 ## only OTU that reaches at least n% abundance of one sample
-ny = dim(bactRaw)[1]
-cond1=!(colSums(bact.pa)<=threshold.prev*ny) ## present in at least n% of samples?
-cond2=apply(bact.rel,2,max)>=threshold.abu 
-bactData <- bactRaw[, cond1 & cond2 ] 
-################################################
-sum(bactData > 0)
-sum(bact.pa)
-dim(bactData)
-dim(bact.pa)
-tre <- phy_tree(prune_taxa( colnames(bactData), psCleanedUp)) ## make tree from this
-Y <- bactData
-ny <- dim(Y)[1]
-ns <- dim(Y)[2]
-BacteriaDepth<-log(rowSums(bactRaw))
-varsOfInterest = c("PlotID","soil_respiration","Land_type","pH","N","C","Temperature","waterCont","xx","yy")
-XData<-data.frame(envData[,varsOfInterest],BacteriaDepth)
-#XData[,-2]=scale(XData[,-2]) ## think this is done by default?
-## probably still need to convert categoricals to factor
-XData$Land_type <- as.factor(XData$Land_type)
-## community data
-Yabu <- Y
-Yabu[Y==0] <- NA ## to avoid zeroes?
-Yabu = log(Yabu) ## take log of abundances. They basically decided on the same transformations as Sulari and I.
-Yabu <- scale(Yabu) ## scale, after log? Heavily transformed data. Let's hope they know what they are talking about. 
-Ypa = 1*(Y>0)
-## bring them together for a final Y matrix
-##################################################################
-## I think HMSC won't accept missing data. I guess we could interpolate. 
-## for now, just use what we have:
-ccases <- complete.cases(XData) ## 112 samples, we only lose 8 
-XData = XData[ccases,] 
-Y = Y[ccases,] 
-Ypa = Ypa[ccases,]
-Yabu = Yabu[ccases,]
-Ycombo = cbind(Ypa,Yabu)
-ny = dim(Y)[1]
-ns = dim(Y)[2]/2
-all(rownames(XData) == rownames(Y))
-## sample effects
-sample.id = row.names(Y)
-## plot effects, also for spatial
-#############################################################################################
-## attempted, "real" spatial variable
-samplePlotid = XData$PlotID
-studyDesign = data.frame("sample"=as.factor(sample.id), "site_spatial"=as.factor(samplePlotid))
-plot_coords <- XData[,c("PlotID","xx","yy")]
-plot_coords <- plot_coords[!duplicated(plot_coords),] ## remove duplicated plot rows
-rownames(plot_coords) <- plot_coords$PlotID 
-plot_coords$PlotID <- NULL
-#############################################################################################
-## cleanup XData a bit:
+## lat/long
+aa = pd.DataFrame({'xx':envData.Longitude, 'yy':envData.Latitude})
+physDist = sp.distance.pdist(aa, metric='euclidean')
+bcDist = sp.distance.pdist(comData, metric='brayCurtis')
+fig, ax = plt.subplots()
+ax.scatter(physDist, bcDist)
+X, Y = physDist.reshape(-1,1), bcDist.reshape(-1,1)
+ax.plot( X, LinearRegression().fit(X, Y).predict(X), c='k')
+ax.set_title(label="Turnover with Lat/Lon", loc='center')
+
+## utms
+aa = pd.DataFrame({'xx':sulariPlot_utm.geometry.x, 'yy':sulariPlot_utm.geometry.y})
+physDist = sp.distance.pdist(aa, metric='euclidean')
+bcDist = sp.distance.pdist(comData, metric='brayCurtis')
+fig, ax = plt.subplots()
+ax.scatter(physDist, bcDist)
+X, Y = physDist.reshape(-1,1), bcDist.reshape(-1,1)
+ax.plot( X, LinearRegression().fit(X, Y).predict(X), c='k')
+ax.set_title(label="Turnover with UTM", loc='center')
+
+plt.close('all')
+## subset by landtype
+for lt in [ "Arableland" ,"Grassland" ,"Forest"]: 
+    print(lt)
+    edf = envData[envData['Land.type'] == lt]
+    cdf = comData.loc[edf.index]
+    aa = pd.DataFrame({'xx':edf.Longitude, 'yy':edf.Latitude})
+    aa = aa.iloc[0:120,:]
+    physDist = sp.distance.pdist(aa, metric='euclidean')
+    bcDist = sp.distance.pdist(cdf, metric='brayCurtis')
+    fig, ax = plt.subplots()
+    ax.scatter(physDist, bcDist)
+    ax.set_title(lt)
+    ax.set_title(label= (lt + " in degrees"), loc='center')
+    X, Y = physDist.reshape(-1,1), bcDist.reshape(-1,1)
+    ax.plot( X, LinearRegression().fit(X, Y).predict(X), c='k')
+
+## well that looks pretty much like I hypothesized
+## good stuff.
+
+sulariPlot_utm.head()
+
+plt.close('all')
+plt.rc('ytick', labelsize=15)
+plt.rc('xtick', labelsize=15)
+lts = [ "Arableland" ,"Grassland" ,"Forest"]
+#lts = [ "Grassland" ,"Forest"]
+fig, axes = plt.subplots(nrows=1, ncols=len(lts), sharey=True)
+axes = axes.flatten()
+for nu,lt in enumerate(lts):
 varsOfmodel <- c("soil_respiration","Land_type","pH","N","C","Temperature","waterCont","BacteriaDepth")
 XData <- XData[,c(varsOfmodel)]
 ## regression model for environmental covariates.
@@ -7651,3 +7651,91 @@ ax.legend(handles=[Forest_patch, Arableland_patch, Grassland_patch])
 ## won't worry about for the moment. 
 
 ## and on with temporal analysis
+
+################################
+
+## side project - repeat sulari's respiration graphs
+## sulari needs some lines fit to her respiration data
+
+## the graph of interest is soil respiration by microbial biomass
+
+## a simple scatter graph to start:
+
+python3
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt; plt.ion()
+import os
+from sklearn.linear_model import LinearRegression
+from matplotlib.patches import Patch
+
+aa = pd.read_csv('sulariEnv.csv', index_col="SampleID")
+## remove the weird samples we found yesterday = S89
+aa.drop('S89',inplace=True)
+aa.drop('S78',inplace=True) ## outlier, explanation below
+
+## to plot one land type:
+
+## 'Arableland', 'Grassland', 'Forest'
+
+plt.close('all')
+fig, ax = plt.subplots()
+plotSpecs=[{"typ":"Arableland",
+            "mkr":"o",
+            "clr":"#eca2a5"},
+           {"typ":"Grassland",
+            "mkr":"s",
+            "clr":"#98b7f2"},
+           {"typ":"Forest",
+            "mkr":"^",
+            "clr":"#008000"}]
+for i in plotSpecs:
+    bb = aa[aa['Land_type'] == i['typ']]
+    ax.scatter(bb['MBC'], bb['soil_respiration'], marker=i['mkr'], c=i['clr'])
+    cc = bb[['MBC','soil_respiration']].dropna()
+    X = np.array(cc['MBC']).reshape(-1,1)
+    Y = np.array(cc['soil_respiration']).reshape(-1,1)
+    linMod =  LinearRegression().fit(X, Y)
+    sortedX = cc['MBC'].sort_values().to_numpy().reshape(-1,1)
+    ax.plot( sortedX, linMod.predict(sortedX), ls="dotted", lw=4, c=i['clr'])
+
+grassPatch = Patch(color='#98b7f2', label='grassland',)
+forestPatch = Patch(color='#008000', label='forest')
+farmPatch = Patch(color='#eca2a5', label='arable land')
+ax.legend(handles=[grassPatch, forestPatch, farmPatch],
+          loc="lower right",
+          fontsize=10,
+)
+
+## there is an outlier that Sulari left out
+## should ask her why. 
+## find it:
+
+X,Y = plt.ginput(1)[0] ## 2.2346, 13.659
+aa.query("MBC > 2 & soil_respiration > 13")
+## S78. Still not sure why I should take this out, but ok
+## dropped it above and reran
+
+## also curious, there is a plot with very low respiration
+## despite high microbial biomass
+
+## it is:
+aa.query("MBC > 2 & soil_respiration < 1")
+## S12, P0118
+
+aa.query("MBC > 2 & soil_respiration < 1").iloc[0,:]
+
+sum(aa["PlotID"] == "P0118") ## not a repeated plot, sampled in summer. 
+## not sure, no reason to throw it out.
+
+cc = bb[['MBC','soil_respiration']].dropna()
+X = np.array(cc['MBC']).reshape(-1,1)
+Y = np.array(cc['soil_respiration']).reshape(-1,1)
+linMod =  LinearRegression().fit(X, Y)
+ax.plot( X, linMod.predict(X), c='k')
+
+print(lt, stats.linregress(physDist,bcDist))
+
+ 
+

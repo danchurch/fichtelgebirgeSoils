@@ -78,77 +78,11 @@ repeatedPlots.to_csv("repeatedPlotsEnv.csv")
 ## down to size
 
 ## when reloading, date format is lost
+
 repeatedPlots = pd.read_csv("repeatedPlotsEnv.csv", index_col='SampleID')
 repeatedPlots['Date'] = pd.to_datetime(repeatedPlots['Date'], yearfirst=True, errors='coerce')
 
 #### R , hmsc spatiotemproal model ####
-
-library(Hmsc)
-library(phyloseq)
-library(ape)
-
-rm(list=ls())
-envData <- read.csv("repeatedPlotsEnv.csv", row.names="SampleID")
-load("psCleanedUp.rda")
-
-## trim down to repeated sites, removed zeroed species
-repeatedSitesPS = prune_samples(rownames(envData), psCleanedUp)
-repeatedSitesPS = prune_taxa( colSums(otu_table(repeatedSitesPS)) > 0, repeatedSitesPS)
-bactRaw <- otu_table(repeatedSitesPS)@.Data
-bact.pa<-ifelse(bactRaw>0,1,0)
-rowsumsInv = 1/rowSums(bactRaw)
-
-nASVs <- dim(bactRaw)[2]
-scalarMat = matrix( rep(rowsumsInv, nASVs), ncol = nASVs)
-bact.rel <- bactRaw * scalarMat
-threshold.prev = 0.05 ## present in at least n% of samples
-threshold.abu = 0.002 ## only OTU that reaches at least n% abundance of one sample
-ny = dim(bactRaw)[1]
-cond1=!(colSums(bact.pa)<=threshold.prev*ny) ## present in at least n% of samples?
-cond2=apply(bact.rel,2,max)>=threshold.abu
-bactData <- bactRaw[, cond1 & cond2 ]
-sum(bactData > 0)
-sum(bact.pa)
-dim(bactData)
-dim(bact.pa)
-
-Y <- bactData
-ny <- dim(Y)[1]
-ns <- dim(Y)[2]
-varsOfInterest = c("PlotID","soil_respiration","Land_type","pH","N","C","Temperature","waterCont","xx","yy")
-XData<-data.frame(envData[,varsOfInterest])
-XData$Land_type <- as.factor(XData$Land_type)
-Yabu <- Y
-Yabu[Y==0] <- NA ## to avoid zeroes?
-Yabu = log(Yabu) ## take log of abundances. They basically decided on the same transformations as Sulari and I.
-Yabu <- scale(Yabu) ## scale, after log? Heavily transformed data. Let's hope they know what they are talking about.
-Ypa = 1*(Y>0)
-
-ccases <- complete.cases(XData) ## we only lose 1, down to 33 samples
-XData = XData[ccases,]
-Y = Y[ccases,]
-Ypa = Ypa[ccases,]
-Yabu = Yabu[ccases,]
-Ycombo = cbind(Ypa,Yabu)
-ny = dim(Y)[1]
-ns = dim(Y)[2]/2
-all(rownames(XData) == rownames(Y))
-
-rownames(XData) 
-
-rownames(Y)
-
-sample.id = row.names(Y)
-samplePlotid = XData$PlotID
-studyDesign = data.frame("sample"=as.factor(sample.id), "site_spatial"=as.factor(samplePlotid))
-plot_coords <- XData[,c("PlotID","xx","yy")]
-plot_coords <- plot_coords[!duplicated(plot_coords),] ## remove duplicated plot rows
-rownames(plot_coords) <- plot_coords$PlotID
-plot_coords$PlotID <- NULL
-varsOfmodel <- c("soil_respiration","Land_type","pH","N","C","Temperature","waterCont")
-XData <- XData[,c(varsOfmodel)]
-XFormula0 = ~ soil_respiration + Land_type + pH + N + C + Temperature
-rL.sample = HmscRandomLevel(units = sample.id)
 
 ## now, how to insert the temporal effects here?
 ## we could try testing temporal effects only, or in combination
@@ -163,10 +97,76 @@ rL.sample = HmscRandomLevel(units = sample.id)
 
 ## will they let us do two separated auto-correlated random effects?
 
+library(Hmsc)
+library(phyloseq)
+library(ape)
 
+rm(list=ls())
+envData <- read.csv("repeatedPlotsEnv.csv", row.names="SampleID")
+load("psCleanedUp.rda")
+## trim down to repeated sites, removed zeroed species
+repeatedSitesPS = prune_samples(rownames(envData), psCleanedUp)
+repeatedSitesPS = prune_taxa( colSums(otu_table(repeatedSitesPS)) > 0, repeatedSitesPS)
+bactRaw <- otu_table(repeatedSitesPS)@.Data
+bact.pa<-ifelse(bactRaw>0,1,0)
+rowsumsInv = 1/rowSums(bactRaw)
+nASVs <- dim(bactRaw)[2]
+scalarMat = matrix( rep(rowsumsInv, nASVs), ncol = nASVs)
+bact.rel <- bactRaw * scalarMat
+threshold.prev = 0.05 ## present in at least n% of samples
+threshold.abu = 0.002 ## only OTU that reaches at least n% abundance of one sample
+ny = dim(bactRaw)[1]
+cond1=!(colSums(bact.pa)<=threshold.prev*ny) ## present in at least n% of samples?
+cond2=apply(bact.rel,2,max)>=threshold.abu
+bactData <- bactRaw[, cond1 & cond2 ]
+sum(bactData > 0)
+sum(bact.pa)
+dim(bactData)
+dim(bact.pa)
+Y <- bactData
+ny <- dim(Y)[1]
+ns <- dim(Y)[2]
+varsOfInterest = c("PlotID","soil_respiration","Land_type","pH","N","C","Temperature","waterCont","season","xx","yy")
+XData <- data.frame(envData[,varsOfInterest])
+XData$Land_type <- as.factor(XData$Land_type)
+Yabu <- Y
+Yabu[Y==0] <- NA ## to avoid zeroes?
+Yabu = log(Yabu) ## take log of abundances. They basically decided on the same transformations as Sulari and I.
+Yabu <- scale(Yabu) ## scale, after log? Heavily transformed data. Let's hope they know what they are talking about.
+Ypa = 1*(Y>0)
+ccases <- complete.cases(XData) ## we only lose 1, down to 33 samples
+XData <- XData[ccases,]
+Y = Y[ccases,]
+Ypa = Ypa[ccases,]
+Yabu = Yabu[ccases,]
+Ycombo = cbind(Ypa,Yabu)
+ny = dim(Y)[1]
+ns = dim(Y)[2]/2
+all(rownames(XData) == rownames(Y))
+sample.id = row.names(Y)
+samplePlotid = XData$PlotID
+studyDesign = data.frame("sample"=as.factor(sample.id), 
+                         "site_spatial"=as.factor(samplePlotid),
+                         "season"=as.integer(XData$season)
+                          )
 
+plot_coords <- XData[,c("PlotID","xx","yy")]
+plot_coords <- plot_coords[!duplicated(plot_coords),] ## remove duplicated plot rows
+rownames(plot_coords) <- plot_coords$PlotID
+plot_coords$PlotID <- NULL
+
+plot_coords <- XData[,c("PlotID","xx","yy")]
+
+varsOfmodel <- c("soil_respiration","Land_type","pH","N","C","Temperature","waterCont","season")
+XData <- XData[,c(varsOfmodel)]
+XFormula0 = ~ soil_respiration + Land_type + pH + N + C + Temperature
+rL.sample = HmscRandomLevel(units = sample.id)
+
+## try two "spatial" random effects?
 rL.site_spatial = HmscRandomLevel(sData = plot_coords)
+rL.site_spatial = setPriors(rL.site_spatial,nfMin=1,nfMax=3) ## try 3. Not sure how to optimize this. But there may multiple spatial scales.
 
-rL.site_spatial = setPriors(rL.site_spatial,nfMin=1,nfMax=3) #try 3. Not sure how to optimize this. But there may multiple spatial scales.
+rL.site_season = HmscRandomLevel(sData = plot_coords)
 
+rL.site_spatial = setPriors(rL.site_spatial,nfMin=1,nfMax=1) ## I can imagine that such a simple predictor needs more?
 

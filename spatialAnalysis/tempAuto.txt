@@ -113,8 +113,14 @@ rowsumsInv = 1/rowSums(bactRaw)
 nASVs <- dim(bactRaw)[2]
 scalarMat = matrix( rep(rowsumsInv, nASVs), ncol = nASVs)
 bact.rel <- bactRaw * scalarMat
-threshold.prev = 0.05 ## present in at least n% of samples
-threshold.abu = 0.002 ## only OTU that reaches at least n% abundance of one sample
+## real model:
+#threshold.prev = 0.05 ## present in at least n% of samples
+#threshold.abu = 0.002 ## only OTU that reaches at least n% abundance of one sample
+#####
+## toy model, greatly simplified for testing:
+threshold.prev = 0.20 ## present in at least n% of samples
+threshold.abu = 0.020 ## only OTU that reaches at least n% abundance of one sample
+#####
 ny = dim(bactRaw)[1]
 cond1=!(colSums(bact.pa)<=threshold.prev*ny) ## present in at least n% of samples?
 cond2=apply(bact.rel,2,max)>=threshold.abu
@@ -149,24 +155,34 @@ studyDesign = data.frame("sample"=as.factor(sample.id),
                          "site_spatial"=as.factor(samplePlotid),
                          "season"=as.integer(XData$season)
                           )
-
 plot_coords <- XData[,c("PlotID","xx","yy")]
 plot_coords <- plot_coords[!duplicated(plot_coords),] ## remove duplicated plot rows
 rownames(plot_coords) <- plot_coords$PlotID
 plot_coords$PlotID <- NULL
 
-plot_coords <- XData[,c("PlotID","xx","yy")]
+## now, how do we implement our temporal variable, season?:
 
-varsOfmodel <- c("soil_respiration","Land_type","pH","N","C","Temperature","waterCont","season")
+varsOfmodel <- c("soil_respiration","Land_type","pH","N","C","Temperature","waterCont")
 XData <- XData[,c(varsOfmodel)]
 XFormula0 = ~ soil_respiration + Land_type + pH + N + C + Temperature
 rL.sample = HmscRandomLevel(units = sample.id)
 
-## try two "spatial" random effects?
+## I think this temporal effect acts on the individual sample level
+## so :
+
 rL.site_spatial = HmscRandomLevel(sData = plot_coords)
+
 rL.site_spatial = setPriors(rL.site_spatial,nfMin=1,nfMax=3) ## try 3. Not sure how to optimize this. But there may multiple spatial scales.
 
-rL.site_season = HmscRandomLevel(sData = plot_coords)
+rL.site_season = HmscRandomLevel(sData = )
+rL.site_season = setPriors(rL.site_spatial,nfMin=1,nfMax=1) ## I can imagine that such a simple predictor needs more?
 
-rL.site_spatial = setPriors(rL.site_spatial,nfMin=1,nfMax=1) ## I can imagine that such a simple predictor needs more?
+
+
+
+m = Hmsc(Y=Ycombo,
+         XData = XData,  XFormula = XFormula0,
+         distr={"probit"} ,
+         studyDesign=studyDesign,
+         ranLevels={list("sample"=rL.sample, "site_spatial" = rL.site_spatial)})
 

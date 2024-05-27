@@ -7661,6 +7661,8 @@ ax.legend(handles=[Forest_patch, Arableland_patch, Grassland_patch])
 
 ## a simple scatter graph to start:
 
+conda activate spatialDirt
+
 python3
 
 import pandas as pd
@@ -7690,6 +7692,8 @@ plotSpecs=[{"typ":"Arableland",
            {"typ":"Forest",
             "mkr":"^",
             "clr":"#008000"}]
+ax.set_xlabel('Microbial biomass (mg microbial C g soil$^{-1}$)')
+ax.set_ylabel('Soil respiration (μg CO$_2$ hours$^{-1}$ g Soil$^{-1}$)')
 for i in plotSpecs:
     bb = aa[aa['Land_type'] == i['typ']]
     ax.scatter(bb['MBC'], bb['soil_respiration'], marker=i['mkr'], c=i['clr'])
@@ -7698,16 +7702,19 @@ for i in plotSpecs:
     Y = np.array(cc['soil_respiration']).reshape(-1,1)
     linMod =  LinearRegression().fit(X, Y)
     sortedX = cc['MBC'].sort_values().to_numpy().reshape(-1,1)
-    ax.plot( sortedX, linMod.predict(sortedX), ls="dotted", lw=4, c=i['clr'])
+    ax.plot( sortedX, linMod.predict(sortedX), ls="--", lw=3, c=i['clr'])
 
 grassPatch = Patch(color='#98b7f2', label='grassland',)
 forestPatch = Patch(color='#008000', label='forest')
 farmPatch = Patch(color='#eca2a5', label='arable land')
 ax.legend(handles=[grassPatch, forestPatch, farmPatch],
           loc="lower right",
-          fontsize=10,
-)
+          bbox_to_anchor=(1.3, 0.0),
+          fontsize=10
+          )
 
+
+print(lt, stats.linregress(physDist,bcDist)) 
 ## there is an outlier that Sulari left out
 ## should ask her why. 
 ## find it:
@@ -7729,13 +7736,5 @@ aa.query("MBC > 2 & soil_respiration < 1").iloc[0,:]
 sum(aa["PlotID"] == "P0118") ## not a repeated plot, sampled in summer. 
 ## not sure, no reason to throw it out.
 
-cc = bb[['MBC','soil_respiration']].dropna()
-X = np.array(cc['MBC']).reshape(-1,1)
-Y = np.array(cc['soil_respiration']).reshape(-1,1)
-linMod =  LinearRegression().fit(X, Y)
-ax.plot( X, linMod.predict(X), c='k')
 
-print(lt, stats.linregress(physDist,bcDist))
-
- 
 

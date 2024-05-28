@@ -178,8 +178,6 @@ rL.site_season = HmscRandomLevel(sData = )
 rL.site_season = setPriors(rL.site_spatial,nfMin=1,nfMax=1) ## I can imagine that such a simple predictor needs more?
 
 
-
-
 m = Hmsc(Y=Ycombo,
          XData = XData,  XFormula = XFormula0,
          distr={"probit"} ,

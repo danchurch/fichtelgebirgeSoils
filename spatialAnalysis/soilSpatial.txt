@@ -7398,12 +7398,12 @@ denbiDirt
 conda activate r_env
 
 soil
+
 R
 
 library(Hmsc)
 library(phyloseq)
 library(ape)
-
 rm(list=ls()) ## merge the spatial and env data:
 xycoords = read.csv("sulariSpatial.csv", row.names=1)
 envData <- read.csv("sulariEnv.csv", row.names="SampleID")
@@ -7471,7 +7471,7 @@ m_hurdleSpatial = Hmsc(Y=Ycombo,
          distr={"probit"} ,
          studyDesign=studyDesign, 
          ranLevels={list("sample"=rL.sample, "site_spatial" = rL.site_spatial)})
-save(m_hurdleSpatial, file="m_hurdleSpatial.rda")
+#save(m_hurdleSpatial, file="m_hurdleSpatial.rda")
 
 ########## runit #############
 thin = 5
@@ -7737,4 +7737,65 @@ sum(aa["PlotID"] == "P0118") ## not a repeated plot, sampled in summer.
 ## not sure, no reason to throw it out.
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+##### sulari figure, grassland abundances #####
+
+## she also needs a figure that shows just the ten most common 
+## species for the ten most abundant figures in grasslands
+
+## which ps should we use?
+
+library(phyloseq)
+
+load("psCleanedUp.rda")
+
+png(file="grasslandMostAbundantForSulari.png")
+
+## subset to grasslands:
+onlyGrass <- prune_samples(sample_data(psCleanedUp)$Land.type == "Grassland", psCleanedUp)
+## get the ten most common, and their taxonomic id on these:
+nam <- names(sort(taxa_sums(onlyGrass), decreasing=TRUE)[1:10])
+tax_table(onlyGrass)[nam,]
+## looking at this, curate this a bit:
+xlabNames <- c("Candidatus Udaeobacter","Rhizobiales","Bradyrhizobium","Nitrososphaeraceae","Chloroflexi, KS4-96","Solirubrobacterales", "Micrococcaceae", "Gaiella", "Acidothermus", "Rhizobiales")
+options(scipen=999)
+par(mar=c(12,6,2,2))
+barplot(sort(taxa_sums(onlyGrass), decreasing=TRUE)[1:10],
+        las=2,
+        names.arg=xlabNames,
+        ylab="",
+        )
+title(ylab="adjusted read abundances", line=4.5, cex.lab=1.2, family="Calibri Light")
+
+dev.off()
+
+## this could work, for the moment
 

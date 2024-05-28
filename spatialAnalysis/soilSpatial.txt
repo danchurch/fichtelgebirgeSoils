@@ -7474,6 +7474,7 @@ m_hurdleSpatial = Hmsc(Y=Ycombo,
 #save(m_hurdleSpatial, file="m_hurdleSpatial.rda")
 
 ########## runit #############
+
 thin = 5
 samples = 1000
 nChains = 3
@@ -7777,8 +7778,8 @@ library(phyloseq)
 
 load("psCleanedUp.rda")
 
-png(file="grasslandMostAbundantForSulari.png")
-
+#png(file="grasslandMostAbundantForSulari.png")
+#svg(file="grasslandMostAbundantForSulari.svg")
 ## subset to grasslands:
 onlyGrass <- prune_samples(sample_data(psCleanedUp)$Land.type == "Grassland", psCleanedUp)
 ## get the ten most common, and their taxonomic id on these:
@@ -7794,8 +7795,7 @@ barplot(sort(taxa_sums(onlyGrass), decreasing=TRUE)[1:10],
         ylab="",
         )
 title(ylab="adjusted read abundances", line=4.5, cex.lab=1.2, family="Calibri Light")
-
-dev.off()
+#dev.off()
 
 ## this could work, for the moment
 

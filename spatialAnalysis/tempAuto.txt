@@ -24,8 +24,8 @@ import pandas as pd
 import natsort as ns
 import numpy as np
 
-sulariEnvCSV="/home/daniel/Documents/projects/fichtelgebirge_project/sulariArneSoils/fichtelgebirgeSoils/spatialAnalysis/sulariEnv.csv"
-sulariUTM="/home/daniel/Documents/projects/fichtelgebirge_project/sulariArneSoils/fichtelgebirgeSoils/spatialAnalysis/sulariSpatial.csv"
+sulariEnvCSV="sulariEnv.csv"
+sulariUTM="sulariSpatial.csv"
 envData = (pd.read_csv(sulariEnvCSV, index_col='SampleID')
                .drop(['Latitude', 'Longitude'], axis='columns'))
 spatData = pd.read_csv(sulariUTM, index_col='SampleID')
@@ -37,48 +37,39 @@ repeatedPlots.drop(['S89','S102'], axis='rows', inplace=True)
 ## use natsort to clean up sample name order
 repeatedPlots = repeatedPlots.loc[ ns.natsorted(repeatedPlots.index)]
 repeatedPlots['Date'] = pd.to_datetime(repeatedPlots['Date'], yearfirst=True, errors='coerce')
-
 ## how many different sampling times do each have?
 repeatedPlots[["PlotID","Date"]].groupby("PlotID").nunique()
-
 ## I think the temporal unit should be season. 
 ## we need to bin the dates then
-
 repeatedPlots['Date'].duplicated().any() ##  no repeats, can be an index:
-
+repeatedPlots.sort_values(by='Date', inplace=True)
 repeatedPlots = (repeatedPlots
-                    .sort_values(by='Date')
                     .reset_index()
                     .set_index('Date')
 )
-
 ## we'll use a "meteorological" definition
-
-repeatedPlots['season'] = 0
+repeatedPlots['season'] = 'zoop'
 ## so winter of 2022 
-repeatedPlots.loc['2020-01-01':'2022-02-18', 'season'] = 1
+repeatedPlots.loc['2020-01-01':'2022-02-18', 'season'] = 'winter'
 ## spring of 2022
-repeatedPlots.loc['2022-03-01':'2022-05-31', 'season'] = 2
+repeatedPlots.loc['2022-03-01':'2022-05-31', 'season'] = 'spring'
 ## summer of 2022
-repeatedPlots.loc['2022-06-01':'2022-09-30', 'season'] = 3
+repeatedPlots.loc['2022-06-01':'2022-09-30', 'season'] = 'summer'
 ## fall of 2022
-repeatedPlots.loc['2022-10-01':'2022-12-31', 'season'] = 4
-
-repeatedPlots['season']
-
-repeatedPlots.groupby('season').size() #actually fairly even distribution
-
+repeatedPlots.loc['2022-10-01':'2022-12-31', 'season'] = 'fall'
 ## clean up rownames:
+repeatedPlots = (repeatedPlots
+                    .reset_index()
+                    .set_index('SampleID')
+)
 repeatedPlots = repeatedPlots.loc[ ns.natsorted(repeatedPlots.index)]
-
 ## save out for R
-repeatedPlots.to_csv("repeatedPlotsEnv.csv")
+#repeatedPlots.to_csv("repeatedPlotsEnv.csv")
 
 ## so we can use this dataframe in R to subset the phyloseq object
 ## down to size
 
-## when reloading, date format is lost
-
+## when reloading, date format is lost:
 repeatedPlots = pd.read_csv("repeatedPlotsEnv.csv", index_col='SampleID')
 repeatedPlots['Date'] = pd.to_datetime(repeatedPlots['Date'], yearfirst=True, errors='coerce')
 
@@ -100,7 +91,6 @@ repeatedPlots['Date'] = pd.to_datetime(repeatedPlots['Date'], yearfirst=True, er
 library(Hmsc)
 library(phyloseq)
 library(ape)
-
 rm(list=ls())
 envData <- read.csv("repeatedPlotsEnv.csv", row.names="SampleID")
 load("psCleanedUp.rda")
@@ -118,13 +108,14 @@ bact.rel <- bactRaw * scalarMat
 #threshold.abu = 0.002 ## only OTU that reaches at least n% abundance of one sample
 #####
 ## toy model, greatly simplified for testing:
-threshold.prev = 0.20 ## present in at least n% of samples
-threshold.abu = 0.020 ## only OTU that reaches at least n% abundance of one sample
+#threshold.prev = 0.05 ## present in at least n% of samples
+threshold.abu = 0.005 ## only OTU that reaches at least n% abundance of one sample
 #####
 ny = dim(bactRaw)[1]
-cond1=!(colSums(bact.pa)<=threshold.prev*ny) ## present in at least n% of samples?
+#cond1=!(colSums(bact.pa)<=threshold.prev*ny) ## present in at least n% of samples?
 cond2=apply(bact.rel,2,max)>=threshold.abu
-bactData <- bactRaw[, cond1 & cond2 ]
+bactData <- bactRaw[, cond2 ]
+#bactData <- bactRaw[, cond1 & cond2 ]
 sum(bactData > 0)
 sum(bact.pa)
 dim(bactData)
@@ -132,7 +123,7 @@ dim(bact.pa)
 Y <- bactData
 ny <- dim(Y)[1]
 ns <- dim(Y)[2]
-varsOfInterest = c("PlotID","soil_respiration","Land_type","pH","N","C","Temperature","waterCont","season","xx","yy")
+varsOfInterest = c("PlotID","season","soil_respiration","Land_type","pH","N","C","Temperature","waterCont","xx","yy")
 XData <- data.frame(envData[,varsOfInterest])
 XData$Land_type <- as.factor(XData$Land_type)
 Yabu <- Y
@@ -149,38 +140,77 @@ Ycombo = cbind(Ypa,Yabu)
 ny = dim(Y)[1]
 ns = dim(Y)[2]/2
 all(rownames(XData) == rownames(Y))
-sample.id = row.names(Y)
 samplePlotid = XData$PlotID
-studyDesign = data.frame("sample"=as.factor(sample.id), 
-                         "site_spatial"=as.factor(samplePlotid),
-                         "season"=as.integer(XData$season)
-                          )
 plot_coords <- XData[,c("PlotID","xx","yy")]
 plot_coords <- plot_coords[!duplicated(plot_coords),] ## remove duplicated plot rows
 rownames(plot_coords) <- plot_coords$PlotID
 plot_coords$PlotID <- NULL
-
-## now, how do we implement our temporal variable, season?:
-
-varsOfmodel <- c("soil_respiration","Land_type","pH","N","C","Temperature","waterCont")
-XData <- XData[,c(varsOfmodel)]
-XFormula0 = ~ soil_respiration + Land_type + pH + N + C + Temperature
-rL.sample = HmscRandomLevel(units = sample.id)
-
-## I think this temporal effect acts on the individual sample level
-## so :
-
+## use this for our spatial random effects
 rL.site_spatial = HmscRandomLevel(sData = plot_coords)
-
 rL.site_spatial = setPriors(rL.site_spatial,nfMin=1,nfMax=3) ## try 3. Not sure how to optimize this. But there may multiple spatial scales.
+## random effects by sample is simple:
+sample.id = row.names(Y)
+rL.sample = HmscRandomLevel(units = sample.id)
+## now, how do we implement our temporal variable, season?:
+## acts on individual samples, not plots, necessarily
+## I think we need a subtable that links to a column in our experimental design df 
+## one column would be "season" and the other would be the integer value 
+seasonDF = data.frame(row.names=c( "winter", "spring", "summer" , "fall" ), seasNumber=1:4)
+rL.site_season = HmscRandomLevel(sData = seasonDF)
+rL.site_season = setPriors(rL.site_season,nfMin=1,nfMax=1) ## I can imagine that such a simple predictor needs more?
+## get the general ecological predictors ("fixed effects"), and formula
+varsOfmodel <- c("soil_respiration","Land_type","pH","N","C","Temperature","waterCont")
+XData0 <- XData[,c(varsOfmodel)] ## clean up to just these for model below
+XFormula0 = ~ soil_respiration + Land_type + pH + N + C + Temperature
+## I think this temporal effect acts on the individual sample level
+## this issue is pertinent: https://github.com/hmsc-r/HMSC/issues/103
+## we need a study design that has one row for each date-plot combo,
+studyDesign = data.frame("sample"=as.factor(sample.id), 
+                         "site_spatial"=as.factor(samplePlotid),
+                         "season"=as.factor(XData$season)
+                          )
+m_SpTmpSmall = Hmsc(Y=Ycombo,
+                   XData = XData0,  XFormula = XFormula0,
+                   distr={"probit"} ,
+                   studyDesign=studyDesign,
+                   ranLevels={list("sample"=rL.sample, 
+                                   "site_spatial" = rL.site_spatial,
+                                   "season" = rL.site_season
+                                  )})
+save(m_SpTmpSmall, file="m_SpTmpSmall.rda")
 
-rL.site_season = HmscRandomLevel(sData = )
-rL.site_season = setPriors(rL.site_spatial,nfMin=1,nfMax=1) ## I can imagine that such a simple predictor needs more?
+
+## sanity check for random effects, these pairs of numbers should match
+rL.sample
+length(levels(as.factor(studyDesign$sample)))
+
+rL.site_spatial
+length(levels(as.factor(studyDesign$site_spatial)))
+
+rL.site_season
+length(levels(as.factor(studyDesign$season)))
 
 
-m = Hmsc(Y=Ycombo,
-         XData = XData,  XFormula = XFormula0,
-         distr={"probit"} ,
-         studyDesign=studyDesign,
-         ranLevels={list("sample"=rL.sample, "site_spatial" = rL.site_spatial)})
+## try sampling this. cutoff is 0.5% of abundances of at least one sample
+## gives us 258 species
+## synch up the lab computer, then run:
+## 
 
+#########################################################
+
+library(Hmsc)
+load("m_SpTmpSmall.rda")
+thin = 5
+samples = 1000
+nChains = 2
+nP = 2
+m_SpTmpSmall = sampleMcmc(m_SpTmpSmall,
+                     samples = samples,
+                     thin = thin,
+                     transient = ceiling(0.5*samples*thin),
+                     nChains = nChains,
+                     nParallel = nP,
+                     verbose=1)
+
+
+## seems to work. Try more species and more samples 

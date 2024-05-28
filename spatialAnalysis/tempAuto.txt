@@ -196,9 +196,12 @@ length(levels(as.factor(studyDesign$season)))
 ## synch up the lab computer, then run:
 ## 
 
+## sample_m_SpTmpSmall.r
 #########################################################
 
 library(Hmsc)
+
+print(paste("start time is", Sys.time()))
 load("m_SpTmpSmall.rda")
 thin = 5
 samples = 1000
@@ -212,5 +215,11 @@ m_SpTmpSmall = sampleMcmc(m_SpTmpSmall,
                      nParallel = nP,
                      verbose=1)
 
+save(m_SpTmpSmall, file="m_SpTmpSmall_sampled.rda")
+print(paste("finish time is", Sys.time()))
 
-## seems to work. Try more species and more samples 
+#########################################################
+
+nohup Rscript sample_m_SpTmpSmall.r &> sample_m_SpTmpSmall.log & ## 
+
+

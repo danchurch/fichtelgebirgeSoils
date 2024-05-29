@@ -198,12 +198,10 @@ length(levels(as.factor(studyDesign$season)))
 
 ## sample_m_SpTmpSmall.r
 #########################################################
-
 library(Hmsc)
-
 print(paste("start time is", Sys.time()))
 load("m_SpTmpSmall.rda")
-thin = 5
+thin = 50 ## modified from 5 previously
 samples = 1000
 nChains = 2
 nP = 2
@@ -214,12 +212,200 @@ m_SpTmpSmall = sampleMcmc(m_SpTmpSmall,
                      nChains = nChains,
                      nParallel = nP,
                      verbose=1)
-
-save(m_SpTmpSmall, file="m_SpTmpSmall_sampled.rda")
+save(m_SpTmpSmall, file="m_SpTmpSmall_sampled_thin50.rda")
 print(paste("finish time is", Sys.time()))
-
 #########################################################
 
 nohup Rscript sample_m_SpTmpSmall.r &> sample_m_SpTmpSmall.log & ## 
+
+## seems like it worked, quickly, 20 minutes
+## 516 species, and went quickly
+## so, could up the number of species ...
+## first, let's make sure it worked
+
+soil
+conda activate spatialDirt
+
+R
+
+library(Hmsc)
+
+load("m_SpTmpSmall_sampled.rda")
+
+mpost = convertToCodaObject(m_SpTmpSmall) 
+
+sink(file="summary_m_SpTmpSmall_sampled.txt")
+summary(mpost$Beta) 
+sink()
+
+## plotTrace_m_SpTmpSmall.r 
+####### script for printing plots #####
+
+library(Hmsc)
+load("m_SpTmpSmall_sampled.rda")
+mpost = convertToCodaObject(m_SpTmpSmall) 
+pdf(file="traces_m_SpTmpSmall_sampled.pdf")
+plot(mpost$Beta)
+dev.off()
+
+#######################################
+
+nohup Rscript plotTrace_m_SpTmpSmall.r
+
+## evince won't forward, get it:
+
+getFile="/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis/traces_m_SpTmpSmall_sampled.pdf"
+putItHere="/home/daniel/Documents/projects/fichtelgebirge_project/sulariArneSoils/files2big4git"
+scp test@132.180.112.115:$getFile $putItHere
+
+## large, gives the trace of every asv against every variable in the model
+
+effectiveSize(mpost$Beta)
+
+sink(file="effectiveSize_m_SpTmpSmall_sampled.txt")
+effectiveSize(mpost$Beta)
+sink()
+
+## the effective size for these is really small.
+## not sure why. Given that the model only ran for 
+## 20 min, I guess we can afford to run it longer tonight
+## and maybe increase the number of species?
+
+es.beta <- effectiveSize(mpost$Beta)
+ge.beta <- gelman.diag(mpost$Beta,multivariate=FALSE)$psrf
+
+par(mfrow=c(1,2)) 
+hist(es.beta, main="effective sample size for beta") 
+hist(ge.beta, main="potential scale reduction factor for beta)")
+
+## yup, looks like we didn't sample nearly enough
+## set up another sample event, longer...modified above
+## should take ~10 times longer
+
+es.gamma = effectiveSize(mpost$Gamma)
+ge.gamma = gelman.diag(mpost$Gamma,multivariate=FALSE)$psrf
+
+par(mfrow=c(1,2)) 
+hist(es.gamma, main="effective sample size for gamma") 
+hist(ge.gamma, main="potential scale reduction factor for gamma)")
+## oh yeah, this is shit, ess is down below 100 for all, near zero for a lot
+
+mpost$Omega
+
+mpost$Omega[[1]]
+
+mpost$temp = mpost$Omega[[1]]
+for(i in 1:length(mpost$temp)){
+  mpost$temp[[i]] = mpost$temp[[i]][,1:1000]
+}
+
+es.omega1 = effectiveSize(effectiveSize(mpost$Omega[[1]]))
+ge.omega1 = gelman.diag(mpost$Omega[[1]], multivariate=FALSE)
+
+hist(es.omega1, main="ess(omega)") 
+hist(ge.omega1$psrf, main="psrf(omega)")
+
+## okay, so it's shit. but for now, keep moving through the analysis
+## the goal is to get a skeleton of an analysis ready for when the 
+## real data hits
+
+## yeah, this is taking forever. Let's make some scripts, following 
+## the fungal paper:
+
+########## script to check convergences ###########
+
+library(Hmsc)
+
+load("m_SpTmpSmall_sampled_thin50.rda")
+
+m = m_SpTmpSmall; rm(m_SpTmpSmall)
+
+mpost = convertToCodaObject(m)
+
+es.beta = effectiveSize(mpost$Beta)
+ge.beta = gelman.diag(mpost$Beta,multivariate=FALSE)$psrf
+
+svg(file="essBetaSpTmpSmall.svg")
+par(mfrow=c(1,2)) 
+hist(es.beta, main="effective sample size for beta") 
+hist(ge.beta, main="potential scale reduction factor for beta)")
+dev.off()
+
+es.gamma = effectiveSize(mpost$Gamma)
+ge.gamma = gelman.diag(mpost$Gamma,multivariate=FALSE)$psrf
+
+svg(file="essGammaSpTmpSmall.svg")
+par(mfrow=c(1,2)) 
+hist(es.gamma, main="effective sample size for gamma") 
+hist(ge.gamma, main="potential scale reduction factor for gamma)")
+dev.off()
+
+es.V = effectiveSize(mpost$V)
+ge.V = gelman.diag(mpost$V,multivariate=FALSE)$psrf
+
+svg(file="essGammaSpTmpSmall.svg")
+par(mfrow=c(1,2)) 
+hist(es.V, main="effective sample size for V") 
+hist(ge.V, main="potential scale reduction factor for V)")
+dev.off()
+
+
+es.omega = effectiveSize(mpost$Omega[[1]])
+ge.omega = gelman.diag(mpost$Omega[[1]], multivariate=FALSE)$psrf
+
+svg(file="essGammaSpTmpSmall.svg")
+par(mfrow=c(1,2)) 
+hist(effectiveSize(, main="ess(omega)") 
+hist(gelman.diag(, main="psrf(omega)")
+dev.off()
+
+mixing = list(es.beta=es.beta, ge.beta=ge.beta,
+              es.gamma=es.gamma, ge.gamma=ge.gamma,
+              es.V=es.V, ge.V=ge.V,
+              es.omega=es.omega, ge.omega=ge.omega)
+
+save(mixing,file="m_SpTmpSmall_mixingStats.rda")
+ 
+## check predictive values:
+
+preds = computePredictedValues(m_SpTmpSmall) 
+
+########## ^^script to check convergences^^ ###########
+
+## test plotting order
+
+par(mfrow=c(1,1))
+
+png("test.png")
+par(mfrow=c(1,2))
+plot(1)
+plot(2)
+dev.off()
+
+?evaluateModelFit
+
+m_SpTmpSmall
+
+aa <- evaluateModelFit(hM = m_SpTmpSmall, predY = preds)
+
+aa
+
+## can also check the predictive power
+
+postBeta = getPostEstimate(m, parName = "Beta") 
+
+plotBeta(m, post = postBeta, param = "Support", supportLevel = 0.95)
+
+
+############## check species-species interactions #########
+
+OmegaCor = computeAssociations(m) 
+supportLevel = 0.95 
+toPlot = ((OmegaCor[[1]]$support>supportLevel) 
+           + (OmegaCor[[1]]$support<(1-supportLevel))>0)*OmegaCor[[1]]$mean 
+corrplot(toPlot, method = "color", 
+         col = colorRampPalette(c("blue","white","red"))(200), 
+         title = paste("random effect level:", m$rLNames[1]), mar=c(0,0,1,0))
+
 
 

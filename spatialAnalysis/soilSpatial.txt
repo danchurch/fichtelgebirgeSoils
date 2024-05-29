@@ -7404,6 +7404,7 @@ R
 library(Hmsc)
 library(phyloseq)
 library(ape)
+
 rm(list=ls()) ## merge the spatial and env data:
 xycoords = read.csv("sulariSpatial.csv", row.names=1)
 envData <- read.csv("sulariEnv.csv", row.names="SampleID")
@@ -7432,6 +7433,7 @@ sum(bactData > 0)
 sum(bact.pa)
 dim(bactData)
 dim(bact.pa)
+
 Y <- bactData
 ny <- dim(Y)[1]
 ns <- dim(Y)[2]
@@ -7649,9 +7651,13 @@ ax.legend(handles=[Forest_patch, Arableland_patch, Grassland_patch])
 ## yes, this loses on of the weird farmland points, but the 
 ## nms is otherwise almost identical. 
 
+## but this won't affect our larger model, these points 
+## were removed because of missing data
+
 ## won't worry about for the moment. 
 
 ## and on with temporal analysis
+
 
 ################################
 
@@ -7738,35 +7744,6 @@ sum(aa["PlotID"] == "P0118") ## not a repeated plot, sampled in summer.
 ## not sure, no reason to throw it out.
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ##### sulari figure, grassland abundances #####
 
 ## she also needs a figure that shows just the ten most common 
@@ -7796,6 +7773,4 @@ barplot(sort(taxa_sums(onlyGrass), decreasing=TRUE)[1:10],
         )
 title(ylab="adjusted read abundances", line=4.5, cex.lab=1.2, family="Calibri Light")
 #dev.off()
-
-## this could work, for the moment
 

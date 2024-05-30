@@ -215,13 +215,16 @@ m_SpTmpSmall = sampleMcmc(m_SpTmpSmall,
 save(m_SpTmpSmall, file="m_SpTmpSmall_sampled_thin50.rda")
 print(paste("finish time is", Sys.time()))
 #########################################################
+## with the 50 thin, this took ~4 hours:
+## "start time is 2024-05-29 15:16:56.161548"
+## "finish time is 2024-05-29 19:12:01.006627"
+
+## oops, deleted our unsampled model, might need it:
+
+git restore --source  80af950f5c3d6dc517aab46bdeb09584ae90366a m_SpTmpSmall.rda
 
 nohup Rscript sample_m_SpTmpSmall.r &> sample_m_SpTmpSmall.log & ## 
 
-## seems like it worked, quickly, 20 minutes
-## 516 species, and went quickly
-## so, could up the number of species ...
-## first, let's make sure it worked
 
 soil
 conda activate spatialDirt
@@ -353,6 +356,8 @@ mixing = list(es.beta=es.beta, ge.beta=ge.beta,
 save(mixing,file="m_SpTmpSmall_mixingStats.rda")
  
 ########## ^^script to check convergences^^ ###########
+
+nohup Rscript checkConvergenceSpTmpSmall.r &> checkConvergenceSpTmpSmall.log & 
 
 
 ?evaluateModelFit

@@ -201,7 +201,7 @@ length(levels(as.factor(studyDesign$season)))
 library(Hmsc)
 print(paste("start time is", Sys.time()))
 load("m_SpTmpSmall.rda")
-thin = 50 ## modified from 5 previously
+thin = 150 ## modified from 5 and 50 previously
 samples = 1000
 nChains = 2
 nP = 2
@@ -212,19 +212,19 @@ m_SpTmpSmall = sampleMcmc(m_SpTmpSmall,
                      nChains = nChains,
                      nParallel = nP,
                      verbose=1)
-save(m_SpTmpSmall, file="m_SpTmpSmall_sampled_thin50.rda")
+save(m_SpTmpSmall, file="m_SpTmpSmall_sampled_thin150.rda")
 print(paste("finish time is", Sys.time()))
 #########################################################
+
 ## with the 50 thin, this took ~4 hours:
 ## "start time is 2024-05-29 15:16:56.161548"
 ## "finish time is 2024-05-29 19:12:01.006627"
 
 ## oops, deleted our unsampled model, might need it:
 
-git restore --source  80af950f5c3d6dc517aab46bdeb09584ae90366a m_SpTmpSmall.rda
+#git restore --source  80af950f5c3d6dc517aab46bdeb09584ae90366a m_SpTmpSmall.rda
 
-nohup Rscript sample_m_SpTmpSmall.r &> sample_m_SpTmpSmall.log & ## 
-
+nohup Rscript sample_m_SpTmpSmall.r &> m_SpTmpSmall_sampled_thin150.log & ## 
 
 soil
 conda activate spatialDirt
@@ -248,6 +248,7 @@ library(Hmsc)
 load("m_SpTmpSmall_sampled.rda")
 mpost = convertToCodaObject(m_SpTmpSmall) 
 pdf(file="traces_m_SpTmpSmall_sampled.pdf")
+plot(mpost$Beta)
 plot(mpost$Beta)
 dev.off()
 
@@ -292,6 +293,9 @@ par(mfrow=c(1,2))
 hist(es.gamma, main="effective sample size for gamma") 
 hist(ge.gamma, main="potential scale reduction factor for gamma)")
 ## oh yeah, this is shit, ess is down below 100 for all, near zero for a lot
+## upped the thin to 50, and this improved things quite a bit
+## but still need more, try 150? this will be pretty long, but get it 
+## started  
 
 mpost$Omega
 
@@ -315,52 +319,120 @@ hist(ge.omega1$psrf, main="psrf(omega)")
 ## yeah, this is taking forever. Let's make some scripts, following 
 ## the fungal paper:
 
+library(Hmsc)
+
 ## checkConvergenceSpTmpSmall.r
 ########## script to check convergences ###########
+
 library(Hmsc)
-load("m_SpTmpSmall_sampled_thin50.rda")
+#load("m_SpTmpSmall_sampled_thin50.rda")
+load("m_SpTmpSmall_sampled_thin150.rda")
 m = m_SpTmpSmall; rm(m_SpTmpSmall)
 mpost = convertToCodaObject(m)
 es.beta = effectiveSize(mpost$Beta)
 ge.beta = gelman.diag(mpost$Beta,multivariate=FALSE)$psrf
-png(file="essBetaSpTmpSmall.png")
+png(file="essBetaSpTmpSmall_thin150.png")
 par(mfrow=c(1,2)) 
 hist(es.beta, main="effective sample size for beta") 
 hist(ge.beta, main="potential scale reduction factor for beta)")
 dev.off()
 es.gamma = effectiveSize(mpost$Gamma)
 ge.gamma = gelman.diag(mpost$Gamma,multivariate=FALSE)$psrf
-png(file="essGammaSpTmpSmall.png")
+png(file="essGammaSpTmpSmall_thin150.png")
 par(mfrow=c(1,2)) 
 hist(es.gamma, main="effective sample size for gamma") 
 hist(ge.gamma, main="potential scale reduction factor for gamma)")
 dev.off()
 es.V = effectiveSize(mpost$V)
 ge.V = gelman.diag(mpost$V,multivariate=FALSE)$psrf
-png(file="essGammaSpTmpSmall.png")
+png(file="essV_SpTmpSmall_thin150.png")
 par(mfrow=c(1,2)) 
 hist(es.V, main="effective sample size for V") 
 hist(ge.V, main="potential scale reduction factor for V)")
 dev.off()
-es.omega = effectiveSize(mpost$Omega[[1]])
-ge.omega = gelman.diag(mpost$Omega[[1]], multivariate=FALSE)$psrf
-png(file="essGammaSpTmpSmall.png")
+## here script fails. Too much data in the species-species matrix
+## the fungal paper does this:
+mpost$temp = mpost$Omega[[1]]
+## take the first thousand species/species interactions
+for(i in 1:length(mpost$temp)){
+  mpost$temp[[i]] = mpost$temp[[i]][,1:1000]
+}
+es.omega1 = effectiveSize(mpost$temp)
+ge.omega1 = gelman.diag(mpost$temp,multivariate=FALSE)$psrf
+png(file="essOmega1_SpTmpSmall_thin150.png")
 par(mfrow=c(1,2)) 
-hist(effectiveSize(, main="ess(omega)") 
-hist(gelman.diag(, main="psrf(omega)")
+hist(es.omega1, main="ess(omega)") 
+hist(ge.omega1, main="psrf(omega)")
 dev.off()
 mixing = list(es.beta=es.beta, ge.beta=ge.beta,
               es.gamma=es.gamma, ge.gamma=ge.gamma,
               es.V=es.V, ge.V=ge.V,
-              es.omega=es.omega, ge.omega=ge.omega)
-save(mixing,file="m_SpTmpSmall_mixingStats.rda")
+              es.omega=es.omega1, ge.omega=ge.omega1)
+save(mixing,file="m_SpTmpSmall_sampled_thin150_mixingStats.rda")
+#save(mixing,file="m_SpTmpSmall_sampled_thin50_mixingStats.rda")
  
 ########## ^^script to check convergences^^ ###########
 
-nohup Rscript checkConvergenceSpTmpSmall.r &> checkConvergenceSpTmpSmall.log & 
+## test on the 50thin
+#nohup Rscript checkConvergenceSpTmpSmall.r &> checkConvergenceSpTmpSmall_thin50.log  
 
+## when the 150thin model is ready
+nohup Rscript checkConvergenceSpTmpSmall.r &> checkConvergenceSpTmpSmall_thin150.log  
+
+########################################################
+
+## get a look at the mixing plots in the 
+## thin50 results:
+
+library(Hmsc)
+
+#load("m_SpTmpSmall_sampled_thin50.rda")
+load("m_SpTmpSmall_sampled_thin150.rda")
+mpost = convertToCodaObject(m_SpTmpSmall)
+
+pdf(file="traces_m_SpTmpSmall_sampled.pdf")
+plot(mpost$Beta)
+dev.off()
+
+## get it local
+getFile="/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis/traces_m_SpTmpSmall_sampled.pdf"
+putItHere="/home/daniel/Documents/projects/fichtelSoils/files2big4git/"
+scp test@132.180.112.115:$getFile $putItHere
+
+#####################################################
+
+## testing model fit 
+
+library(Hmsc)
+
+load("m_SpTmpSmall_sampled_thin50.rda")
+#load("m_SpTmpSmall_sampled_thin150.rda")
+
+m = m_SpTmpSmall; rm(m_SpTmpSmall)
 
 ?evaluateModelFit
+
+## predictive:
+
+predY.MF = computePredictedValues(m, expected=TRUE)
+
+MF = evaluateModelFit(hM=m, predY=predY.MF)
+
+hist(MF$AUC)
+
+sum(is.na(MF$AUC))
+
+(MF$AUC)
+
+hist(MF$RMSE)
+
+length(MF$RMSE)
+
+(MF$RMSE > 0)
+hist(MF$TjurR2)
+(MF$TjurR2)
+
+## actually, looks pretty good with the thin50 model, even though mixing wasn't perfect
 
 m_SpTmpSmall
 
@@ -370,6 +442,12 @@ aa
 
 ## can also check the predictive power
 
+partition=createPartition(hM=m, nfolds=2)
+
+## this takes a very long time, probably days:
+predY.CV = computePredictedValues(m, expected=TRUE, partition=partition, nChains = 1, nParallel = 1)
+MF.CV = evaluateModelFit(hM=m, predY=predY.CV)
+
 postBeta = getPostEstimate(m, parName = "Beta") 
 
 plotBeta(m, post = postBeta, param = "Support", supportLevel = 0.95)
@@ -377,7 +455,12 @@ plotBeta(m, post = postBeta, param = "Support", supportLevel = 0.95)
 
 ############## check species-species interactions #########
 
+library(Hmsc)
+
+load("m_SpTmpSmall_sampled_thin50.rda")
+
 OmegaCor = computeAssociations(m) 
+
 supportLevel = 0.95 
 toPlot = ((OmegaCor[[1]]$support>supportLevel) 
            + (OmegaCor[[1]]$support<(1-supportLevel))>0)*OmegaCor[[1]]$mean 
@@ -387,3 +470,7 @@ corrplot(toPlot, method = "color",
 
 
 
+## remember, the goal is to find the species associated with high respiration,
+## so, 
+
+find . -type f -size +20M -exec ls -lh {} \;

@@ -1,7 +1,7 @@
 library(Hmsc)
 print(paste("start time is", Sys.time()))
 load("m_SpTmpSmall.rda")
-thin = 150 ## modified from 5 and 50 previously
+thin = 300 ## modified from 5,50,150 previously
 samples = 1000
 nChains = 2
 nP = 2
@@ -12,6 +12,6 @@ m_SpTmpSmall = sampleMcmc(m_SpTmpSmall,
                      nChains = nChains,
                      nParallel = nP,
                      verbose=1)
-save(m_SpTmpSmall, file="m_SpTmpSmall_sampled_thin150.rda")
+save(m_SpTmpSmall, file="m_SpTmpSmall_sampled_thin300.rda")
 print(paste("finish time is", Sys.time()))
 

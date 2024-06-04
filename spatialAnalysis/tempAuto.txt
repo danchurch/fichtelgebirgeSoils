@@ -452,6 +452,7 @@ hist(MF$TjurR2)
 
 ## samplePredictivePower.r
 ########################################################
+
 library(Hmsc)
 
 print(paste("start time is", Sys.time()))
@@ -472,6 +473,7 @@ plotBeta(m, post = postBeta, param = "Support", supportLevel = 0.95)
 dev.off()
 
 print(paste("finish time is", Sys.time()))
+
 ########################################################
 
 soil
@@ -484,18 +486,52 @@ nohup Rscript samplePredictivePower.r &> samplePredictivePower_thin300.log &
 ############## check species-species interactions #########
 
 library(Hmsc)
+library(corrplot)
 
-load("m_SpTmpSmall_sampled_thin50.rda")
+load("m_SpTmpSmall_sampled_thin300.rda")
+m = m_SpTmpSmall; rm(m_SpTmpSmall)
 
 OmegaCor = computeAssociations(m) 
 
-supportLevel = 0.95 
+
+?computeAssociations
+
+supportLevel = 0.0 
+
+str(OmegaCor[[1]])
+
+OmegaCor[[1]]$support
+
+OmegaCor[[1]]$support>supportLevel
+
 toPlot = ((OmegaCor[[1]]$support>supportLevel) 
            + (OmegaCor[[1]]$support<(1-supportLevel))>0)*OmegaCor[[1]]$mean 
+
+toPlot = ((OmegaCor[[2]]$support>supportLevel) 
+           + (OmegaCor[[2]]$support<(1-supportLevel))>0)*OmegaCor[[2]]$mean 
+
+toPlot = ((OmegaCor[[3]]$support>supportLevel) 
+           + (OmegaCor[[3]]$support<(1-supportLevel))>0)*OmegaCor[[3]]$mean 
+
+m$rLNames[1]
+
+m$rLNames
+
+dev.new()
+
+
+
+aa <- toPlot[1:258,1:258]
+
 corrplot(toPlot, method = "color", 
          col = colorRampPalette(c("blue","white","red"))(200), 
-         title = paste("random effect level:", m$rLNames[1]), mar=c(0,0,1,0))
+         title = paste("random effect level:", m$rLNames[1]), mar=c(0,0,1,0),
+         ylim = c(0,258), xlim = c(0,258))
 
+corrplot(aa, method = "color", 
+         col = colorRampPalette(c("blue","white","red"))(200), 
+         title = paste("random effect level:", m$rLNames[1]), mar=c(0,0,1,0),
+         ylim = c(0,258), xlim = c(0,258))
 
 ## remember, the goal is to find the species associated with high respiration,
 ## so, 
@@ -504,4 +540,4 @@ find . -type f -size +20M -exec ls -lh {} \;
 
 ##########################
 
-## 
+

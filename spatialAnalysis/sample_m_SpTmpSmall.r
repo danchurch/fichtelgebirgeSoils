@@ -12,6 +12,7 @@ m_SpTmpSmall = sampleMcmc(m_SpTmpSmall,
                      nChains = nChains,
                      nParallel = nP,
                      verbose=1)
-save(m_SpTmpSmall, file="m_SpTmpSmall_sampled_thin300.rda")
+#save(m_SpTmpSmall, file="m_SpTmpSmall_sampled_thin300.rda")
+save(m_SpTmpSmall, file="m_SpTmpSmall_sampled_thin300_2.rda")
 print(paste("finish time is", Sys.time()))
 

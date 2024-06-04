@@ -194,7 +194,6 @@ length(levels(as.factor(studyDesign$season)))
 ## try sampling this. cutoff is 0.5% of abundances of at least one sample
 ## gives us 258 species
 ## synch up the lab computer, then run:
-## 
 
 ## sample_m_SpTmpSmall.r
 #########################################################
@@ -212,20 +211,31 @@ m_SpTmpSmall = sampleMcmc(m_SpTmpSmall,
                      nChains = nChains,
                      nParallel = nP,
                      verbose=1)
-save(m_SpTmpSmall, file="m_SpTmpSmall_sampled_thin300.rda")
+#save(m_SpTmpSmall, file="m_SpTmpSmall_sampled_thin300.rda")
+save(m_SpTmpSmall, file="m_SpTmpSmall_sampled_thin300_2.rda")
 print(paste("finish time is", Sys.time()))
 #########################################################
 
 ## with the 50 thin, this took ~4 hours
 ## with the 150 thin, this took ~10 hours
+## with the 300 thin, this took ~33 hours
 
+## let's try duplicating this, and adding the sampling 
+## together
 ## oops, deleted our unsampled model, might need it:
 #git restore --source  80af950f5c3d6dc517aab46bdeb09584ae90366a m_SpTmpSmall.rda
 
-nohup Rscript sample_m_SpTmpSmall.r &> m_SpTmpSmall_sampled_thin300.log & 
+## try running this twice, and add them together later
 
 soil
 conda activate spatialDirt
+nohup Rscript sample_m_SpTmpSmall.r &>> m_SpTmpSmall_sampled_thin300.log & 
+
+## this is precious, get these local. Too big for github...
+getFile="/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis/m_SpTmpSmall_sampled_thin300.rda"
+putItHere="/home/daniel/Documents/projects/fichtelSoils/files2big4git/"
+scp test@132.180.112.115:$getFile $putItHere
+
 
 R
 
@@ -377,7 +387,6 @@ soil
 conda activate spatialDirt
 
 nohup Rscript checkConvergenceSpTmpSmall.r &> checkConvergenceSpTmpSmall_thin150.log &
-
 
 ## get a look at the mixing plots in the fully sampled model
 

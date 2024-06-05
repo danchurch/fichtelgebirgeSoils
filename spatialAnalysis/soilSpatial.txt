@@ -7500,6 +7500,7 @@ m_hurdleSpatial = sampleMcmc(m_hurdleSpatial,
 
 
 library(Hmsc)
+#load("m_hurdleSpatial.rda")
 load("m_hurdleSpatial.rda")
 
 thin = 5
@@ -7519,10 +7520,15 @@ save(m_hurdleSpatial, file="m_hurdleSpatial_sampled.rda")
 ######################################################
 
 soil 
-
 conda activate r_env
-
 nohup Rscript runSample.r &> runSample.log &
+
+## this is finished, ran for ~3 weeks, precious, so back it up on desktop:
+
+## get it local
+getFile="/vol/data/fichtelgebirgeSoils/spatialAnalysis/m_hurdleSpatial_sampled.rda"
+putItHere="/media/vol/fichtelberg/hmsc/fullModels/noEffluxNoSptempBig/"
+scp -P 30267 ubuntu@129.70.51.6:$getFile $putItHere
 
 ## running for a while. to check on it:
 
@@ -7773,4 +7779,303 @@ barplot(sort(taxa_sums(onlyGrass), decreasing=TRUE)[1:10],
         )
 title(ylab="adjusted read abundances", line=4.5, cex.lab=1.2, family="Calibri Light")
 #dev.off()
+
+######## examine CO2 soil efflux data ########
+
+## we have data for the CO2/licor chambers, but not entirely sure 
+## what forms these take
+
+## Betty seems to have created a file "COefflux.csv", 
+## which is a processed, corrected data of some 
+## kind from the licor data, I think, but I have
+## lots of questions about how it was made and 
+## what it is intended for. 
+
+## so I need help from Betty or Nele, 
+## and for now I will march on with exploring the 
+## spatiotemporal model.
+
+###### check ess from big model #####
+
+## let's go ahead and start a second sampling of the
+## big model, just in case. Probably we will
+## have to restart it when we figure out the 
+## CO2 flux data. But if not 
+
+## can we check the the ESS of the variable before we
+## do this?
+
+denbiDirt
+
+soil
+
+conda activate r_env
+
+R
+
+library(Hmsc)
+
+## on denbi:
+
+load("/vol/data/fichtelgebirgeSoils/spatialAnalysis/m_hurdleSpatial_sampled.rda")
+
+m_hurdleSpatial
+
+mpost = convertToCodaObject(m_hurdleSpatial) ## too memory intensive. 
+
+## does it help to pickout only the variable of interest?
+
+?convertToCodaObject
+
+mpost = convertToCodaObject(m_hurdleSpatial, 
+                                Beta = TRUE,
+                                Gamma = FALSE,
+                                V = FALSE,
+                                Sigma = FALSE,
+                                Rho = FALSE,
+                                Eta = FALSE,
+                                Lambda = FALSE,
+                                Alpha = FALSE,
+                                Omega = FALSE,
+                                Psi = FALSE,
+                                Delta = FALSE)
+
+## that worked for the moment
+
+## plot these?
+
+pdf(file="traces_m_hurdleSpatial.pdf")
+plot(mpost$Beta)
+dev.off()
+
+## how is our beta ess?
+
+es.beta <- effectiveSize(mpost$Beta)
+ge.beta <- gelman.diag(mpost$Beta,multivariate=FALSE)$psrf ## this takes a very long time.
+
+## make a script?:
+
+## gelmanDiag_m_hurdleSpatial.r ##
+####### script to calculate gelman psrf (start) ######
+library(Hmsc)
+load("/vol/data/fichtelgebirgeSoils/spatialAnalysis/m_hurdleSpatial_sampled.rda")
+mpost = convertToCodaObject(m_hurdleSpatial, Beta = TRUE, Gamma = FALSE, V = FALSE, Sigma = FALSE, Rho = FALSE,
+                                Eta = FALSE, Lambda = FALSE, Alpha = FALSE, Omega = FALSE, Psi = FALSE, Delta = FALSE)
+ge.beta <- gelman.diag(mpost$Beta,multivariate=FALSE)$psrf ## this takes a very long time.
+save(ge.beta, file='gelmanDiag_m_hurdleSpatial.rda')
+####### script to calculate gelman psrf (end) ######
+
+soil; conda activate r_env
+nohup Rscript gelmanDiag_m_hurdleSpatial.r &> gelmanDiag_m_hurdleSpatial.log &
+
+## back on interp
+
+load("/vol/data/fichtelgebirgeSoils/spatialAnalysis/gelmanDiag_m_hurdleSpatial.rda")
+
+hist(es.beta, main="effective sample size for beta")
+## actually not too bad, a lot of species are over 1000,
+## bimodal, a lot reached near 2000, 
+## and then a lot of shitty ones, <400
+
+hist(ge.beta, main="potential scale reduction factor for beta)") ## funny, these convergences look mostly okay.
+
+## on desktop
+getFile="/vol/data/fichtelgebirgeSoils/spatialAnalysis/traces_m_hurdleSpatial.pdf"
+putItHere="/home/daniel/Documents/projects/fichtelSoils/files2big4git"
+scp -P 30267 ubuntu@129.70.51.6:$getFile $putItHere
+
+## check for autocorrelation:
+
+?autocorr.plot
+
+class(mpost$Beta)
+
+class(mpost$Beta[[1]])
+
+autocorr.plot(mpost$Beta[[1]],lag.max=20) ## can't do it, too much memory needed
+
+## a lot of the traces show shifting averages, and divergence
+## in the chains. 
+## it does indeed look like we need more sampling, but 
+## how do we do this, do we exactly repeat the sampling, or increase 
+## the thinning? 
+
+## increasing the thinning will dramatically increase the sampling 
+## time, and we don't have this time, really. 
+## sampling for the posterior predictions will take as long or longer
+
+## so what is the strategy here, going forward?
+
+## it looks like we need to simplify the model, cut the species
+## down to a couple hundred?
+
+## rerun with fewer species and bigger thinning steps. Get it started today,
+## then keep exploring the spatiotemporal model in the meantime.
+
+
+## rerunning big spatial model:
+
+denbiDirt
+
+conda activate r_env
+
+soil
+
+R
+
+library(Hmsc)
+library(phyloseq)
+
+rm(list=ls()) ## merge the spatial and env data:
+xycoords = read.csv("sulariSpatial.csv", row.names=1)
+envData <- read.csv("sulariEnv.csv", row.names="SampleID")
+aa <- merge(x=envData, y=xycoords, by=0, )
+row.names(aa) <- aa$Row.names
+aa[1] <- NULL
+aa <- aa[rownames(envData),]
+envData <- aa; rm(aa)
+varsOfInterest = c("PlotID","soil_respiration","Land_type","pH","N","C","Temperature","waterCont","xx","yy")
+XData<-data.frame(envData[,varsOfInterest])
+XData$Land_type <- as.factor(XData$Land_type)
+## we can only use complete cases
+ccases <- complete.cases(XData) ## 112 samples, we only lose 8 
+XData = XData[ccases,] 
+load("psCleanedUp.rda")
+psCleanedUp = prune_samples(!(rownames(sample_data(psCleanedUp)) %in% c("C1.1","C1.2","C2.1","C2.2")), psCleanedUp)
+psCleanedUp = prune_taxa( colSums(otu_table(psCleanedUp)) > 0, psCleanedUp)
+bactRaw <- otu_table(psCleanedUp)@.Data
+bactRaw = bactRaw[ccases,]  ## complete cases only
+XData['BacteriaDepth'] <- log(rowSums(bactRaw))
+bact.pa<-ifelse(bactRaw>0,1,0)
+rowsumsInv = 1/rowSums(bactRaw)
+nASVs <- dim(bactRaw)[2]
+scalarMat = matrix( rep(rowsumsInv, nASVs), ncol = nASVs)
+bact.rel <- bactRaw * scalarMat
+##################### thresholds!! ###########
+## larger, prev model had 1315 spp, x2 in hurdle model, threshold.prev=0.05, threshold.abu=0.002
+## we'll do a much harsher subset for the moment. If sampling is cheap, soften it
+## need to reduce to at least half, maybe more
+threshold.prev = 5/112 ## present in at least 5 samples, out of 112 samples 
+threshold.abu = 0.01 ## only OTU that reaches at least 1% abundance of one sample
+ny = dim(bactRaw)[1]
+cond1=!(colSums(bact.pa)<=threshold.prev*ny) 
+cond2=apply(bact.rel,2,max)>=threshold.abu 
+bactData <- bactRaw[, cond1 & cond2 ] 
+sum(bactData > 0)
+sum(bact.pa)
+dim(bactData) ## 166 OTUs remain, out of 
+dim(bact.pa) ## 3313 OTUs
+################################################
+Y <- bactData
+ny <- dim(Y)[1]
+ns <- dim(Y)[2]
+Yabu <- Y
+Yabu[Y==0] <- NA ## to avoid zeroes?
+Yabu = log(Yabu) ## take log of abundances. They basically decided on the same transformations as Sulari and I.
+Ypa = 1*(Y>0)
+all(rownames(XData) == rownames(Y)) ## check check
+sample.id = row.names(Y)
+samplePlotid = XData$PlotID
+studyDesign = data.frame("sample"=as.factor(sample.id), "site_spatial"=as.factor(samplePlotid))
+plot_coords <- XData[,c("PlotID","xx","yy")]
+plot_coords <- plot_coords[!duplicated(plot_coords),] ## remove duplicated plot rows
+rownames(plot_coords) <- plot_coords$PlotID 
+plot_coords$PlotID <- NULL
+varsOfmodel1 <- c("soil_respiration","Land_type","pH","N","C","Temperature","waterCont")
+XData1 <- XData[,c(varsOfmodel1)]
+XFormula1 = ~ soil_respiration + Land_type + pH + N + C + Temperature
+XData0 <- XData[,"BacteriaDepth",drop=FALSE]
+XFormula0 = ~ BacteriaDepth
+rL.sample = HmscRandomLevel(units = sample.id)
+rL.site_spatial = HmscRandomLevel(sData = plot_coords)
+rL.site_spatial = setPriors(rL.site_spatial,nfMin=1,nfMax=3) #try 3. Not sure how to optimize this. But there may multiple spatial scales.
+
+## we want three models, 
+## one that contains only the covariate of read depth
+## one that is based on presence absence (probit) and all important env data
+## and one that is based on read abundances and all important env data
+
+
+## for the null abundance model with no environmental covariates, they use a 
+## lognormal poisson:
+m_spat_noEnv = Hmsc(Y=Yabu,
+         XData = XData0,  XFormula = XFormula0,
+         distr={"lognormal poisson"} ,
+         studyDesign=studyDesign, 
+         ranLevels={list("sample"=rL.sample, "site_spatial" = rL.site_spatial)},
+         YScale=TRUE 
+)
+save(m_spat_noEnv, file="m_spat_noEnv_01percent.rda")
+## for the PA model with all environmental covariates:
+m_spat_PA = Hmsc(Y=Ypa,
+         XData = XData1,  XFormula = XFormula1,
+         distr={"probit"} ,
+         studyDesign=studyDesign, 
+         ranLevels={list("sample"=rL.sample, "site_spatial" = rL.site_spatial)},
+         YScale=TRUE 
+)
+save(m_spat_PA, file="m_spat_PA_01percent.rda")
+## for the abundance model with all environmental covariates:
+m_spat_Abu = Hmsc(Y=Yabu,
+         XData = XData1,  XFormula = XFormula1,
+         distr={"normal"} ,
+         studyDesign=studyDesign, 
+         ranLevels={list("sample"=rL.sample, "site_spatial" = rL.site_spatial)},
+         YScale=TRUE 
+)
+save(m_spat_Abu, file="m_spat_Abu_01percent.rda")
+
+
+
+
+################## sampleHurdleSpatial_01percent.r #######################
+library(Hmsc)
+print(paste("start time is", Sys.time()))
+load("m_spat_noEnv_01percent.rda")
+load("m_spat_PA_01percent.rda")
+load("m_spat_Abu_01percent.rda")
+thin = 20
+samples = 1000
+nChains = 4
+nP = 4
+print("starting null model")
+m_spat_noEnv = sampleMcmc(m_spat_noEnv, 
+                     samples = samples, 
+                     thin=thin, 
+                     transient = ceiling(0.5*samples*thin), 
+                     nChains = nChains, 
+                     nParallel = nP
+                     )
+save(m_spat_noEnv, file="m_spat_noEnv_01percent_sampled.rda")
+print("finished null model, start PA model")
+m_spat_PA = sampleMcmc(m_spat_PA, 
+                     samples = samples, 
+                     thin=thin, 
+                     transient = ceiling(0.5*samples*thin), 
+                     nChains = nChains, 
+                     nParallel = nP
+                     )
+save(m_spat_PA, file="m_spat_PA_01percent.rda_sampled.rda")
+print("finished PA model, start abundance model")
+m_spat_Abu = sampleMcmc(m_spat_Abu, 
+                     samples = samples, 
+                     thin=thin, 
+                     transient = ceiling(0.5*samples*thin), 
+                     nChains = nChains, 
+                     nParallel = nP
+                     )
+save(m_spat_Abu, file="m_spat_Abu_01percent_sampled.rda")
+print(paste("finish time is", Sys.time()))
+######################################################
+
+nohup Rscript sampleHurdleSpatial_01percent.r &> sampleHurdleSpatial_01percent.log &
+
+## this is using a fraction of the RAM, each chain is ~1gig
+## maybe the complexity scales geometrically with the number of species...
+
+## let's see how long this needs to run...
+
+## and back on the spatiotemp model while this runs
+
+
 

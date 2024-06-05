@@ -476,36 +476,44 @@ print(paste("finish time is", Sys.time()))
 
 ########################################################
 
-soil
 
-conda activate spatialDirt
 
 nohup Rscript samplePredictivePower.r &> samplePredictivePower_thin300.log &
 
-
 ############## check species-species interactions #########
+
+soil; conda activate spatialDirt; R
+
 
 library(Hmsc)
 library(corrplot)
 
 load("m_SpTmpSmall_sampled_thin300.rda")
+
 m = m_SpTmpSmall; rm(m_SpTmpSmall)
 
 OmegaCor = computeAssociations(m) 
 
+save(OmegaCor, file='OmegaCor_SpTmpSmall_thin300.rda')
+
+system('ls -lh OmegaCor_SpTmpSmall_thin300.rda')
+
 
 ?computeAssociations
 
-supportLevel = 0.0 
+supportLevel = 0.0  ## let's see them all
 
 str(OmegaCor[[1]])
 
-OmegaCor[[1]]$support
 
-OmegaCor[[1]]$support>supportLevel
-
+## as found in tutorial
 toPlot = ((OmegaCor[[1]]$support>supportLevel) 
            + (OmegaCor[[1]]$support<(1-supportLevel))>0)*OmegaCor[[1]]$mean 
+
+## I think this gives only posivitive associations?
+
+toPlot = ((OmegaCor[[1]]$support>supportLevel)>0)*OmegaCor[[1]]$mean 
+
 
 toPlot = ((OmegaCor[[2]]$support>supportLevel) 
            + (OmegaCor[[2]]$support<(1-supportLevel))>0)*OmegaCor[[2]]$mean 
@@ -533,11 +541,44 @@ corrplot(aa, method = "color",
          title = paste("random effect level:", m$rLNames[1]), mar=c(0,0,1,0),
          ylim = c(0,258), xlim = c(0,258))
 
-## remember, the goal is to find the species associated with high respiration,
-## so, 
+
+## the example in the book (p180) is like this:
+
+## i: 1 
+## j 1=readAbund only, 2=full model
+
+for (i in 1:3){
+    for (j in 1:2){
+        OmegaCor = computeAssociations(models[[i]][[j]])
+        supportLevel = 0.95
+        toPlot = ((OmegaCor[[1]]$support > supportLevel)
+        + (OmegaCor[[1]]$support < (1-supportLevel))
+        > 0)
+        * OmegaCor[[1]]$mean
+        corrplot(toPlot, method = “color”,
+        col = c(“grey”,“white”,“black”)
+        }
+}
+
+## we ran all of ours as one model. We should also run a null model,
+## to show the effect of incorporating the covariates on the species
+## cooccurrences. This is also useful for ordinations using the
+## latent variables 
+
+## it looks to me like we may need separate models to investigate 
+## single species associated with high respiration and 
+## species associations? Depends on our abundance cutoffs, I think.
+
+## put back in the read Abundances as a variable and build  
+
+## so let's try to follow the book example as closely as possible,
+## section 7.9. See if we can get this running in an hour...
+
+
 
 find . -type f -size +20M -exec ls -lh {} \;
 
 ##########################
 
+## remember, the goal is to find the species associated with high respiration,
 

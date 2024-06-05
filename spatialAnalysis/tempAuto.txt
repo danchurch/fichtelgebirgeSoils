@@ -24,8 +24,8 @@ import pandas as pd
 import natsort as ns
 import numpy as np
 
-sulariEnvCSV="/home/daniel/Documents/projects/fichtelgebirge_project/sulariArneSoils/fichtelgebirgeSoils/spatialAnalysis/sulariEnv.csv"
-sulariUTM="/home/daniel/Documents/projects/fichtelgebirge_project/sulariArneSoils/fichtelgebirgeSoils/spatialAnalysis/sulariSpatial.csv"
+sulariEnvCSV="sulariEnv.csv"
+sulariUTM="sulariSpatial.csv"
 envData = (pd.read_csv(sulariEnvCSV, index_col='SampleID')
                .drop(['Latitude', 'Longitude'], axis='columns'))
 spatData = pd.read_csv(sulariUTM, index_col='SampleID')
@@ -37,48 +37,39 @@ repeatedPlots.drop(['S89','S102'], axis='rows', inplace=True)
 ## use natsort to clean up sample name order
 repeatedPlots = repeatedPlots.loc[ ns.natsorted(repeatedPlots.index)]
 repeatedPlots['Date'] = pd.to_datetime(repeatedPlots['Date'], yearfirst=True, errors='coerce')
-
 ## how many different sampling times do each have?
 repeatedPlots[["PlotID","Date"]].groupby("PlotID").nunique()
-
 ## I think the temporal unit should be season. 
 ## we need to bin the dates then
-
 repeatedPlots['Date'].duplicated().any() ##  no repeats, can be an index:
-
+repeatedPlots.sort_values(by='Date', inplace=True)
 repeatedPlots = (repeatedPlots
-                    .sort_values(by='Date')
                     .reset_index()
                     .set_index('Date')
 )
-
 ## we'll use a "meteorological" definition
-
-repeatedPlots['season'] = 0
+repeatedPlots['season'] = 'zoop'
 ## so winter of 2022 
-repeatedPlots.loc['2020-01-01':'2022-02-18', 'season'] = 1
+repeatedPlots.loc['2020-01-01':'2022-02-18', 'season'] = 'winter'
 ## spring of 2022
-repeatedPlots.loc['2022-03-01':'2022-05-31', 'season'] = 2
+repeatedPlots.loc['2022-03-01':'2022-05-31', 'season'] = 'spring'
 ## summer of 2022
-repeatedPlots.loc['2022-06-01':'2022-09-30', 'season'] = 3
+repeatedPlots.loc['2022-06-01':'2022-09-30', 'season'] = 'summer'
 ## fall of 2022
-repeatedPlots.loc['2022-10-01':'2022-12-31', 'season'] = 4
-
-repeatedPlots['season']
-
-repeatedPlots.groupby('season').size() #actually fairly even distribution
-
+repeatedPlots.loc['2022-10-01':'2022-12-31', 'season'] = 'fall'
 ## clean up rownames:
+repeatedPlots = (repeatedPlots
+                    .reset_index()
+                    .set_index('SampleID')
+)
 repeatedPlots = repeatedPlots.loc[ ns.natsorted(repeatedPlots.index)]
-
 ## save out for R
-repeatedPlots.to_csv("repeatedPlotsEnv.csv")
+#repeatedPlots.to_csv("repeatedPlotsEnv.csv")
 
 ## so we can use this dataframe in R to subset the phyloseq object
 ## down to size
 
-## when reloading, date format is lost
-
+## when reloading, date format is lost:
 repeatedPlots = pd.read_csv("repeatedPlotsEnv.csv", index_col='SampleID')
 repeatedPlots['Date'] = pd.to_datetime(repeatedPlots['Date'], yearfirst=True, errors='coerce')
 
@@ -100,7 +91,6 @@ repeatedPlots['Date'] = pd.to_datetime(repeatedPlots['Date'], yearfirst=True, er
 library(Hmsc)
 library(phyloseq)
 library(ape)
-
 rm(list=ls())
 envData <- read.csv("repeatedPlotsEnv.csv", row.names="SampleID")
 load("psCleanedUp.rda")
@@ -118,13 +108,14 @@ bact.rel <- bactRaw * scalarMat
 #threshold.abu = 0.002 ## only OTU that reaches at least n% abundance of one sample
 #####
 ## toy model, greatly simplified for testing:
-threshold.prev = 0.20 ## present in at least n% of samples
-threshold.abu = 0.020 ## only OTU that reaches at least n% abundance of one sample
+#threshold.prev = 0.05 ## present in at least n% of samples
+threshold.abu = 0.005 ## only OTU that reaches at least n% abundance of one sample
 #####
 ny = dim(bactRaw)[1]
-cond1=!(colSums(bact.pa)<=threshold.prev*ny) ## present in at least n% of samples?
+#cond1=!(colSums(bact.pa)<=threshold.prev*ny) ## present in at least n% of samples?
 cond2=apply(bact.rel,2,max)>=threshold.abu
-bactData <- bactRaw[, cond1 & cond2 ]
+bactData <- bactRaw[, cond2 ]
+#bactData <- bactRaw[, cond1 & cond2 ]
 sum(bactData > 0)
 sum(bact.pa)
 dim(bactData)
@@ -132,7 +123,7 @@ dim(bact.pa)
 Y <- bactData
 ny <- dim(Y)[1]
 ns <- dim(Y)[2]
-varsOfInterest = c("PlotID","soil_respiration","Land_type","pH","N","C","Temperature","waterCont","season","xx","yy")
+varsOfInterest = c("PlotID","season","soil_respiration","Land_type","pH","N","C","Temperature","waterCont","xx","yy")
 XData <- data.frame(envData[,varsOfInterest])
 XData$Land_type <- as.factor(XData$Land_type)
 Yabu <- Y
@@ -149,38 +140,404 @@ Ycombo = cbind(Ypa,Yabu)
 ny = dim(Y)[1]
 ns = dim(Y)[2]/2
 all(rownames(XData) == rownames(Y))
-sample.id = row.names(Y)
 samplePlotid = XData$PlotID
-studyDesign = data.frame("sample"=as.factor(sample.id), 
-                         "site_spatial"=as.factor(samplePlotid),
-                         "season"=as.integer(XData$season)
-                          )
 plot_coords <- XData[,c("PlotID","xx","yy")]
 plot_coords <- plot_coords[!duplicated(plot_coords),] ## remove duplicated plot rows
 rownames(plot_coords) <- plot_coords$PlotID
 plot_coords$PlotID <- NULL
-
-## now, how do we implement our temporal variable, season?:
-
-varsOfmodel <- c("soil_respiration","Land_type","pH","N","C","Temperature","waterCont")
-XData <- XData[,c(varsOfmodel)]
-XFormula0 = ~ soil_respiration + Land_type + pH + N + C + Temperature
-rL.sample = HmscRandomLevel(units = sample.id)
-
-## I think this temporal effect acts on the individual sample level
-## so :
-
+## use this for our spatial random effects
 rL.site_spatial = HmscRandomLevel(sData = plot_coords)
-
 rL.site_spatial = setPriors(rL.site_spatial,nfMin=1,nfMax=3) ## try 3. Not sure how to optimize this. But there may multiple spatial scales.
+## random effects by sample is simple:
+sample.id = row.names(Y)
+rL.sample = HmscRandomLevel(units = sample.id)
+## now, how do we implement our temporal variable, season?:
+## acts on individual samples, not plots, necessarily
+## I think we need a subtable that links to a column in our experimental design df 
+## one column would be "season" and the other would be the integer value 
+seasonDF = data.frame(row.names=c( "winter", "spring", "summer" , "fall" ), seasNumber=1:4)
+rL.site_season = HmscRandomLevel(sData = seasonDF)
+rL.site_season = setPriors(rL.site_season,nfMin=1,nfMax=1) ## I can imagine that such a simple predictor needs more?
+## get the general ecological predictors ("fixed effects"), and formula
+varsOfmodel <- c("soil_respiration","Land_type","pH","N","C","Temperature","waterCont")
+XData0 <- XData[,c(varsOfmodel)] ## clean up to just these for model below
+XFormula0 = ~ soil_respiration + Land_type + pH + N + C + Temperature
+## I think this temporal effect acts on the individual sample level
+## this issue is pertinent: https://github.com/hmsc-r/HMSC/issues/103
+## we need a study design that has one row for each date-plot combo,
+studyDesign = data.frame("sample"=as.factor(sample.id), 
+                         "site_spatial"=as.factor(samplePlotid),
+                         "season"=as.factor(XData$season)
+                          )
+m_SpTmpSmall = Hmsc(Y=Ycombo,
+                   XData = XData0,  XFormula = XFormula0,
+                   distr={"probit"} ,
+                   studyDesign=studyDesign,
+                   ranLevels={list("sample"=rL.sample, 
+                                   "site_spatial" = rL.site_spatial,
+                                   "season" = rL.site_season
+                                  )})
+save(m_SpTmpSmall, file="m_SpTmpSmall.rda")
 
-rL.site_season = HmscRandomLevel(sData = )
-rL.site_season = setPriors(rL.site_spatial,nfMin=1,nfMax=1) ## I can imagine that such a simple predictor needs more?
+
+## sanity check for random effects, these pairs of numbers should match
+rL.sample
+length(levels(as.factor(studyDesign$sample)))
+
+rL.site_spatial
+length(levels(as.factor(studyDesign$site_spatial)))
+
+rL.site_season
+length(levels(as.factor(studyDesign$season)))
 
 
-m = Hmsc(Y=Ycombo,
-         XData = XData,  XFormula = XFormula0,
-         distr={"probit"} ,
-         studyDesign=studyDesign,
-         ranLevels={list("sample"=rL.sample, "site_spatial" = rL.site_spatial)})
+## try sampling this. cutoff is 0.5% of abundances of at least one sample
+## gives us 258 species
+## synch up the lab computer, then run:
+
+## sample_m_SpTmpSmall.r
+#########################################################
+library(Hmsc)
+print(paste("start time is", Sys.time()))
+load("m_SpTmpSmall.rda")
+thin = 300 ## modified from 5,50,150 previously
+samples = 1000
+nChains = 2
+nP = 2
+m_SpTmpSmall = sampleMcmc(m_SpTmpSmall,
+                     samples = samples,
+                     thin = thin,
+                     transient = ceiling(0.5*samples*thin),
+                     nChains = nChains,
+                     nParallel = nP,
+                     verbose=1)
+#save(m_SpTmpSmall, file="m_SpTmpSmall_sampled_thin300.rda")
+save(m_SpTmpSmall, file="m_SpTmpSmall_sampled_thin300_2.rda")
+print(paste("finish time is", Sys.time()))
+#########################################################
+
+## with the 50 thin, this took ~4 hours
+## with the 150 thin, this took ~10 hours
+## with the 300 thin, this took ~33 hours
+
+## let's try duplicating this, and adding the sampling 
+## together
+## oops, deleted our unsampled model, might need it:
+#git restore --source  80af950f5c3d6dc517aab46bdeb09584ae90366a m_SpTmpSmall.rda
+
+## try running this twice, and add them together later
+
+soil
+conda activate spatialDirt
+nohup Rscript sample_m_SpTmpSmall.r &>> m_SpTmpSmall_sampled_thin300.log & 
+
+## this is precious, get these local. Too big for github...
+getFile="/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis/m_SpTmpSmall_sampled_thin300.rda"
+putItHere="/home/daniel/Documents/projects/fichtelSoils/files2big4git/"
+scp test@132.180.112.115:$getFile $putItHere
+
+
+R
+
+library(Hmsc)
+
+load("m_SpTmpSmall_sampled.rda")
+
+mpost = convertToCodaObject(m_SpTmpSmall) 
+
+sink(file="summary_m_SpTmpSmall_sampled.txt")
+summary(mpost$Beta) 
+sink()
+
+## plotTrace_m_SpTmpSmall.r 
+####### script for printing plots #####
+
+library(Hmsc)
+load("m_SpTmpSmall_sampled.rda")
+mpost = convertToCodaObject(m_SpTmpSmall) 
+pdf(file="traces_m_SpTmpSmall_sampled.pdf")
+plot(mpost$Beta)
+plot(mpost$Beta)
+dev.off()
+
+#######################################
+
+nohup Rscript plotTrace_m_SpTmpSmall.r
+
+## evince won't forward, get it:
+
+getFile="/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis/traces_m_SpTmpSmall_sampled.pdf"
+putItHere="/home/daniel/Documents/projects/fichtelgebirge_project/sulariArneSoils/files2big4git"
+scp test@132.180.112.115:$getFile $putItHere
+
+## large, gives the trace of every asv against every variable in the model
+
+effectiveSize(mpost$Beta)
+
+sink(file="effectiveSize_m_SpTmpSmall_sampled.txt")
+effectiveSize(mpost$Beta)
+sink()
+
+## the effective size for these is really small.
+## not sure why. Given that the model only ran for 
+## 20 min, I guess we can afford to run it longer tonight
+## and maybe increase the number of species?
+
+es.beta <- effectiveSize(mpost$Beta)
+ge.beta <- gelman.diag(mpost$Beta,multivariate=FALSE)$psrf
+
+par(mfrow=c(1,2)) 
+hist(es.beta, main="effective sample size for beta") 
+hist(ge.beta, main="potential scale reduction factor for beta)")
+
+## yup, looks like we didn't sample nearly enough
+## set up another sample event, longer...modified above
+## should take ~10 times longer
+
+es.gamma = effectiveSize(mpost$Gamma)
+ge.gamma = gelman.diag(mpost$Gamma,multivariate=FALSE)$psrf
+
+par(mfrow=c(1,2)) 
+hist(es.gamma, main="effective sample size for gamma") 
+hist(ge.gamma, main="potential scale reduction factor for gamma)")
+## oh yeah, this is shit, ess is down below 100 for all, near zero for a lot
+## upped the thin to 50, and this improved things quite a bit
+## but still need more, try 150? this will be pretty long, but get it 
+## started  
+
+mpost$Omega
+
+mpost$Omega[[1]]
+
+mpost$temp = mpost$Omega[[1]]
+for(i in 1:length(mpost$temp)){
+  mpost$temp[[i]] = mpost$temp[[i]][,1:1000]
+}
+
+es.omega1 = effectiveSize(effectiveSize(mpost$Omega[[1]]))
+ge.omega1 = gelman.diag(mpost$Omega[[1]], multivariate=FALSE)
+
+hist(es.omega1, main="ess(omega)") 
+hist(ge.omega1$psrf, main="psrf(omega)")
+
+## okay, so it's shit. but for now, keep moving through the analysis
+## the goal is to get a skeleton of an analysis ready for when the 
+## real data hits
+
+## yeah, this is taking forever. Let's make some scripts, following 
+## the fungal paper:
+
+library(Hmsc)
+
+## checkConvergenceSpTmpSmall.r
+########## script to check convergences ###########
+
+library(Hmsc)
+load("m_SpTmpSmall_sampled_thin150.rda")
+m = m_SpTmpSmall; rm(m_SpTmpSmall)
+mpost = convertToCodaObject(m)
+
+es.beta = effectiveSize(mpost$Beta)
+ge.beta = gelman.diag(mpost$Beta,multivariate=FALSE)$psrf
+png(file="essBetaSpTmpSmall_thin150.png")
+par(mfrow=c(1,2))
+hist(es.beta, main="effective sample size for beta")
+hist(ge.beta, main="potential scale reduction factor for beta)")
+dev.off()
+
+es.gamma = effectiveSize(mpost$Gamma)
+ge.gamma = gelman.diag(mpost$Gamma,multivariate=FALSE)$psrf
+png(file="essGammaSpTmpSmall_thin150.png")
+par(mfrow=c(1,2))
+hist(es.gamma, main="effective sample size for gamma")
+hist(ge.gamma, main="potential scale reduction factor for gamma)")
+dev.off()
+
+es.V = effectiveSize(mpost$V)
+ge.V = gelman.diag(mpost$V,multivariate=FALSE)$psrf
+png(file="essV_SpTmpSmall_thin150.png")
+par(mfrow=c(1,2))
+hist(es.V, main="effective sample size for V")
+hist(ge.V, main="potential scale reduction factor for V)")
+dev.off()
+
+## omega is too large. take the first thousand species/species interactions
+mpost$temp = mpost$Omega[[1]]
+for(i in 1:length(mpost$temp)){
+  mpost$temp[[i]] = mpost$temp[[i]][,1:1000]
+}
+es.omega1 = effectiveSize(mpost$temp)
+ge.omega1 = gelman.diag(mpost$temp,multivariate=FALSE)$psrf
+png(file="essOmega1_SpTmpSmall_thin150.png")
+par(mfrow=c(1,2))
+hist(es.omega1, main="ess(omega)")
+hist(ge.omega1, main="psrf(omega)")
+dev.off()
+
+mixing = list(es.beta=es.beta, ge.beta=ge.beta,
+              es.gamma=es.gamma, ge.gamma=ge.gamma,
+              es.V=es.V, ge.V=ge.V,
+              es.omega=es.omega1, ge.omega=ge.omega1)
+save(mixing, file="m_SpTmpSmall_sampled_thin150_mixingStats.rda")
+
+
+########################################################
+
+soil
+conda activate spatialDirt
+
+nohup Rscript checkConvergenceSpTmpSmall.r &> checkConvergenceSpTmpSmall_thin150.log &
+
+## get a look at the mixing plots in the fully sampled model
+
+R
+
+library(Hmsc)
+
+#load("m_SpTmpSmall_sampled_thin50.rda")
+
+load("m_SpTmpSmall_sampled_thin150.rda")
+
+mpost = convertToCodaObject(m_SpTmpSmall)
+
+pdf(file="traces_m_SpTmpSmall_sampled_thin150.pdf")
+plot(mpost$Beta)
+dev.off()
+
+## get it local
+getFile="/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis/traces_m_SpTmpSmall_sampled_thin150.pdf"
+putItHere="/home/daniel/Documents/projects/fichtelSoils/files2big4git/"
+scp test@132.180.112.115:$getFile $putItHere
+
+#####################################################
+
+## testing model fit 
+
+library(Hmsc)
+
+#load("m_SpTmpSmall_sampled_thin50.rda")
+load("m_SpTmpSmall_sampled_thin150.rda")
+m = m_SpTmpSmall; rm(m_SpTmpSmall)
+
+?evaluateModelFit
+
+## predictive:
+
+predY.MF = computePredictedValues(m, expected=TRUE)
+
+MF = evaluateModelFit(hM=m, predY=predY.MF)
+
+hist(MF$AUC)
+
+sum(is.na(MF$AUC))
+
+(MF$AUC)
+
+hist(MF$RMSE)
+
+length(MF$RMSE)
+
+(MF$RMSE > 0)
+
+hist(MF$TjurR2)
+
+(MF$TjurR2)
+
+## actually, looks pretty good with the thin50 model, even though mixing wasn't perfect
+
+## can also check the predictive power
+
+
+## this takes a very long time, probably days, so make a script:
+
+## samplePredictivePower.r
+########################################################
+
+library(Hmsc)
+
+print(paste("start time is", Sys.time()))
+load("m_SpTmpSmall_sampled_thin300.rda")
+m = m_SpTmpSmall; rm(m_SpTmpSmall)
+
+partition=createPartition(hM=m, nfolds=2)
+predY.CV = computePredictedValues(m, expected=TRUE, partition=partition, nChains = 1, nParallel = 4)
+
+MF.CV = evaluateModelFit(hM=m, predY=predY.CV)
+
+save(list(predY.CV,MF.CV), file="m_SpTmpSmall_sampled_modelFit_thin300.rda")
+
+postBeta = getPostEstimate(m, parName = "Beta") 
+
+png("postBeta_support_thin300.png")
+plotBeta(m, post = postBeta, param = "Support", supportLevel = 0.95)
+dev.off()
+
+print(paste("finish time is", Sys.time()))
+
+########################################################
+
+soil
+
+conda activate spatialDirt
+
+nohup Rscript samplePredictivePower.r &> samplePredictivePower_thin300.log &
+
+
+############## check species-species interactions #########
+
+library(Hmsc)
+library(corrplot)
+
+load("m_SpTmpSmall_sampled_thin300.rda")
+m = m_SpTmpSmall; rm(m_SpTmpSmall)
+
+OmegaCor = computeAssociations(m) 
+
+
+?computeAssociations
+
+supportLevel = 0.0 
+
+str(OmegaCor[[1]])
+
+OmegaCor[[1]]$support
+
+OmegaCor[[1]]$support>supportLevel
+
+toPlot = ((OmegaCor[[1]]$support>supportLevel) 
+           + (OmegaCor[[1]]$support<(1-supportLevel))>0)*OmegaCor[[1]]$mean 
+
+toPlot = ((OmegaCor[[2]]$support>supportLevel) 
+           + (OmegaCor[[2]]$support<(1-supportLevel))>0)*OmegaCor[[2]]$mean 
+
+toPlot = ((OmegaCor[[3]]$support>supportLevel) 
+           + (OmegaCor[[3]]$support<(1-supportLevel))>0)*OmegaCor[[3]]$mean 
+
+m$rLNames[1]
+
+m$rLNames
+
+dev.new()
+
+
+
+aa <- toPlot[1:258,1:258]
+
+corrplot(toPlot, method = "color", 
+         col = colorRampPalette(c("blue","white","red"))(200), 
+         title = paste("random effect level:", m$rLNames[1]), mar=c(0,0,1,0),
+         ylim = c(0,258), xlim = c(0,258))
+
+corrplot(aa, method = "color", 
+         col = colorRampPalette(c("blue","white","red"))(200), 
+         title = paste("random effect level:", m$rLNames[1]), mar=c(0,0,1,0),
+         ylim = c(0,258), xlim = c(0,258))
+
+## remember, the goal is to find the species associated with high respiration,
+## so, 
+
+find . -type f -size +20M -exec ls -lh {} \;
+
+##########################
+
 

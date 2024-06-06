@@ -63,8 +63,13 @@ repeatedPlots = (repeatedPlots
                     .set_index('SampleID')
 )
 repeatedPlots = repeatedPlots.loc[ ns.natsorted(repeatedPlots.index)]
+
 ## save out for R
 #repeatedPlots.to_csv("repeatedPlotsEnv.csv")
+
+repeatedPlots.head()
+
+repeatedPlots.PlotID.unique()
 
 ## so we can use this dataframe in R to subset the phyloseq object
 ## down to size
@@ -311,6 +316,7 @@ mpost$Omega[[1]]
 
 mpost$temp = mpost$Omega[[1]]
 for(i in 1:length(mpost$temp)){
+
   mpost$temp[[i]] = mpost$temp[[i]][,1:1000]
 }
 
@@ -572,7 +578,239 @@ for (i in 1:3){
 ## put back in the read Abundances as a variable and build  
 
 ## so let's try to follow the book example as closely as possible,
-## section 7.9. See if we can get this running in an hour...
+## section 7.9. Split up the hurdle model into two sampling
+## events, and add a "null" model. 
+
+## the models have been rewritten on for the full spatial 
+## model, maybe do this for this model. Grab the above code and
+## cleanup a bit/restructure:
+
+## on nanoComp:
+
+
+############# spatiotemp, 3 models #######################
+
+soil; conda activate r_env; R
+
+library(Hmsc)
+library(phyloseq)
+library(ape)
+
+rm(list=ls())
+envData <- read.csv("repeatedPlotsEnv.csv", row.names="SampleID")
+load("psCleanedUp.rda")
+## trim down to repeated sites, removed zeroed species
+repeatedSitesPS = prune_samples(rownames(envData), psCleanedUp)
+repeatedSitesPS = prune_taxa( colSums(otu_table(repeatedSitesPS)) > 0, repeatedSitesPS)
+varsOfInterest = c("PlotID","soil_respiration","Land_type","pH","N","C","Temperature","waterCont","season","xx","yy")
+XData<-data.frame(envData[,varsOfInterest])
+XData$Land_type <- as.factor(XData$Land_type)
+## we can only use complete cases
+ccases <- complete.cases(XData) 
+XData = XData[ccases,] ## lose one sample
+bactRaw <- otu_table(repeatedSitesPS)@.Data
+bactRaw <- bactRaw[ccases,]
+XData$Land_type <- as.factor(XData$Land_type)
+XData['BacteriaDepth'] <- log(rowSums(bactRaw))
+bact.pa<-ifelse(bactRaw>0,1,0)
+rowsumsInv = 1/rowSums(bactRaw)
+nASVs <- dim(bactRaw)[2]
+scalarMat = matrix( rep(rowsumsInv, nASVs), ncol = nASVs)
+bact.rel <- bactRaw * scalarMat
+##################### thresholds!! ###########
+## not sure the appropriate thresholds her
+## in the case of the full spatial model, 
+## ended up subsetting down to ~160 OTUs
+threshold.prev = 6/33 ## not a lot of difference between 0 and 6
+threshold.abu = 0.01 ## only OTU that reaches at least 1% abundance of one sample
+ny = dim(bactRaw)[1]
+cond1=!(colSums(bact.pa)<=threshold.prev*ny)
+cond2=apply(bact.rel,2,max)>=threshold.abu
+bactData <- bactRaw[, cond1 & cond2 ]
+sum(bactData > 0)
+sum(bact.pa)
+dim(bactData) ## 81 OTUs remain, out of
+dim(bact.pa) ## 2903 OTUs
+################################################
+## 81 OTUs, should go fast
+Y <- bactData
+ny <- dim(Y)[1]
+ns <- dim(Y)[2]
+Yabu <- Y
+Yabu[Y==0] <- NA ## to avoid zeroes?
+Yabu = log(Yabu) ## take log of abundances. They basically decided on the same transformations as Sulari and I.
+Yabu <- scale(Yabu) ## scale, after log? Heavily transformed data. Let's hope they know what they are talking about.
+Ypa = 1*(Y>0)
+all(rownames(XData) == rownames(Y))
+samplePlotid = XData$PlotID
+plot_coords <- XData[,c("PlotID","xx","yy")]
+plot_coords <- plot_coords[!duplicated(plot_coords),] ## remove duplicated plot rows
+rownames(plot_coords) <- plot_coords$PlotID
+plot_coords$PlotID <- NULL
+## use this for our spatial random effects
+rL.site_spatial = HmscRandomLevel(sData = plot_coords)
+rL.site_spatial = setPriors(rL.site_spatial,nfMin=1,nfMax=3) ## try 3. Not sure how to optimize this. But there may multiple spatial scales.
+## random effects by sample is simple:
+sample.id = row.names(Y)
+rL.sample = HmscRandomLevel(units = sample.id)
+## now, how do we implement our temporal variable, season?:
+## acts on individual samples, not plots, necessarily
+## I think we need a subtable that links to a column in our experimental design df 
+## one column would be "season" and the other would be the integer value 
+seasonDF = data.frame(row.names=c( "winter", "spring", "summer" , "fall" ), seasNumber=1:4)
+rL.site_season = HmscRandomLevel(sData = seasonDF)
+rL.site_season = setPriors(rL.site_season,nfMin=1,nfMax=1) ## I can imagine that such a simple predictor needs more?
+## set the covariates for "null" model:
+XData0 <- XData[,"BacteriaDepth",drop=FALSE]
+XFormula0 = ~ BacteriaDepth
+## set the covariates for hurdle model:
+varsOfmodel1 <- c("soil_respiration","Land_type","pH","N","C","Temperature","waterCont")
+XData1 <- XData[,c(varsOfmodel1)] ## clean up to just these for model below
+XFormula1 = ~ soil_respiration + Land_type + pH + N + C + Temperature
+## I think this temporal effect acts on the individual sample level
+## this issue is pertinent: https://github.com/hmsc-r/HMSC/issues/103
+## we need a study design that has one row for each date-plot combo,
+studyDesign = data.frame("sample"=as.factor(sample.id), 
+                         "site_spatial"=as.factor(samplePlotid),
+                         "season"=as.factor(XData$season)
+                          )
+
+## old model:
+#m_SpTmpSmall = Hmsc(Y=Ycombo,
+#                   XData = XData0,  XFormula = XFormula0,
+#                   distr={"probit"} ,
+#                   studyDesign=studyDesign,
+#                   ranLevels={list("sample"=rL.sample, 
+#                                   "site_spatial" = rL.site_spatial,
+#                                   "season" = rL.site_season
+#                                  )})
+
+## we want three models,
+## one that contains only the covariate of read depth
+## one that is based on presence absence (probit) and all important env data
+## and one that is based on read abundances and all important env data
+
+
+## for the null abundance model with no environmental covariates, the textbook uses
+## a lognormal poisson:
+
+m_spatTempSmall_noEnv = Hmsc(Y=Yabu,
+         XData = XData0,  XFormula = XFormula0,
+         distr={"lognormal poisson"} ,
+         studyDesign=studyDesign,
+         ranLevels={list("sample"=rL.sample, 
+                         "site_spatial" = rL.site_spatial,
+                         "season" = rL.site_season)},
+         YScale=TRUE
+)
+save(m_spatTempSmall_noEnv, file="m_spatTempSmall_noEnv_01percent.rda")
+
+## for the PA model with all environmental covariates:
+m_spatTempSmall_PA = Hmsc(Y=Ypa,
+         XData = XData1,  XFormula = XFormula1,
+         distr={"probit"} ,
+         studyDesign=studyDesign,
+         ranLevels={list("sample"=rL.sample, 
+                         "site_spatial" = rL.site_spatial,
+                         "season" = rL.site_season)},
+         #YScale=TRUE
+)
+save(m_spatTempSmall_PA, file="m_spatTempSmall_PA_01percent.rda")
+
+## for the abundance model with all environmental covariates:
+m_spatTempSmall_Abu = Hmsc(Y=Yabu,
+         XData = XData1,  XFormula = XFormula1,
+         distr={"normal"} ,
+         studyDesign=studyDesign,
+         ranLevels={list("sample"=rL.sample, 
+                         "site_spatial" = rL.site_spatial,
+                         "season" = rL.site_season)},
+         YScale=TRUE
+)
+save(m_spatTempSmall_Abu, file="m_spatTempSmall_Abu_01percent.rda")
+
+## to sample these posteriors, let's do a script for each. the 1-by-1 
+## approach is very slow...
+
+################## sampleHurdleSpatTemp_null_01percent.r #######################
+library(Hmsc)
+print(paste("start time is", Sys.time()))
+load("m_spatTempSmall_noEnv_01percent.rda")
+thin = 20
+samples = 1000
+nChains = 4
+nP = 4
+m_spatTempSmall_noEnv = sampleMcmc(m_spatTempSmall_noEnv,
+                     samples = samples,
+                     thin=thin,
+                     transient = ceiling(0.5*samples*thin),
+                     nChains = nChains,
+                     nParallel = nP
+                     )
+save(m_spatTempSmall_noEnv, file="m_spatTempSmall_noEnv_01percent_sampled.rda")
+print(paste("finish time is", Sys.time()))
+################################################################################
+
+
+################## sampleHurdleSpatTemp_PA_01percent.r #######################
+library(Hmsc)
+print(paste("start time is", Sys.time()))
+load("m_spatTempSmall_PA_01percent.rda")
+thin = 20
+samples = 1000
+nChains = 4
+nP = 4
+m_spatTempSmall_PA = sampleMcmc(m_spatTempSmall_PA,
+                     samples = samples,
+                     thin=thin,
+                     transient = ceiling(0.5*samples*thin),
+                     nChains = nChains,
+                     nParallel = nP
+                     )
+save(m_spatTempSmall_PA, file="m_spatTempSmall_PA_01percent.rda_sampled.rda")
+print(paste("finish time is", Sys.time()))
+################################################################################
+
+################## sampleHurdleSpatTemp_abu_01percent.r #######################
+library(Hmsc)
+print(paste("start time is", Sys.time()))
+load("m_spatTempSmall_Abu_01percent.rda")
+thin = 20
+samples = 1000
+nChains = 4
+nP = 4
+m_spatTempSmall_Abu = sampleMcmc(m_spatTempSmall_Abu,
+                     samples = samples,
+                     thin=thin,
+                     transient = ceiling(0.5*samples*thin),
+                     nChains = nChains,
+                     nParallel = nP
+                     )
+save(m_spatTempSmall_Abu, file="m_spatTempSmall_Abu_01percent_sampled.rda")
+print(paste("finish time is", Sys.time()))
+################################################################################
+
+## in bash:
+
+modelScripts=( "sampleHurdleSpatTemp_null_01percent.r" "sampleHurdleSpatTemp_PA_01percent.r" "sampleHurdleSpatTemp_abu_01percent.r" )
+
+for i in "${modelScripts[@]}"; do
+  ls -l "$i"
+done
+
+nohup Rscript sampleHurdleSpatTemp_null_01percent.r &> sampleHurdleSpatTemp_null_01percent.log &
+nohup Rscript sampleHurdleSpatTemp_null_01percent.r &> sampleHurdleSpatTemp_null_01percent.log &
+nohup Rscript sampleHurdleSpatTemp_null_01percent.r &> sampleHurdleSpatTemp_null_01percent.log &
+
+
+
+## sanity check for random effects, these pairs of numbers should match
+rL.sample
+length(levels(as.factor(studyDesign$sample)))
+rL.site_spatial
+length(levels(as.factor(studyDesign$site_spatial)))
+rL.site_season
+length(levels(as.factor(studyDesign$season)))
 
 
 

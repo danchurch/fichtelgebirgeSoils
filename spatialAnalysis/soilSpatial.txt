@@ -7930,6 +7930,7 @@ rm(list=ls()) ## merge the spatial and env data:
 xycoords = read.csv("sulariSpatial.csv", row.names=1)
 envData <- read.csv("sulariEnv.csv", row.names="SampleID")
 aa <- merge(x=envData, y=xycoords, by=0, )
+
 row.names(aa) <- aa$Row.names
 aa[1] <- NULL
 aa <- aa[rownames(envData),]
@@ -8026,8 +8027,6 @@ m_spat_Abu = Hmsc(Y=Yabu,
 save(m_spat_Abu, file="m_spat_Abu_01percent.rda")
 
 
-
-
 ################## sampleHurdleSpatial_01percent.r #######################
 library(Hmsc)
 print(paste("start time is", Sys.time()))
@@ -8076,6 +8075,4 @@ nohup Rscript sampleHurdleSpatial_01percent.r &> sampleHurdleSpatial_01percent.l
 ## let's see how long this needs to run...
 
 ## and back on the spatiotemp model while this runs
-
-
 

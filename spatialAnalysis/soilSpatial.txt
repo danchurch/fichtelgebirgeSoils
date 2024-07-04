@@ -8526,6 +8526,7 @@ conda activate spatialDirt
 soil 
 
 python3
+
 import pandas as pd
 import os
 import tabloo
@@ -8590,6 +8591,8 @@ tabloo.show(CO2efflux[filt2]) ## most of these are "PS" plots, not in our envDat
 
 "P0180" in envData['PlotID'].values
 
+## sulari says this plot has always been missing, no DNA extracted etc.
+
 tabloo.show(envData)
 
 aa = CO2efflux.set_index('plotID')
@@ -8601,6 +8604,9 @@ envData.head()
 
 ## not sure, but move on with the rest, need to get a CO2 emission column in 
 ## our environmental dataframe
+
+## whoops, deleted rownames, that's a pain:
+git checkout 1a25869d56537f2 -- sulariEnv.csv
 
 ## to get the CO2 emissions, we need to match date and plot ID
 
@@ -8639,6 +8645,101 @@ envData.to_csv('/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils
 
 envData = pd.read_csv('/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis/sulariEnv.csv')
 
-## now, we can we include this in out new models?
+## now, we can we include this in out new models? 
 
+## back to R and hmsc...
+
+## to review we want several models:
+
+## a "null" without spatial effects or any environmental covariates, log normal residuals
+## a spatial model without environmental covariates, log normal residuals
+## a non-spatial model with environmental covariates, log normal residuals
+## two full spatial model with environmental covariates:
+  ## 1. hurdle model ## which is actually 2 models
+  ## 2. log-normal, for comparison with the "control models"
+
+## so five (4) models. 
+
+## can we set these up before we leave today? Should be able to reuse the above
+## code: 
+
+
+denbiDirt
+
+conda activate r_env
+
+soil
+
+R
+
+library(Hmsc)
+library(phyloseq)
+
+rm(list=ls()) ## merge the spatial and env data:
+
+xycoords = read.csv("sulariSpatial.csv", row.names=1)
+
+envData <- read.csv("sulariEnv.csv", row.names="SampleID")
+
+aa <- merge(x=envData, y=xycoords, by=0, )
+
+row.names(aa) <- aa$Row.names
+aa[1] <- NULL
+aa <- aa[rownames(envData),]
+envData <- aa; rm(aa)
+varsOfInterest = c("PlotID","soil_respiration","Land_type","pH","N","C","Temperature","waterCont","xx","yy")
+XData<-data.frame(envData[,varsOfInterest])
+XData$Land_type <- as.factor(XData$Land_type)
+## we can only use complete cases
+ccases <- complete.cases(XData) ## 112 samples, we only lose 8 
+XData = XData[ccases,] 
+load("psCleanedUp.rda")
+psCleanedUp = prune_samples(!(rownames(sample_data(psCleanedUp)) %in% c("C1.1","C1.2","C2.1","C2.2")), psCleanedUp)
+psCleanedUp = prune_taxa( colSums(otu_table(psCleanedUp)) > 0, psCleanedUp)
+bactRaw <- otu_table(psCleanedUp)@.Data
+bactRaw = bactRaw[ccases,]  ## complete cases only
+XData['BacteriaDepth'] <- log(rowSums(bactRaw))
+bact.pa<-ifelse(bactRaw>0,1,0)
+rowsumsInv = 1/rowSums(bactRaw)
+nASVs <- dim(bactRaw)[2]
+scalarMat = matrix( rep(rowsumsInv, nASVs), ncol = nASVs)
+bact.rel <- bactRaw * scalarMat
+##################### thresholds!! ###########
+## larger, prev model had 1315 spp, x2 in hurdle model, threshold.prev=0.05, threshold.abu=0.002
+## we'll do a much harsher subset for the moment. If sampling is cheap, soften it
+## need to reduce to at least half, maybe more
+threshold.prev = 5/112 ## present in at least 5 samples, out of 112 samples 
+threshold.abu = 0.01 ## only OTU that reaches at least 1% abundance of one sample
+ny = dim(bactRaw)[1]
+cond1=!(colSums(bact.pa)<=threshold.prev*ny) 
+cond2=apply(bact.rel,2,max)>=threshold.abu 
+bactData <- bactRaw[, cond1 & cond2 ] 
+sum(bactData > 0)
+sum(bact.pa)
+dim(bactData) ## 166 OTUs remain, out of 
+dim(bact.pa) ## 3313 OTUs
+################################################
+Y <- bactData
+ny <- dim(Y)[1]
+ns <- dim(Y)[2]
+Yabu <- Y
+Yabu[Y==0] <- NA ## to avoid zeroes?
+Yabu = log(Yabu) ## take log of abundances. They basically decided on the same transformations as Sulari and I.
+Ypa = 1*(Y>0)
+all(rownames(XData) == rownames(Y)) ## check check
+sample.id = row.names(Y)
+samplePlotid = XData$PlotID
+studyDesign = data.frame("sample"=as.factor(sample.id), "site_spatial"=as.factor(samplePlotid))
+plot_coords <- XData[,c("PlotID","xx","yy")]
+plot_coords <- plot_coords[!duplicated(plot_coords),] ## remove duplicated plot rows
+rownames(plot_coords) <- plot_coords$PlotID 
+plot_coords$PlotID <- NULL
+varsOfmodel1 <- c("soil_respiration","Land_type","pH","N","C","Temperature","waterCont")
+XData1 <- XData[,c(varsOfmodel1)]
+XFormula1 = ~ soil_respiration + Land_type + pH + N + C + Temperature
+XData0 <- XData[,"BacteriaDepth",drop=FALSE]
+XFormula0 = ~ BacteriaDepth
+rL.sample = HmscRandomLevel(units = sample.id)
+rL.site_spatial = HmscRandomLevel(sData = plot_coords)
+rL.site_spatial = setPriors(rL.site_spatial,nfMin=1,nfMax=3) #try 3. Not sure how to optimize this. But there may multiple spatial scales.
 

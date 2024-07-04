@@ -71,12 +71,11 @@ conda remove -n spatialDirt --all
 conda create -n "spatialDirt" 
 
 conda activate "spatialDirt" 
+
 conda config --env --add channels conda-forge
 conda config --env --set channel_priority strict
 
 conda install python=3 geopandas
-
-conda activate spatialDirt 
 
 pip install rasterio
 
@@ -99,6 +98,7 @@ BiocManager::install("phyloseq")
 ## right python?
 
 conda activate spatialDirt 
+
 pip install notebook 
 
 which jupyter ## looks like that work. Gets easier every year.
@@ -459,7 +459,6 @@ plot(sp2, ci.type="poly", col="red", lwd=2, ci.lty=0, ci.col="pink")
 data(BCI)
 
 sp1 <- specaccum(BCI)
-
 
 sp2 <- specaccum(BCI, "random")
 
@@ -5046,6 +5045,8 @@ conda update -n base conda
 conda install -n base conda-libmamba-solver
 conda config --set solver libmamba
 
+conda config --describe solver 
+
 ## try it out:
 conda env create --name spatialDirt --file=$yaml
 
@@ -8513,6 +8514,131 @@ corrplot(toPlot_spat_abu[plotOrder_spat_noEnv,plotOrder_spat_noEnv], method = "c
 
 ## talked to Betty, and the carbon emission data 
 
+conda activate spatialDirt
+
+## side note, can we get a nice panda viewer into our 
+## environment?
+
+#conda install conda-forge::pandasgui ## nope, did this break our install again?
+## or?
+#conda install conda-forge::tabloo
+
+soil 
+
+python3
+import pandas as pd
+import os
+import tabloo
+import numpy as np
+
 ## the carbon data is here:
+CO2efflux = pd.read_csv("/home/daniel/Documents/projects/fichtelSoils/SoilDataBetty/COefflux.csv")
+
+## this should probably be added to our environmental matrix:
+envData = pd.read_csv('sulariEnv.csv', index_col="SampleID")
+envData['Date'] = pd.to_datetime(envData['Date'], yearfirst=True, errors='coerce')
+
+tabloo.show(envData)
+
+## there were some weird sites...
+envData.loc['S89']
+envData.loc['S78']
+
+## might be important here, what are our repeated plots?
+repeats = pd.read_csv("repeatedPlotsEnv.csv")
+repeats.sort_values(by="PlotID")
+
+## remove the weird samples we found yesterday? = S89
+#envData.drop('S89',inplace=True)
+#envData.drop('S78',inplace=True)
+## think about that ^, leave them in now
+
+envData.head()
+
+CO2efflux.head()
+
+envData.shape
+CO2efflux.shape ## we have lots of extra data - what is this?
+
+envData['PlotID'].isin(CO2efflux['plotID'])
+
+envData['PlotID'].isin(CO2efflux['plotID']).sum() ## 115 rows of our envData have CO2 data
+
+## what is missing?:
+filt = ~(envData['PlotID'].isin(CO2efflux['plotID']))
+envData.loc[filt]
+## P0216 P0102 P0116 P0165 P0157
+## P0216 P0116 P0165 are also lacking moisture and temperature data... 
+
+## are any of these our repeated sites, as in using for spatiotemporal study?
+plotsmissingCO2 = envData.loc[filt].PlotID
+envData[envData['PlotID'].isin(plotsmissingCO2)]
+plotsmissingCO2.isin( repeats.PlotID) ## nope, that is good.
+
+
+CO2efflux['plotID'].isin(envData['PlotID']).head() 
+
+CO2efflux['plotID'].isin(envData['PlotID']).sum() ## same, 115 rows in the CO2 are also from sites also in our envdata
+
+## what co2 data are supposedly not in our environmental data?:
+filt2 = ~CO2efflux['plotID'].isin(envData['PlotID']) 
+
+tabloo.show(CO2efflux[filt2]) ## most of these are "PS" plots, not in our envData
+
+## but there is PS0180:
+"P0180" in CO2efflux['plotID'].values
+
+"P0180" in envData['PlotID'].values
+
+tabloo.show(envData)
+
+aa = CO2efflux.set_index('plotID')
+bb = envData.set_index('PlotID')
+result = pd.concat([CO2efflux, envData], axis=1, join="inner")
+
+envData.head()
+
+
+## not sure, but move on with the rest, need to get a CO2 emission column in 
+## our environmental dataframe
+
+## to get the CO2 emissions, we need to match date and plot ID
+
+envData = pd.read_csv('sulariEnv.csv', index_col="SampleID")
+envData['Date'] = pd.to_datetime(envData['Date'], yearfirst=True, errors='coerce')
+
+flow = []
+soil_T = []
+for i,j in envData.iterrows():
+  a = j['PlotID']
+  b = j['Date'].strftime("%Y-%m-%d")
+  c = CO2efflux.query(f'plotID == "{a}" & date == "{b}"')["flow"]
+  if c.empty: c = np.nan
+  else: c = c.iloc[0]
+  d = CO2efflux.query(f'plotID == "{a}" & date == "{b}"')["soil_T"]
+  if d.empty: d = np.nan
+  else: d = d.iloc[0]
+  flow.append(c)
+  soil_T.append(d)
+
+envData['co2flow'] = flow
+envData['soil_T'] = soil_T
+
+## sanity check:
+envData.loc['S1']
+CO2efflux[CO2efflux['plotID'] == 'P0104']
+
+envData.loc['S120']
+CO2efflux[CO2efflux['plotID'] == 'P0213']
+
+tabloo.show(envData)
+
+## looks good. write this out as our new env data:
+
+envData.to_csv('/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis/sulariEnv.csv', index=False)
+
+envData = pd.read_csv('/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis/sulariEnv.csv')
+
+## now, we can we include this in out new models?
 
 

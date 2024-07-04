@@ -7996,9 +7996,8 @@ rL.site_spatial = setPriors(rL.site_spatial,nfMin=1,nfMax=3) #try 3. Not sure ho
 ## one that is based on presence absence (probit) and all important env data
 ## and one that is based on read abundances and all important env data
 
-
 ## for the null abundance model with no environmental covariates, they use a 
-## lognormal poisson:
+## lognormal poisson...why?:
 m_spat_noEnv = Hmsc(Y=Yabu,
          XData = XData0,  XFormula = XFormula0,
          distr={"lognormal poisson"} ,
@@ -8075,4 +8074,445 @@ nohup Rscript sampleHurdleSpatial_01percent.r &> sampleHurdleSpatial_01percent.l
 ## let's see how long this needs to run...
 
 ## and back on the spatiotemp model while this runs
+
+########### back after a month #####
+
+## oh jeez, my brain hurts. What did I do?
+## where were these results...
+
+denbiDirt
+
+conda activate r_env
+
+soil
+
+R
+
+library(Hmsc)
+library(corrplot)
+library(RColorBrewer)
+library(lobstr)
+load("m_spat_noEnv_01percent_sampled.rda")
+load("m_spat_PA_01percent.rda_sampled.rda")
+load("m_spat_Abu_01percent_sampled.rda")
+
+m_spat_noEnv
+
+m_spat_PA  
+
+m_spat_Abu 
+
+## first step is to check how well mixed the samples 
+## are of the posterior:
+
+## for the "null" model:
+npEnvCoda = convertToCodaObject(m_spat_noEnv)
+
+str(m_spat_noEnv)
+
+es.beta = effectiveSize(npEnvCoda$Beta)  ## mean around 500
+hist(es.beta, main="effective sample size for beta", breaks=30)
+
+es.beta
+
+ge.beta = gelman.diag(npEnvCoda$Beta,multivariate=FALSE)$psrf
+
+hist(ge.beta) ## mostly ~1, that's good 
+
+pdf(file="traces_mixingSpatialNull.pdf")
+plot(npEnvCoda$Beta)
+dev.off()
+
+## get it local ##
+getFile="/vol/data/fichtelgebirgeSoils/spatialAnalysis/traces_mixingSpatialNull.pdf"
+putItHere="/home/daniel/Documents/projects/fichtelSoils/files2big4git/"
+scp -P 30267 ubuntu@129.70.51.6:$getFile $putItHere
+################
+
+## they look ~ok. chains didn't totally converge on a lot
+## Definitely more sampling in order, as soon as we are more 
+## confident in the models we want
+
+## gamma, species niche. We didn't give priors for niches, not sure
+## how this works in that case...
+es.gamma = effectiveSize(npEnvCoda$Gamma) ## same, ~500
+hist(es.beta, main="effective sample size for gamma", breaks=30)
+
+es.gamma
+
+ge.gamma = gelman.diag(npEnvCoda$Gamma,multivariate=FALSE)$psrf
+ge.gamma ## only 2 values, the intercept and 
+## ah, somehow bacterial depth is included here...not sure
+
+## V is unexplained variation in species niches...confusing, but here it is: 
+es.V = effectiveSize(npEnvCoda$V) # also around 500
+hist(es.beta, main="effective sample size for V", breaks=30)
+ge.V = gelman.diag(npEnvCoda$V,multivariate=FALSE)$psrf
+
+## species interactions, with no real environmental data:
+
+length(npEnvCoda)
+
+str(npEnvCoda[[1]])
+
+str(npEnvCoda[[2]])
+
+
+npEnvCoda$Omega
+
+#install.packages("lobstr")
+
+## the omega part of the object is huge:
+tree(npEnvCoda) 
+
+## they subsample the omega
+npEnvCoda$temp = npEnvCoda$Omega[[1]]
+for(i in 1:length(npEnvCoda$temp)){
+  npEnvCoda$temp[[i]] = npEnvCoda$temp[[i]][,1:1000]
+}
+
+tree(npEnvCoda$temp)
+
+pdf(file="traces_mixingSpatialNull.pdf")
+plot(npEnvCoda$temp)
+dev.off() ## get local etc
+
+es.omega1 = effectiveSize(npEnvCoda$temp)
+ge.omega1 = gelman.diag(npEnvCoda$temp,multivariate=FALSE)$psrf
+## actually, that looks a lot better than our Beta
+hist(es.omega1) 
+hist(ge.omega1)
+
+## so mixing is okay for exploration, but should start a new model 
+## with more sampling, hopefully this afternoon
+
+## to check model fit:
+preds = computePredictedValues(m_spat_noEnv)
+MF = evaluateModelFit(hM=m_spat_noEnv, predY=preds)
+
+?evaluateModelFit
+
+postBeta = getPostEstimate(m_spat_noEnv, parName="Beta")
+
+str(MF)
+
+hist(MF$RMSE)
+hist(MF$C.RMSE)
+## etc, explanatory power of model pretty good. 
+
+partition = createPartition(m_spat_noEnv, nfolds = 2, column = "sample")
+
+preds = computePredictedValues(m_spat_noEnv, partition=partition, nParallel = 4)
+## started 14:26
+
+MF = evaluateModelFit(hM=m, predY=preds)
+
+### actually, we need a script for that, I think:
+
+########### checkModel_spatNoEnv.r #################
+library(Hmsc)
+load("m_spat_noEnv_01percent_sampled.rda")
+partition = createPartition(m_spat_noEnv, nfolds = 2, column = "sample")
+preds = computePredictedValues(m_spat_noEnv, partition=partition, nParallel = 4)
+MF = evaluateModelFit(hM=m, predY=preds)
+save(preds, file="predsSpat_noEnv.rda")
+save(MF, file="modelFitSpat_noEnv.rda")
+####################################################
+
+nohup Rscript checkModel_spatNoEnv.r &> checkModel_spatNoEnv.log & ## started 15:07, jul1
+
+## that is going to run for a while, it seems. 
+
+## let's try looking at the species associations
+
+?computeAssociations
+
+OmegaCor = computeAssociations(m_spat_noEnv) ## took ~3 min
+
+?computeAssociations
+
+OmegaCor[[1]]$mean[1:3,1:3]
+
+str(OmegaCor[[2]])
+
+?corrMatOrder
+
+plotOrder <- corrMatOrder(OmegaCor[[1]]$mean,order="AOE")
+
+supportLevel = 0.75
+toPlot = ((OmegaCor[[1]]$support>supportLevel) + (OmegaCor[[1]]$support<(1-supportLevel))>0)*OmegaCor[[1]]$mean
+
+corrplot(toPlot[plotOrder,plotOrder], method = "color", type="lower",diag=FALSE,
+         col=colorRampPalette(c("blue","white","red"))(200),tl.cex=0.4,title=paste("random effect level:",m_spat_noEnv$rLNames[1]), mar=c(0,0,1,0))
+         col=colorRampPalette(c("blue","white","red"))(200),tl.cex=0.4, mar=c(0,0,1,0))
+
+m_spat_noEnv[1]
+
+m_spat_noEnv$rLNames
+
+## there are strong species associations, 
+## to be expected, considering this does not include environmental associations
+
+## how can we see how many latent variables were fit?
+
+## and if we can do an ordination with them:
+
+str(m_spat_noEnv)
+
+biPlot(m_spat_noEnv, 
+       etaPost = getPostEstimate(m_spat_noEnv, "Eta"), 
+       lambdaPost = getPostEstimate(m_spat_noEnv, "Lambda"),
+       spNames=NULL)
+
+?biPlot
+
+?getPostEstimate
+
+aa[[1]][1:5,]
+
+## we should be able to do network diagrams and analyses with this.
+
+## let's run the full environmental spatial models through the above code, first
+## because we are only really interested in the omega matrix after accounting 
+## for the beta. 
+## this
+
+## presence/absence ##
+m_spat_PA  
+
+m_spat_PA_Coda = convertToCodaObject(m_spat_PA)
+
+PA_es.beta = effectiveSize(m_spat_PA_Coda$Beta)  ## much better than the null model, mean of 3300 or so
+hist(PA_es.beta, main="effective sample size for beta", breaks=30)
+mean(PA_es.beta)
+
+ge.beta = gelman.diag(m_spat_PA_Coda$Beta,multivariate=FALSE)$psrf
+hist(ge.beta) ## mostly ~1, that's good 
+
+pdf(file="traces_mixingSpatialPA.pdf")
+plot(m_spat_PA_Coda$Beta)
+dev.off()
+## on local:
+getFile="/vol/data/fichtelgebirgeSoils/spatialAnalysis/traces_mixingSpatialPA.pdf"
+putItHere="/home/daniel/Documents/projects/fichtelSoils/files2big4git/"
+scp -P 30267 ubuntu@129.70.51.6:$getFile $putItHere
+## looks fine. Maybe even better than the null model
+
+## gamma, the effect of traits on niches, or something like that
+es.gamma = effectiveSize(m_spat_PA_Coda$Gamma) ## 
+hist(es.gamma, main="effective sample size for gamma", breaks=30)
+
+ge.gamma = gelman.diag(m_spat_PA_Coda$Gamma,multivariate=FALSE)$psrf
+
+ge.gamma ## there is one trait value here, even though I didn't set any
+
+## V is unexplained variation in species niches...confusing, but here it is: 
+es.V = effectiveSize(m_spat_PA_Coda$V) # also around 500
+hist(es.V, main="effective sample size for V", breaks=30)
+ge.V = gelman.diag(m_spat_PA_Coda$V,multivariate=FALSE)$psrf
+## looks fine
+
+m_spat_PA_Coda$temp = m_spat_PA_Coda$Omega[[1]]
+for(i in 1:length(m_spat_PA_Coda$temp)){
+  m_spat_PA_Coda$temp[[i]] = m_spat_PA_Coda$temp[[i]][,1:1000]
+}
+
+pdf(file="traces_mixingSpatialPA_omega.pdf")
+plot(m_spat_PA_Coda$temp)
+dev.off() ## get local etc
+
+## on local:
+getFile="/vol/data/fichtelgebirgeSoils/spatialAnalysis/traces_mixingSpatialPA_omega.pdf"
+putItHere="/home/daniel/Documents/projects/fichtelSoils/files2big4git/"
+scp -P 30267 ubuntu@129.70.51.6:$getFile $putItHere
+
+## a lot of them look weird, but oh well. 
+## 
+es.omega1 = effectiveSize(m_spat_PA_Coda$temp)
+ge.omega1 = gelman.diag(m_spat_PA_Coda$temp,multivariate=FALSE)$psrf
+
+## actually, that looks a lot better than our Beta
+hist(es.omega1) 
+
+hist(ge.omega1[,1])
+
+
+## "null" model, for comparison
+preds_spat_noEnv = computePredictedValues(m_spat_noEnv)
+MF_spat_noEnv = evaluateModelFit(hM=m_spat_noEnv, predY=preds_spat_noEnv)
+
+str(MF_spat_noEnv)
+
+## PA_full model
+preds_spat_PA = computePredictedValues(m_spat_PA)
+MF_spat_PA = evaluateModelFit(hM=m_spat_PA, preds_spat_PA)
+
+par(mfrow = c(1,2))
+hist(MF_spat_noEnv$RMSE)
+hist(MF_spat_PA$RMSE)
+
+MF_spat_PA$RMSE ## not sure if this is meaningful with PA
+
+## funny, we get less explanatory power in this PA with environmental covariates
+## maybe this is the P/A, we'll see how the abundance model worked.
+
+supportLevel = 0.75
+## null, spatial
+OmegaCor_spat_noEnv = computeAssociations(m_spat_noEnv) 
+plotOrder_spat_noEnv <- corrMatOrder(OmegaCor_spat_noEnv[[1]]$mean,order="AOE")
+toPlot_spat_noEnv = ((OmegaCor_spat_noEnv[[1]]$support>supportLevel) + (OmegaCor_spat_noEnv[[1]]$support<(1-supportLevel))>0)*OmegaCor_spat_noEnv[[1]]$mean
+## environmental, spatial
+OmegaCor_spat_PA = computeAssociations(m_spat_PA) 
+plotOrder_spat_PA <- corrMatOrder(OmegaCor_spat_PA[[1]]$mean,order="AOE")
+toPlot_spat_PA = ((OmegaCor_spat_PA[[1]]$support>supportLevel) + (OmegaCor_spat_PA[[1]]$support<(1-supportLevel))>0)*OmegaCor_spat_PA[[1]]$mean
+
+
+pdf('noEnv_vs_Env_omega.pdf', width=20, height=20)
+par(mfrow = c(1,2))
+corrplot(toPlot_spat_noEnv[plotOrder_spat_noEnv,plotOrder_spat_noEnv], method = "color", type="lower",diag=FALSE,
+         col=colorRampPalette(c("blue","white","red"))(200),tl.cex=0.4,title=paste("random effect level:",m_spat_noEnv$rLNames[1]), mar=c(0,0,1,0))
+## plot using same order:
+corrplot(toPlot_spat_PA[plotOrder_spat_noEnv,plotOrder_spat_noEnv], method = "color", type="lower",diag=FALSE,
+         col=colorRampPalette(c("blue","white","red"))(200),tl.cex=0.4,title=paste("random effect level:",m_spat_PA$rLNames[1]), mar=c(0,0,1,0))
+## plot using different, optimized order:
+#corrplot(toPlot_spat_PA[plotOrder_spat_PA,plotOrder_spat_PA], method = "color", type="lower",diag=FALSE,
+#         col=colorRampPalette(c("blue","white","red"))(200),tl.cex=0.4,title=paste("random effect level:",m_spat_PA$rLNames[1]), mar=c(0,0,1,0))
+dev.off()
+
+getFile="/vol/data/fichtelgebirgeSoils/spatialAnalysis/noEnv_vs_Env_omega.pdf"
+putItHere="/home/daniel/Documents/projects/fichtelSoils/files2big4git/"
+scp -P 30267 ubuntu@129.70.51.6:$getFile $putItHere
+
+par(mfrow = c(1,1))
+
+## spatial environmental abundance ##
+
+m_spat_Abu 
+
+m_spat_Abu_Coda = convertToCodaObject(m_spat_Abu)
+
+abu_es.beta = effectiveSize(m_spat_Abu_Coda$Beta)  
+
+hist(abu_es.beta, main="effective sample size for beta", breaks=30) ## looks even better than the PA
+
+mean(abu_es.beta) ##~3400
+
+ge.beta = gelman.diag(m_spat_Abu_Coda$Beta,multivariate=FALSE)$psrf
+
+hist(ge.beta[,1]) ## mostly ~1, that's good 
+
+pdf(file="traces_mixingSpatialAbu_beta.pdf")
+plot(m_spat_Abu_Coda$Beta)
+dev.off()
+
+## on local:
+getFile="/vol/data/fichtelgebirgeSoils/spatialAnalysis/traces_mixingSpatialAbu_beta.pdf"
+putItHere="/home/daniel/Documents/projects/fichtelSoils/files2big4git/"
+scp -P 30267 ubuntu@129.70.51.6:$getFile $putItHere
+
+## looks fine.
+
+## omega:
+
+m_spat_Abu_Coda$temp = m_spat_Abu_Coda$Omega[[1]]
+for(i in 1:length(m_spat_Abu_Coda$temp)){
+  m_spat_Abu_Coda$temp[[i]] = m_spat_Abu_Coda$temp[[i]][,1:1000]
+}
+es.omega1 = effectiveSize(m_spat_Abu_Coda$temp)
+ge.omega1 = gelman.diag(m_spat_Abu_Coda$temp,multivariate=FALSE)$psrf
+
+
+hist(es.omega1, breaks=20)
+
+## looks okay. There are a few below 1000, but not many and not much fewer
+hist(ge.omega1[,1]) ## fine. This index doesn't seem very sensitive.
+
+pdf(file="traces_mixingSpatialAbu_omega.pdf")
+plot(m_spat_Abu_Coda$temp)
+dev.off() ## get local etc
+
+## on local:
+getFile="/vol/data/fichtelgebirgeSoils/spatialAnalysis/traces_mixingSpatialAbu_omega.pdf"
+putItHere="/home/daniel/Documents/projects/fichtelSoils/files2big4git/"
+scp -P 30267 ubuntu@129.70.51.6:$getFile $putItHere
+
+##  
+par(mfrow=c(1,3))
+
+## "null" model, for comparison
+preds_spat_noEnv = computePredictedValues(m_spat_noEnv)
+MF_spat_noEnv = evaluateModelFit(hM=m_spat_noEnv, predY=preds_spat_noEnv)
+## PA_full model for comparison
+preds_spat_PA = computePredictedValues(m_spat_PA)
+MF_spat_PA = evaluateModelFit(hM=m_spat_PA, preds_spat_PA)
+## Abu_full model
+preds_spat_abu = computePredictedValues(m_spat_Abu)
+MF_spat_abu = evaluateModelFit(hM=m_spat_Abu, preds_spat_abu)
+
+par(mfrow = c(1,3))
+hist(MF_spat_noEnv$RMSE)
+hist(MF_spat_PA$RMSE)
+hist(MF_spat_abu$RMSE)
+
+## much more powerful than the P/A model, but 
+## again, it appears the model without covariates is the most powerful??
+## confusing
+
+## rerun, parallel, more species
+## extra model with no spatial random effect, to gauge importance 
+## plus 
+## but wait, figure out the carbon emission data with Betti
+## for visualization, take a look at this site: 
+https://kateto.net/network-visualization
+
+supportLevel = 0.75
+## null, spatial
+OmegaCor_spat_noEnv = computeAssociations(m_spat_noEnv) 
+plotOrder_spat_noEnv <- corrMatOrder(OmegaCor_spat_noEnv[[1]]$mean,order="AOE")
+toPlot_spat_noEnv = ((OmegaCor_spat_noEnv[[1]]$support>supportLevel) + (OmegaCor_spat_noEnv[[1]]$support<(1-supportLevel))>0)*OmegaCor_spat_noEnv[[1]]$mean
+## environmental, spatial, PA
+OmegaCor_spat_PA = computeAssociations(m_spat_PA) 
+plotOrder_spat_PA <- corrMatOrder(OmegaCor_spat_PA[[1]]$mean,order="AOE")
+toPlot_spat_PA = ((OmegaCor_spat_PA[[1]]$support>supportLevel) + (OmegaCor_spat_PA[[1]]$support<(1-supportLevel))>0)*OmegaCor_spat_PA[[1]]$mean
+
+## environmental, spatial, abu
+OmegaCor_spat_abu = computeAssociations(m_spat_Abu) 
+plotOrder_spat_abu <- corrMatOrder(OmegaCor_spat_abu[[1]]$mean,order="AOE")
+toPlot_spat_abu = ((OmegaCor_spat_abu[[1]]$support>supportLevel) + (OmegaCor_spat_abu[[1]]$support<(1-supportLevel))>0)*OmegaCor_spat_abu[[1]]$mean
+
+par(mfrow = c(1,3))
+corrplot(toPlot_spat_noEnv[plotOrder_spat_noEnv,plotOrder_spat_noEnv], method = "color", type="lower",diag=FALSE,
+         col=colorRampPalette(c("blue","white","red"))(200),tl.cex=0.4,title=paste("random effect level:",m_spat_noEnv$rLNames[1]), mar=c(0,0,1,0))
+corrplot(toPlot_spat_PA[plotOrder_spat_noEnv,plotOrder_spat_noEnv], method = "color", type="lower",diag=FALSE,
+         col=colorRampPalette(c("blue","white","red"))(200),tl.cex=0.4,title=paste("random effect level:",m_spat_PA$rLNames[1]), mar=c(0,0,1,0))
+corrplot(toPlot_spat_abu[plotOrder_spat_noEnv,plotOrder_spat_noEnv], method = "color", type="lower",diag=FALSE,
+         col=colorRampPalette(c("blue","white","red"))(200),tl.cex=0.4,title=paste("random effect level:",m_spat_PA$rLNames[1]), mar=c(0,0,1,0))
+
+## why do we have such a large network with the full models? 
+
+## right now I cannot tell the effect of our choice of distributions
+## (log normal for "null" model, probit for PA, normal for abu)
+## from the effect of including the covariates
+## we need another "control" model that is not a "hurdle" model,
+## i.e. log normal in a model with all environmental covariates 
+
+## next steps:
+
+## learn what is possible concerning CO2 flux from Betty
+## if it is available, add some index of CO2 flux into 
+## our environmental covariates
+## rerun all three models, plus an additional log-normal distribution
+## model on the abundance-including-zeroes matrix 
+## save these models and keep moving through the analysis pipeline
+## to the point of finding networks with modules that are associated
+## with high emissions, high SOC
+
+## which reminds me, where is the SOC data? I guess this is 
+## just the carbon data from soil. I don't think there is a 
+## large reservoir of non-organic carbon in these soils
+
+## talked to Betty, and the carbon emission data 
+
+## the carbon data is here:
+
 

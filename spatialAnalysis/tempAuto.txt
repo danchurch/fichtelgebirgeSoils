@@ -592,6 +592,8 @@ for (i in 1:3){
 
 soil; conda activate r_env; R
 
+soil; conda activate spatialDirt; R
+
 library(Hmsc)
 library(phyloseq)
 library(ape)
@@ -674,26 +676,19 @@ studyDesign = data.frame("sample"=as.factor(sample.id),
                          "site_spatial"=as.factor(samplePlotid),
                          "season"=as.factor(XData$season)
                           )
-
-## old model:
-#m_SpTmpSmall = Hmsc(Y=Ycombo,
-#                   XData = XData0,  XFormula = XFormula0,
-#                   distr={"probit"} ,
-#                   studyDesign=studyDesign,
-#                   ranLevels={list("sample"=rL.sample, 
-#                                   "site_spatial" = rL.site_spatial,
-#                                   "season" = rL.site_season
-#                                  )})
-
+## sanity check for random effects, these pairs of numbers should match
+rL.sample
+length(levels(as.factor(studyDesign$sample)))
+rL.site_spatial
+length(levels(as.factor(studyDesign$site_spatial)))
+rL.site_season
+length(levels(as.factor(studyDesign$season)))
 ## we want three models,
 ## one that contains only the covariate of read depth
 ## one that is based on presence absence (probit) and all important env data
 ## and one that is based on read abundances and all important env data
-
-
 ## for the null abundance model with no environmental covariates, the textbook uses
 ## a lognormal poisson:
-
 m_spatTempSmall_noEnv = Hmsc(Y=Yabu,
          XData = XData0,  XFormula = XFormula0,
          distr={"lognormal poisson"} ,
@@ -704,7 +699,6 @@ m_spatTempSmall_noEnv = Hmsc(Y=Yabu,
          YScale=TRUE
 )
 save(m_spatTempSmall_noEnv, file="m_spatTempSmall_noEnv_01percent.rda")
-
 ## for the PA model with all environmental covariates:
 m_spatTempSmall_PA = Hmsc(Y=Ypa,
          XData = XData1,  XFormula = XFormula1,
@@ -716,7 +710,6 @@ m_spatTempSmall_PA = Hmsc(Y=Ypa,
          #YScale=TRUE
 )
 save(m_spatTempSmall_PA, file="m_spatTempSmall_PA_01percent.rda")
-
 ## for the abundance model with all environmental covariates:
 m_spatTempSmall_Abu = Hmsc(Y=Yabu,
          XData = XData1,  XFormula = XFormula1,
@@ -733,7 +726,9 @@ save(m_spatTempSmall_Abu, file="m_spatTempSmall_Abu_01percent.rda")
 ## approach is very slow...
 
 ################## sampleHurdleSpatTemp_null_01percent.r #######################
+
 library(Hmsc)
+
 print(paste("start time is", Sys.time()))
 load("m_spatTempSmall_noEnv_01percent.rda")
 thin = 20
@@ -791,32 +786,33 @@ print(paste("finish time is", Sys.time()))
 ################################################################################
 
 ## in bash:
-
-modelScripts=( "sampleHurdleSpatTemp_null_01percent.r" "sampleHurdleSpatTemp_PA_01percent.r" "sampleHurdleSpatTemp_abu_01percent.r" )
-
-for i in "${modelScripts[@]}"; do
-  ls -l "$i"
-done
-
-nohup Rscript sampleHurdleSpatTemp_null_01percent.r &> sampleHurdleSpatTemp_null_01percent.log &
-nohup Rscript sampleHurdleSpatTemp_null_01percent.r &> sampleHurdleSpatTemp_null_01percent.log &
+nohup Rscript sampleHurdleSpatTemp_PA_01percent.r   &> sampleHurdleSpatTemp_PA_01percent.log &
+nohup Rscript sampleHurdleSpatTemp_abu_01percent.r   &> sampleHurdleSpatTemp_abu_01percent.log &
+## this failed, rerun
 nohup Rscript sampleHurdleSpatTemp_null_01percent.r &> sampleHurdleSpatTemp_null_01percent.log &
 
+## fails again. Can't repeat the error. Maybe due to improper loading of environment?
+## possible issue here:
+https://github.com/hmsc-r/HMSC/issues/47
 
 
-## sanity check for random effects, these pairs of numbers should match
-rL.sample
-length(levels(as.factor(studyDesign$sample)))
-rL.site_spatial
-length(levels(as.factor(studyDesign$site_spatial)))
-rL.site_season
-length(levels(as.factor(studyDesign$season)))
 
-
+load("m_spatTempSmall_noEnv_01percent.rda")
 
 find . -type f -size +20M -exec ls -lh {} \;
 
 ##########################
 
+## ok, back after a month, and forgotten everything...
+
 ## remember, the goal is to find the species associated with high respiration,
+## and maybe predict bacterial presence or abundace with raised temperature or deforestation
+
+## I think we were running two models - a spatial model, and a spatiotemporal model
+## the spatial model had a lot more points, but is simpler (no temporal component)
+## the spatial-only model was run on de.nbi, the spatiotemporal on the lab computer 
+ 
+## the spatiotemporal was buggy. Was working on debugging, but maybe focus on the spatial
+## model for the moment 
+
 

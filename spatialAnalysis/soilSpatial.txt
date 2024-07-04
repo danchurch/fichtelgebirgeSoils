@@ -8595,13 +8595,6 @@ tabloo.show(CO2efflux[filt2]) ## most of these are "PS" plots, not in our envDat
 
 tabloo.show(envData)
 
-aa = CO2efflux.set_index('plotID')
-bb = envData.set_index('PlotID')
-result = pd.concat([CO2efflux, envData], axis=1, join="inner")
-
-envData.head()
-
-
 ## not sure, but move on with the rest, need to get a CO2 emission column in 
 ## our environmental dataframe
 
@@ -8641,11 +8634,12 @@ tabloo.show(envData)
 
 ## looks good. write this out as our new env data:
 
-envData.to_csv('/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis/sulariEnv.csv', index=False)
+envData.to_csv('/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis/sulariEnv.csv')
 
 envData = pd.read_csv('/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis/sulariEnv.csv')
 
 ## now, we can we include this in out new models? 
+
 
 ## back to R and hmsc...
 
@@ -8676,22 +8670,21 @@ library(Hmsc)
 library(phyloseq)
 
 rm(list=ls()) ## merge the spatial and env data:
-
 xycoords = read.csv("sulariSpatial.csv", row.names=1)
-
 envData <- read.csv("sulariEnv.csv", row.names="SampleID")
-
 aa <- merge(x=envData, y=xycoords, by=0, )
-
 row.names(aa) <- aa$Row.names
 aa[1] <- NULL
 aa <- aa[rownames(envData),]
 envData <- aa; rm(aa)
-varsOfInterest = c("PlotID","soil_respiration","Land_type","pH","N","C","Temperature","waterCont","xx","yy")
+## now with co2 flux:
+varsOfInterest = c("PlotID","soil_respiration","co2flow","Land_type","pH","N","C","Temperature","waterCont","xx","yy")
+## side note: why do we have two types of temperature data?:
+#plot(envData$soil_T, envData$Temperature)
 XData<-data.frame(envData[,varsOfInterest])
 XData$Land_type <- as.factor(XData$Land_type)
 ## we can only use complete cases
-ccases <- complete.cases(XData) ## 112 samples, we only lose 8 
+ccases <- complete.cases(XData) ## 109 samples, we lose 11
 XData = XData[ccases,] 
 load("psCleanedUp.rda")
 psCleanedUp = prune_samples(!(rownames(sample_data(psCleanedUp)) %in% c("C1.1","C1.2","C2.1","C2.2")), psCleanedUp)
@@ -8704,6 +8697,7 @@ rowsumsInv = 1/rowSums(bactRaw)
 nASVs <- dim(bactRaw)[2]
 scalarMat = matrix( rep(rowsumsInv, nASVs), ncol = nASVs)
 bact.rel <- bactRaw * scalarMat
+
 ##################### thresholds!! ###########
 ## larger, prev model had 1315 spp, x2 in hurdle model, threshold.prev=0.05, threshold.abu=0.002
 ## we'll do a much harsher subset for the moment. If sampling is cheap, soften it
@@ -8723,7 +8717,7 @@ Y <- bactData
 ny <- dim(Y)[1]
 ns <- dim(Y)[2]
 Yabu <- Y
-Yabu[Y==0] <- NA ## to avoid zeroes?
+Yabu[Y==0] <- NA ## remove zeroes from the model
 Yabu = log(Yabu) ## take log of abundances. They basically decided on the same transformations as Sulari and I.
 Ypa = 1*(Y>0)
 all(rownames(XData) == rownames(Y)) ## check check
@@ -8734,12 +8728,82 @@ plot_coords <- XData[,c("PlotID","xx","yy")]
 plot_coords <- plot_coords[!duplicated(plot_coords),] ## remove duplicated plot rows
 rownames(plot_coords) <- plot_coords$PlotID 
 plot_coords$PlotID <- NULL
-varsOfmodel1 <- c("soil_respiration","Land_type","pH","N","C","Temperature","waterCont")
+varsOfmodel1 <- c("soil_respiration","co2flow","Land_type","pH","N","C","Temperature","waterCont")
 XData1 <- XData[,c(varsOfmodel1)]
-XFormula1 = ~ soil_respiration + Land_type + pH + N + C + Temperature
+XFormula1 = ~ soil_respiration + co2flow + Land_type + pH + N + C + Temperature
 XData0 <- XData[,"BacteriaDepth",drop=FALSE]
 XFormula0 = ~ BacteriaDepth
 rL.sample = HmscRandomLevel(units = sample.id)
 rL.site_spatial = HmscRandomLevel(sData = plot_coords)
 rL.site_spatial = setPriors(rL.site_spatial,nfMin=1,nfMax=3) #try 3. Not sure how to optimize this. But there may multiple spatial scales.
+
+
+## 
+## for the null abundance model with no environmental covariates, they use a 
+## lognormal poisson
+
+## 1. "null" model without spatial effects or any environmental covariates, log normal residuals
+m_ReadAbundancesOnly = Hmsc(Y=Y,
+         XData = XData0,  XFormula = XFormula0,
+         distr={"lognormal poisson"} ,
+         studyDesign=studyDesign, 
+         ranLevels={list("sample"=rL.sample)},
+         YScale=TRUE 
+)
+save(m_ReadAbundancesOnly, file="m_ReadAbundancesOnly.rda")
+
+## 2. a spatial model without environmental covariates, log normal residuals
+m_ReadAbundancesSpatial = Hmsc(Y=Y,
+         XData = XData0,  XFormula = XFormula0,
+         distr={"lognormal poisson"} ,
+         studyDesign=studyDesign, 
+         ranLevels={list("sample"=rL.sample, "site_spatial" = rL.site_spatial)},
+         YScale=TRUE 
+)
+save(m_ReadAbundancesSpatial, file="m_ReadAbundancesSpatial.rda")
+
+## 3. a non-spatial model with environmental covariates, log normal residuals
+m_environmentalOnly = Hmsc(Y=Y,
+         XData = XData1,  XFormula = XFormula1,
+         distr={"lognormal poisson"} ,
+         studyDesign=studyDesign, 
+         ranLevels={list("sample"=rL.sample)},
+         YScale=TRUE 
+)
+save(m_environmentalOnly, file="m_environmentalOnly.rda")
+
+## 4. a full spatial model with zeros and environmental covariates, log normal residuals
+m_fullModel_logNorm = Hmsc(Y=Y,
+         XData = XData1,  XFormula = XFormula1,
+         distr={"lognormal poisson"} ,
+         studyDesign=studyDesign, 
+         ranLevels={list("sample"=rL.sample)},
+         YScale=TRUE 
+)
+save(m_fullModel_logNorm, file="m_fullModel_logNorm.rda")
+
+
+## 5. a hurdle model, full spatial model with environmental covariates which is actually 2 models:
+  ## 5.1. hurdle probit/PA: 
+
+m_hurdle_PA = Hmsc(Y=Ypa,
+         XData = XData1,  XFormula = XFormula1,
+         distr={"probit"} ,
+         studyDesign=studyDesign, 
+         ranLevels={list("sample"=rL.sample, "site_spatial" = rL.site_spatial)},
+         YScale=TRUE 
+)
+save(m_hurdle_PA, file="m_hurdle_PA.rda")
+
+## 5.2. hurdle abundance 
+m_hurdle_abu = Hmsc(Y=Yabu,
+         XData = XData1,  XFormula = XFormula1,
+         distr={"normal"} ,
+         studyDesign=studyDesign, 
+         ranLevels={list("sample"=rL.sample, "site_spatial" = rL.site_spatial)},
+         YScale=TRUE 
+)
+save(m_hurdle_abu, file="m_hurdle_abu.rda")
+
+## tomorrow try running these
 

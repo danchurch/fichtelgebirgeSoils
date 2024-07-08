@@ -71,12 +71,11 @@ conda remove -n spatialDirt --all
 conda create -n "spatialDirt" 
 
 conda activate "spatialDirt" 
+
 conda config --env --add channels conda-forge
 conda config --env --set channel_priority strict
 
 conda install python=3 geopandas
-
-conda activate spatialDirt 
 
 pip install rasterio
 
@@ -99,6 +98,7 @@ BiocManager::install("phyloseq")
 ## right python?
 
 conda activate spatialDirt 
+
 pip install notebook 
 
 which jupyter ## looks like that work. Gets easier every year.
@@ -459,7 +459,6 @@ plot(sp2, ci.type="poly", col="red", lwd=2, ci.lty=0, ci.col="pink")
 data(BCI)
 
 sp1 <- specaccum(BCI)
-
 
 sp2 <- specaccum(BCI, "random")
 
@@ -5046,6 +5045,8 @@ conda update -n base conda
 conda install -n base conda-libmamba-solver
 conda config --set solver libmamba
 
+conda config --describe solver 
+
 ## try it out:
 conda env create --name spatialDirt --file=$yaml
 
@@ -7996,9 +7997,8 @@ rL.site_spatial = setPriors(rL.site_spatial,nfMin=1,nfMax=3) #try 3. Not sure ho
 ## one that is based on presence absence (probit) and all important env data
 ## and one that is based on read abundances and all important env data
 
-
 ## for the null abundance model with no environmental covariates, they use a 
-## lognormal poisson:
+## lognormal poisson...why?:
 m_spat_noEnv = Hmsc(Y=Yabu,
          XData = XData0,  XFormula = XFormula0,
          distr={"lognormal poisson"} ,
@@ -8075,4 +8075,735 @@ nohup Rscript sampleHurdleSpatial_01percent.r &> sampleHurdleSpatial_01percent.l
 ## let's see how long this needs to run...
 
 ## and back on the spatiotemp model while this runs
+
+########### back after a month #####
+
+## oh jeez, my brain hurts. What did I do?
+## where were these results...
+
+denbiDirt
+
+conda activate r_env
+
+soil
+
+R
+
+library(Hmsc)
+library(corrplot)
+library(RColorBrewer)
+library(lobstr)
+load("m_spat_noEnv_01percent_sampled.rda")
+load("m_spat_PA_01percent.rda_sampled.rda")
+load("m_spat_Abu_01percent_sampled.rda")
+
+m_spat_noEnv
+
+m_spat_PA  
+
+m_spat_Abu 
+
+## first step is to check how well mixed the samples 
+## are of the posterior:
+
+## for the "null" model:
+npEnvCoda = convertToCodaObject(m_spat_noEnv)
+
+str(m_spat_noEnv)
+
+es.beta = effectiveSize(npEnvCoda$Beta)  ## mean around 500
+hist(es.beta, main="effective sample size for beta", breaks=30)
+
+es.beta
+
+ge.beta = gelman.diag(npEnvCoda$Beta,multivariate=FALSE)$psrf
+
+hist(ge.beta) ## mostly ~1, that's good 
+
+pdf(file="traces_mixingSpatialNull.pdf")
+plot(npEnvCoda$Beta)
+dev.off()
+
+## get it local ##
+getFile="/vol/data/fichtelgebirgeSoils/spatialAnalysis/traces_mixingSpatialNull.pdf"
+putItHere="/home/daniel/Documents/projects/fichtelSoils/files2big4git/"
+scp -P 30267 ubuntu@129.70.51.6:$getFile $putItHere
+################
+
+## they look ~ok. chains didn't totally converge on a lot
+## Definitely more sampling in order, as soon as we are more 
+## confident in the models we want
+
+## gamma, species niche. We didn't give priors for niches, not sure
+## how this works in that case...
+es.gamma = effectiveSize(npEnvCoda$Gamma) ## same, ~500
+hist(es.beta, main="effective sample size for gamma", breaks=30)
+
+es.gamma
+
+ge.gamma = gelman.diag(npEnvCoda$Gamma,multivariate=FALSE)$psrf
+ge.gamma ## only 2 values, the intercept and 
+## ah, somehow bacterial depth is included here...not sure
+
+## V is unexplained variation in species niches...confusing, but here it is: 
+es.V = effectiveSize(npEnvCoda$V) # also around 500
+hist(es.beta, main="effective sample size for V", breaks=30)
+ge.V = gelman.diag(npEnvCoda$V,multivariate=FALSE)$psrf
+
+## species interactions, with no real environmental data:
+
+length(npEnvCoda)
+
+str(npEnvCoda[[1]])
+
+str(npEnvCoda[[2]])
+
+
+npEnvCoda$Omega
+
+#install.packages("lobstr")
+
+## the omega part of the object is huge:
+tree(npEnvCoda) 
+
+## they subsample the omega
+npEnvCoda$temp = npEnvCoda$Omega[[1]]
+for(i in 1:length(npEnvCoda$temp)){
+  npEnvCoda$temp[[i]] = npEnvCoda$temp[[i]][,1:1000]
+}
+
+tree(npEnvCoda$temp)
+
+pdf(file="traces_mixingSpatialNull.pdf")
+plot(npEnvCoda$temp)
+dev.off() ## get local etc
+
+es.omega1 = effectiveSize(npEnvCoda$temp)
+ge.omega1 = gelman.diag(npEnvCoda$temp,multivariate=FALSE)$psrf
+## actually, that looks a lot better than our Beta
+hist(es.omega1) 
+hist(ge.omega1)
+
+## so mixing is okay for exploration, but should start a new model 
+## with more sampling, hopefully this afternoon
+
+## to check model fit:
+preds = computePredictedValues(m_spat_noEnv)
+MF = evaluateModelFit(hM=m_spat_noEnv, predY=preds)
+
+?evaluateModelFit
+
+postBeta = getPostEstimate(m_spat_noEnv, parName="Beta")
+
+str(MF)
+
+hist(MF$RMSE)
+hist(MF$C.RMSE)
+## etc, explanatory power of model pretty good. 
+
+partition = createPartition(m_spat_noEnv, nfolds = 2, column = "sample")
+
+preds = computePredictedValues(m_spat_noEnv, partition=partition, nParallel = 4)
+## started 14:26
+
+MF = evaluateModelFit(hM=m, predY=preds)
+
+### actually, we need a script for that, I think:
+
+########### checkModel_spatNoEnv.r #################
+library(Hmsc)
+load("m_spat_noEnv_01percent_sampled.rda")
+partition = createPartition(m_spat_noEnv, nfolds = 2, column = "sample")
+preds = computePredictedValues(m_spat_noEnv, partition=partition, nParallel = 4)
+MF = evaluateModelFit(hM=m, predY=preds)
+save(preds, file="predsSpat_noEnv.rda")
+save(MF, file="modelFitSpat_noEnv.rda")
+####################################################
+
+nohup Rscript checkModel_spatNoEnv.r &> checkModel_spatNoEnv.log & ## started 15:07, jul1
+
+## that is going to run for a while, it seems. 
+
+## let's try looking at the species associations
+
+?computeAssociations
+
+OmegaCor = computeAssociations(m_spat_noEnv) ## took ~3 min
+
+?computeAssociations
+
+OmegaCor[[1]]$mean[1:3,1:3]
+
+str(OmegaCor[[2]])
+
+?corrMatOrder
+
+plotOrder <- corrMatOrder(OmegaCor[[1]]$mean,order="AOE")
+
+supportLevel = 0.75
+toPlot = ((OmegaCor[[1]]$support>supportLevel) + (OmegaCor[[1]]$support<(1-supportLevel))>0)*OmegaCor[[1]]$mean
+
+corrplot(toPlot[plotOrder,plotOrder], method = "color", type="lower",diag=FALSE,
+         col=colorRampPalette(c("blue","white","red"))(200),tl.cex=0.4,title=paste("random effect level:",m_spat_noEnv$rLNames[1]), mar=c(0,0,1,0))
+         col=colorRampPalette(c("blue","white","red"))(200),tl.cex=0.4, mar=c(0,0,1,0))
+
+m_spat_noEnv[1]
+
+m_spat_noEnv$rLNames
+
+## there are strong species associations, 
+## to be expected, considering this does not include environmental associations
+
+## how can we see how many latent variables were fit?
+
+## and if we can do an ordination with them:
+
+str(m_spat_noEnv)
+
+biPlot(m_spat_noEnv, 
+       etaPost = getPostEstimate(m_spat_noEnv, "Eta"), 
+       lambdaPost = getPostEstimate(m_spat_noEnv, "Lambda"),
+       spNames=NULL)
+
+?biPlot
+
+?getPostEstimate
+
+aa[[1]][1:5,]
+
+## we should be able to do network diagrams and analyses with this.
+
+## let's run the full environmental spatial models through the above code, first
+## because we are only really interested in the omega matrix after accounting 
+## for the beta. 
+## this
+
+## presence/absence ##
+m_spat_PA  
+
+m_spat_PA_Coda = convertToCodaObject(m_spat_PA)
+
+PA_es.beta = effectiveSize(m_spat_PA_Coda$Beta)  ## much better than the null model, mean of 3300 or so
+hist(PA_es.beta, main="effective sample size for beta", breaks=30)
+mean(PA_es.beta)
+
+ge.beta = gelman.diag(m_spat_PA_Coda$Beta,multivariate=FALSE)$psrf
+hist(ge.beta) ## mostly ~1, that's good 
+
+pdf(file="traces_mixingSpatialPA.pdf")
+plot(m_spat_PA_Coda$Beta)
+dev.off()
+## on local:
+getFile="/vol/data/fichtelgebirgeSoils/spatialAnalysis/traces_mixingSpatialPA.pdf"
+putItHere="/home/daniel/Documents/projects/fichtelSoils/files2big4git/"
+scp -P 30267 ubuntu@129.70.51.6:$getFile $putItHere
+## looks fine. Maybe even better than the null model
+
+## gamma, the effect of traits on niches, or something like that
+es.gamma = effectiveSize(m_spat_PA_Coda$Gamma) ## 
+hist(es.gamma, main="effective sample size for gamma", breaks=30)
+
+ge.gamma = gelman.diag(m_spat_PA_Coda$Gamma,multivariate=FALSE)$psrf
+
+ge.gamma ## there is one trait value here, even though I didn't set any
+
+## V is unexplained variation in species niches...confusing, but here it is: 
+es.V = effectiveSize(m_spat_PA_Coda$V) # also around 500
+hist(es.V, main="effective sample size for V", breaks=30)
+ge.V = gelman.diag(m_spat_PA_Coda$V,multivariate=FALSE)$psrf
+## looks fine
+
+m_spat_PA_Coda$temp = m_spat_PA_Coda$Omega[[1]]
+for(i in 1:length(m_spat_PA_Coda$temp)){
+  m_spat_PA_Coda$temp[[i]] = m_spat_PA_Coda$temp[[i]][,1:1000]
+}
+
+pdf(file="traces_mixingSpatialPA_omega.pdf")
+plot(m_spat_PA_Coda$temp)
+dev.off() ## get local etc
+
+## on local:
+getFile="/vol/data/fichtelgebirgeSoils/spatialAnalysis/traces_mixingSpatialPA_omega.pdf"
+putItHere="/home/daniel/Documents/projects/fichtelSoils/files2big4git/"
+scp -P 30267 ubuntu@129.70.51.6:$getFile $putItHere
+
+## a lot of them look weird, but oh well. 
+## 
+es.omega1 = effectiveSize(m_spat_PA_Coda$temp)
+ge.omega1 = gelman.diag(m_spat_PA_Coda$temp,multivariate=FALSE)$psrf
+
+## actually, that looks a lot better than our Beta
+hist(es.omega1) 
+
+hist(ge.omega1[,1])
+
+
+## "null" model, for comparison
+preds_spat_noEnv = computePredictedValues(m_spat_noEnv)
+MF_spat_noEnv = evaluateModelFit(hM=m_spat_noEnv, predY=preds_spat_noEnv)
+
+str(MF_spat_noEnv)
+
+## PA_full model
+preds_spat_PA = computePredictedValues(m_spat_PA)
+MF_spat_PA = evaluateModelFit(hM=m_spat_PA, preds_spat_PA)
+
+par(mfrow = c(1,2))
+hist(MF_spat_noEnv$RMSE)
+hist(MF_spat_PA$RMSE)
+
+MF_spat_PA$RMSE ## not sure if this is meaningful with PA
+
+## funny, we get less explanatory power in this PA with environmental covariates
+## maybe this is the P/A, we'll see how the abundance model worked.
+
+supportLevel = 0.75
+## null, spatial
+OmegaCor_spat_noEnv = computeAssociations(m_spat_noEnv) 
+plotOrder_spat_noEnv <- corrMatOrder(OmegaCor_spat_noEnv[[1]]$mean,order="AOE")
+toPlot_spat_noEnv = ((OmegaCor_spat_noEnv[[1]]$support>supportLevel) + (OmegaCor_spat_noEnv[[1]]$support<(1-supportLevel))>0)*OmegaCor_spat_noEnv[[1]]$mean
+## environmental, spatial
+OmegaCor_spat_PA = computeAssociations(m_spat_PA) 
+plotOrder_spat_PA <- corrMatOrder(OmegaCor_spat_PA[[1]]$mean,order="AOE")
+toPlot_spat_PA = ((OmegaCor_spat_PA[[1]]$support>supportLevel) + (OmegaCor_spat_PA[[1]]$support<(1-supportLevel))>0)*OmegaCor_spat_PA[[1]]$mean
+
+
+pdf('noEnv_vs_Env_omega.pdf', width=20, height=20)
+par(mfrow = c(1,2))
+corrplot(toPlot_spat_noEnv[plotOrder_spat_noEnv,plotOrder_spat_noEnv], method = "color", type="lower",diag=FALSE,
+         col=colorRampPalette(c("blue","white","red"))(200),tl.cex=0.4,title=paste("random effect level:",m_spat_noEnv$rLNames[1]), mar=c(0,0,1,0))
+## plot using same order:
+corrplot(toPlot_spat_PA[plotOrder_spat_noEnv,plotOrder_spat_noEnv], method = "color", type="lower",diag=FALSE,
+         col=colorRampPalette(c("blue","white","red"))(200),tl.cex=0.4,title=paste("random effect level:",m_spat_PA$rLNames[1]), mar=c(0,0,1,0))
+## plot using different, optimized order:
+#corrplot(toPlot_spat_PA[plotOrder_spat_PA,plotOrder_spat_PA], method = "color", type="lower",diag=FALSE,
+#         col=colorRampPalette(c("blue","white","red"))(200),tl.cex=0.4,title=paste("random effect level:",m_spat_PA$rLNames[1]), mar=c(0,0,1,0))
+dev.off()
+
+getFile="/vol/data/fichtelgebirgeSoils/spatialAnalysis/noEnv_vs_Env_omega.pdf"
+putItHere="/home/daniel/Documents/projects/fichtelSoils/files2big4git/"
+scp -P 30267 ubuntu@129.70.51.6:$getFile $putItHere
+
+par(mfrow = c(1,1))
+
+## spatial environmental abundance ##
+
+m_spat_Abu 
+
+m_spat_Abu_Coda = convertToCodaObject(m_spat_Abu)
+
+abu_es.beta = effectiveSize(m_spat_Abu_Coda$Beta)  
+
+hist(abu_es.beta, main="effective sample size for beta", breaks=30) ## looks even better than the PA
+
+mean(abu_es.beta) ##~3400
+
+ge.beta = gelman.diag(m_spat_Abu_Coda$Beta,multivariate=FALSE)$psrf
+
+hist(ge.beta[,1]) ## mostly ~1, that's good 
+
+pdf(file="traces_mixingSpatialAbu_beta.pdf")
+plot(m_spat_Abu_Coda$Beta)
+dev.off()
+
+## on local:
+getFile="/vol/data/fichtelgebirgeSoils/spatialAnalysis/traces_mixingSpatialAbu_beta.pdf"
+putItHere="/home/daniel/Documents/projects/fichtelSoils/files2big4git/"
+scp -P 30267 ubuntu@129.70.51.6:$getFile $putItHere
+
+## looks fine.
+
+## omega:
+
+m_spat_Abu_Coda$temp = m_spat_Abu_Coda$Omega[[1]]
+for(i in 1:length(m_spat_Abu_Coda$temp)){
+  m_spat_Abu_Coda$temp[[i]] = m_spat_Abu_Coda$temp[[i]][,1:1000]
+}
+es.omega1 = effectiveSize(m_spat_Abu_Coda$temp)
+ge.omega1 = gelman.diag(m_spat_Abu_Coda$temp,multivariate=FALSE)$psrf
+
+
+hist(es.omega1, breaks=20)
+
+## looks okay. There are a few below 1000, but not many and not much fewer
+hist(ge.omega1[,1]) ## fine. This index doesn't seem very sensitive.
+
+pdf(file="traces_mixingSpatialAbu_omega.pdf")
+plot(m_spat_Abu_Coda$temp)
+dev.off() ## get local etc
+
+## on local:
+getFile="/vol/data/fichtelgebirgeSoils/spatialAnalysis/traces_mixingSpatialAbu_omega.pdf"
+putItHere="/home/daniel/Documents/projects/fichtelSoils/files2big4git/"
+scp -P 30267 ubuntu@129.70.51.6:$getFile $putItHere
+
+##  
+par(mfrow=c(1,3))
+
+## "null" model, for comparison
+preds_spat_noEnv = computePredictedValues(m_spat_noEnv)
+MF_spat_noEnv = evaluateModelFit(hM=m_spat_noEnv, predY=preds_spat_noEnv)
+## PA_full model for comparison
+preds_spat_PA = computePredictedValues(m_spat_PA)
+MF_spat_PA = evaluateModelFit(hM=m_spat_PA, preds_spat_PA)
+## Abu_full model
+preds_spat_abu = computePredictedValues(m_spat_Abu)
+MF_spat_abu = evaluateModelFit(hM=m_spat_Abu, preds_spat_abu)
+
+par(mfrow = c(1,3))
+hist(MF_spat_noEnv$RMSE)
+hist(MF_spat_PA$RMSE)
+hist(MF_spat_abu$RMSE)
+
+## much more powerful than the P/A model, but 
+## again, it appears the model without covariates is the most powerful??
+## confusing
+
+## rerun, parallel, more species
+## extra model with no spatial random effect, to gauge importance 
+## plus 
+## but wait, figure out the carbon emission data with Betti
+## for visualization, take a look at this site: 
+https://kateto.net/network-visualization
+
+supportLevel = 0.75
+## null, spatial
+OmegaCor_spat_noEnv = computeAssociations(m_spat_noEnv) 
+plotOrder_spat_noEnv <- corrMatOrder(OmegaCor_spat_noEnv[[1]]$mean,order="AOE")
+toPlot_spat_noEnv = ((OmegaCor_spat_noEnv[[1]]$support>supportLevel) + (OmegaCor_spat_noEnv[[1]]$support<(1-supportLevel))>0)*OmegaCor_spat_noEnv[[1]]$mean
+## environmental, spatial, PA
+OmegaCor_spat_PA = computeAssociations(m_spat_PA) 
+plotOrder_spat_PA <- corrMatOrder(OmegaCor_spat_PA[[1]]$mean,order="AOE")
+toPlot_spat_PA = ((OmegaCor_spat_PA[[1]]$support>supportLevel) + (OmegaCor_spat_PA[[1]]$support<(1-supportLevel))>0)*OmegaCor_spat_PA[[1]]$mean
+
+## environmental, spatial, abu
+OmegaCor_spat_abu = computeAssociations(m_spat_Abu) 
+plotOrder_spat_abu <- corrMatOrder(OmegaCor_spat_abu[[1]]$mean,order="AOE")
+toPlot_spat_abu = ((OmegaCor_spat_abu[[1]]$support>supportLevel) + (OmegaCor_spat_abu[[1]]$support<(1-supportLevel))>0)*OmegaCor_spat_abu[[1]]$mean
+
+par(mfrow = c(1,3))
+corrplot(toPlot_spat_noEnv[plotOrder_spat_noEnv,plotOrder_spat_noEnv], method = "color", type="lower",diag=FALSE,
+         col=colorRampPalette(c("blue","white","red"))(200),tl.cex=0.4,title=paste("random effect level:",m_spat_noEnv$rLNames[1]), mar=c(0,0,1,0))
+corrplot(toPlot_spat_PA[plotOrder_spat_noEnv,plotOrder_spat_noEnv], method = "color", type="lower",diag=FALSE,
+         col=colorRampPalette(c("blue","white","red"))(200),tl.cex=0.4,title=paste("random effect level:",m_spat_PA$rLNames[1]), mar=c(0,0,1,0))
+corrplot(toPlot_spat_abu[plotOrder_spat_noEnv,plotOrder_spat_noEnv], method = "color", type="lower",diag=FALSE,
+         col=colorRampPalette(c("blue","white","red"))(200),tl.cex=0.4,title=paste("random effect level:",m_spat_PA$rLNames[1]), mar=c(0,0,1,0))
+
+## why do we have such a large network with the full models? 
+
+## right now I cannot tell the effect of our choice of distributions
+## (log normal for "null" model, probit for PA, normal for abu)
+## from the effect of including the covariates
+## we need another "control" model that is not a "hurdle" model,
+## i.e. log normal in a model with all environmental covariates 
+
+## next steps:
+
+## learn what is possible concerning CO2 flux from Betty
+## if it is available, add some index of CO2 flux into 
+## our environmental covariates
+## rerun all three models, plus an additional log-normal distribution
+## model on the abundance-including-zeroes matrix 
+## save these models and keep moving through the analysis pipeline
+## to the point of finding networks with modules that are associated
+## with high emissions, high SOC
+
+## which reminds me, where is the SOC data? I guess this is 
+## just the carbon data from soil. I don't think there is a 
+## large reservoir of non-organic carbon in these soils
+
+## talked to Betty, and the carbon emission data 
+
+conda activate spatialDirt
+
+## side note, can we get a nice panda viewer into our 
+## environment?
+
+#conda install conda-forge::pandasgui ## nope, did this break our install again?
+## or?
+#conda install conda-forge::tabloo
+
+soil 
+
+python3
+
+import pandas as pd
+import os
+import tabloo
+import numpy as np
+
+## the carbon data is here:
+CO2efflux = pd.read_csv("/home/daniel/Documents/projects/fichtelSoils/SoilDataBetty/COefflux.csv")
+
+## this should probably be added to our environmental matrix:
+envData = pd.read_csv('sulariEnv.csv', index_col="SampleID")
+envData['Date'] = pd.to_datetime(envData['Date'], yearfirst=True, errors='coerce')
+
+tabloo.show(envData)
+
+## there were some weird sites...
+envData.loc['S89']
+envData.loc['S78']
+
+## might be important here, what are our repeated plots?
+repeats = pd.read_csv("repeatedPlotsEnv.csv")
+repeats.sort_values(by="PlotID")
+
+## remove the weird samples we found yesterday? = S89
+#envData.drop('S89',inplace=True)
+#envData.drop('S78',inplace=True)
+## think about that ^, leave them in now
+
+envData.head()
+
+CO2efflux.head()
+
+envData.shape
+CO2efflux.shape ## we have lots of extra data - what is this?
+
+envData['PlotID'].isin(CO2efflux['plotID'])
+
+envData['PlotID'].isin(CO2efflux['plotID']).sum() ## 115 rows of our envData have CO2 data
+
+## what is missing?:
+filt = ~(envData['PlotID'].isin(CO2efflux['plotID']))
+envData.loc[filt]
+## P0216 P0102 P0116 P0165 P0157
+## P0216 P0116 P0165 are also lacking moisture and temperature data... 
+
+## are any of these our repeated sites, as in using for spatiotemporal study?
+plotsmissingCO2 = envData.loc[filt].PlotID
+envData[envData['PlotID'].isin(plotsmissingCO2)]
+plotsmissingCO2.isin( repeats.PlotID) ## nope, that is good.
+
+
+CO2efflux['plotID'].isin(envData['PlotID']).head() 
+
+CO2efflux['plotID'].isin(envData['PlotID']).sum() ## same, 115 rows in the CO2 are also from sites also in our envdata
+
+## what co2 data are supposedly not in our environmental data?:
+filt2 = ~CO2efflux['plotID'].isin(envData['PlotID']) 
+
+tabloo.show(CO2efflux[filt2]) ## most of these are "PS" plots, not in our envData
+
+## but there is PS0180:
+"P0180" in CO2efflux['plotID'].values
+
+"P0180" in envData['PlotID'].values
+
+## sulari says this plot has always been missing, no DNA extracted etc.
+
+tabloo.show(envData)
+
+## not sure, but move on with the rest, need to get a CO2 emission column in 
+## our environmental dataframe
+
+## whoops, deleted rownames, that's a pain:
+git checkout 1a25869d56537f2 -- sulariEnv.csv
+
+## to get the CO2 emissions, we need to match date and plot ID
+
+envData = pd.read_csv('sulariEnv.csv', index_col="SampleID")
+envData['Date'] = pd.to_datetime(envData['Date'], yearfirst=True, errors='coerce')
+
+flow = []
+soil_T = []
+for i,j in envData.iterrows():
+  a = j['PlotID']
+  b = j['Date'].strftime("%Y-%m-%d")
+  c = CO2efflux.query(f'plotID == "{a}" & date == "{b}"')["flow"]
+  if c.empty: c = np.nan
+  else: c = c.iloc[0]
+  d = CO2efflux.query(f'plotID == "{a}" & date == "{b}"')["soil_T"]
+  if d.empty: d = np.nan
+  else: d = d.iloc[0]
+  flow.append(c)
+  soil_T.append(d)
+
+envData['co2flow'] = flow
+envData['soil_T'] = soil_T
+
+## sanity check:
+envData.loc['S1']
+CO2efflux[CO2efflux['plotID'] == 'P0104']
+
+envData.loc['S120']
+CO2efflux[CO2efflux['plotID'] == 'P0213']
+
+tabloo.show(envData)
+
+## looks good. write this out as our new env data:
+
+envData.to_csv('/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis/sulariEnv.csv')
+
+envData = pd.read_csv('/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis/sulariEnv.csv')
+
+## now, we can we include this in out new models? 
+
+
+## back to R and hmsc...
+
+## to review we want several models:
+
+## a "null" without spatial effects or any environmental covariates, log normal residuals
+## a spatial model without environmental covariates, log normal residuals
+## a non-spatial model with environmental covariates, log normal residuals
+## two full spatial model with environmental covariates:
+  ## 1. hurdle model ## which is actually 2 models
+  ## 2. log-normal, for comparison with the "control models"
+
+## so five (4) models. 
+
+## can we set these up before we leave today? Should be able to reuse the above
+## code: 
+
+
+denbiDirt
+
+conda activate r_env
+
+soil
+
+R
+
+library(Hmsc)
+library(phyloseq)
+
+rm(list=ls()) ## merge the spatial and env data:
+xycoords = read.csv("sulariSpatial.csv", row.names=1)
+envData <- read.csv("sulariEnv.csv", row.names="SampleID")
+aa <- merge(x=envData, y=xycoords, by=0, )
+row.names(aa) <- aa$Row.names
+aa[1] <- NULL
+aa <- aa[rownames(envData),]
+envData <- aa; rm(aa)
+## now with co2 flux:
+varsOfInterest = c("PlotID","soil_respiration","co2flow","Land_type","pH","N","C","Temperature","waterCont","xx","yy")
+## side note: why do we have two types of temperature data?:
+#plot(envData$soil_T, envData$Temperature)
+XData<-data.frame(envData[,varsOfInterest])
+XData$Land_type <- as.factor(XData$Land_type)
+## we can only use complete cases
+ccases <- complete.cases(XData) ## 109 samples, we lose 11
+XData = XData[ccases,] 
+load("psCleanedUp.rda")
+psCleanedUp = prune_samples(!(rownames(sample_data(psCleanedUp)) %in% c("C1.1","C1.2","C2.1","C2.2")), psCleanedUp)
+psCleanedUp = prune_taxa( colSums(otu_table(psCleanedUp)) > 0, psCleanedUp)
+bactRaw <- otu_table(psCleanedUp)@.Data
+bactRaw = bactRaw[ccases,]  ## complete cases only
+XData['BacteriaDepth'] <- log(rowSums(bactRaw))
+bact.pa<-ifelse(bactRaw>0,1,0)
+rowsumsInv = 1/rowSums(bactRaw)
+nASVs <- dim(bactRaw)[2]
+scalarMat = matrix( rep(rowsumsInv, nASVs), ncol = nASVs)
+bact.rel <- bactRaw * scalarMat
+
+##################### thresholds!! ###########
+## larger, prev model had 1315 spp, x2 in hurdle model, threshold.prev=0.05, threshold.abu=0.002
+## we'll do a much harsher subset for the moment. If sampling is cheap, soften it
+## need to reduce to at least half, maybe more
+threshold.prev = 5/112 ## present in at least 5 samples, out of 112 samples 
+threshold.abu = 0.01 ## only OTU that reaches at least 1% abundance of one sample
+ny = dim(bactRaw)[1]
+cond1=!(colSums(bact.pa)<=threshold.prev*ny) 
+cond2=apply(bact.rel,2,max)>=threshold.abu 
+bactData <- bactRaw[, cond1 & cond2 ] 
+sum(bactData > 0)
+sum(bact.pa)
+dim(bactData) ## 166 OTUs remain, out of 
+dim(bact.pa) ## 3313 OTUs
+################################################
+Y <- bactData
+ny <- dim(Y)[1]
+ns <- dim(Y)[2]
+Yabu <- Y
+Yabu[Y==0] <- NA ## remove zeroes from the model
+Yabu = log(Yabu) ## take log of abundances. They basically decided on the same transformations as Sulari and I.
+Ypa = 1*(Y>0)
+all(rownames(XData) == rownames(Y)) ## check check
+sample.id = row.names(Y)
+samplePlotid = XData$PlotID
+studyDesign = data.frame("sample"=as.factor(sample.id), "site_spatial"=as.factor(samplePlotid))
+plot_coords <- XData[,c("PlotID","xx","yy")]
+plot_coords <- plot_coords[!duplicated(plot_coords),] ## remove duplicated plot rows
+rownames(plot_coords) <- plot_coords$PlotID 
+plot_coords$PlotID <- NULL
+varsOfmodel1 <- c("soil_respiration","co2flow","Land_type","pH","N","C","Temperature","waterCont")
+XData1 <- XData[,c(varsOfmodel1)]
+XFormula1 = ~ soil_respiration + co2flow + Land_type + pH + N + C + Temperature
+XData0 <- XData[,"BacteriaDepth",drop=FALSE]
+XFormula0 = ~ BacteriaDepth
+rL.sample = HmscRandomLevel(units = sample.id)
+rL.site_spatial = HmscRandomLevel(sData = plot_coords)
+rL.site_spatial = setPriors(rL.site_spatial,nfMin=1,nfMax=3) #try 3. Not sure how to optimize this. But there may multiple spatial scales.
+
+
+## 
+## for the null abundance model with no environmental covariates, they use a 
+## lognormal poisson
+
+## 1. "null" model without spatial effects or any environmental covariates, log normal residuals
+m_ReadAbundancesOnly = Hmsc(Y=Y,
+         XData = XData0,  XFormula = XFormula0,
+         distr={"lognormal poisson"} ,
+         studyDesign=studyDesign, 
+         ranLevels={list("sample"=rL.sample)},
+         YScale=TRUE 
+)
+save(m_ReadAbundancesOnly, file="m_ReadAbundancesOnly.rda")
+
+## 2. a spatial model without environmental covariates, log normal residuals
+m_ReadAbundancesSpatial = Hmsc(Y=Y,
+         XData = XData0,  XFormula = XFormula0,
+         distr={"lognormal poisson"} ,
+         studyDesign=studyDesign, 
+         ranLevels={list("sample"=rL.sample, "site_spatial" = rL.site_spatial)},
+         YScale=TRUE 
+)
+save(m_ReadAbundancesSpatial, file="m_ReadAbundancesSpatial.rda")
+
+## 3. a non-spatial model with environmental covariates, log normal residuals
+m_environmentalOnly = Hmsc(Y=Y,
+         XData = XData1,  XFormula = XFormula1,
+         distr={"lognormal poisson"} ,
+         studyDesign=studyDesign, 
+         ranLevels={list("sample"=rL.sample)},
+         YScale=TRUE 
+)
+save(m_environmentalOnly, file="m_environmentalOnly.rda")
+
+## 4. a full spatial model with zeros and environmental covariates, log normal residuals
+m_fullModel_logNorm = Hmsc(Y=Y,
+         XData = XData1,  XFormula = XFormula1,
+         distr={"lognormal poisson"} ,
+         studyDesign=studyDesign, 
+         ranLevels={list("sample"=rL.sample)},
+         YScale=TRUE 
+)
+save(m_fullModel_logNorm, file="m_fullModel_logNorm.rda")
+
+
+## 5. a hurdle model, full spatial model with environmental covariates which is actually 2 models:
+  ## 5.1. hurdle probit/PA: 
+
+m_hurdle_PA = Hmsc(Y=Ypa,
+         XData = XData1,  XFormula = XFormula1,
+         distr={"probit"} ,
+         studyDesign=studyDesign, 
+         ranLevels={list("sample"=rL.sample, "site_spatial" = rL.site_spatial)},
+         YScale=TRUE 
+)
+save(m_hurdle_PA, file="m_hurdle_PA.rda")
+
+## 5.2. hurdle abundance 
+m_hurdle_abu = Hmsc(Y=Yabu,
+         XData = XData1,  XFormula = XFormula1,
+         distr={"normal"} ,
+         studyDesign=studyDesign, 
+         ranLevels={list("sample"=rL.sample, "site_spatial" = rL.site_spatial)},
+         YScale=TRUE 
+)
+save(m_hurdle_abu, file="m_hurdle_abu.rda")
+
+## tomorrow try running these
 

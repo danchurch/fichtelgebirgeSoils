@@ -795,8 +795,6 @@ nohup Rscript sampleHurdleSpatTemp_null_01percent.r &> sampleHurdleSpatTemp_null
 ## possible issue here:
 https://github.com/hmsc-r/HMSC/issues/47
 
-
-
 load("m_spatTempSmall_noEnv_01percent.rda")
 
 find . -type f -size +20M -exec ls -lh {} \;
@@ -815,4 +813,12 @@ find . -type f -size +20M -exec ls -lh {} \;
 ## the spatiotemporal was buggy. Was working on debugging, but maybe focus on the spatial
 ## model for the moment 
 
+## let's try copying and pasting the old model build process,
+## modify to include the new emission data
 
+nanoComp
+
+soil; conda activate spatialDirt; R
+
+
+library(Hmsc)

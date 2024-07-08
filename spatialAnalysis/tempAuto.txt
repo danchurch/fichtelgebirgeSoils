@@ -667,6 +667,7 @@ rL.site_season = setPriors(rL.site_season,nfMin=1,nfMax=1) ## I can imagine that
 ## set the covariates for "null" model:
 XData0 <- XData[,"BacteriaDepth",drop=FALSE]
 XFormula0 = ~ BacteriaDepth
+
 ## set the covariates for hurdle model:
 varsOfmodel1 <- c("soil_respiration","Land_type","pH","N","C","Temperature","waterCont")
 XData1 <- XData[,c(varsOfmodel1)] ## clean up to just these for model below
@@ -843,13 +844,14 @@ repeatedPlotsEnv ## looks okay
 
 ## back to R, modify model to use the new CO2 data:
 
+nanoComp
+
 soil; conda activate spatialDirt; R
 
 library(Hmsc)
 library(phyloseq)
 
 rm(list=ls())
-
 envData <- read.csv("repeatedPlotsEnv.csv", row.names="SampleID")
 load("psCleanedUp.rda")
 ## trim down to repeated sites, removed zeroed species
@@ -872,8 +874,6 @@ rowsumsInv = 1/rowSums(bactRaw)
 nASVs <- dim(bactRaw)[2]
 scalarMat = matrix( rep(rowsumsInv, nASVs), ncol = nASVs)
 bact.rel <- bactRaw * scalarMat
-
-
 ##################### thresholds!! ###########
 ## not sure the appropriate thresholds her
 ## in the case of the full spatial model, 
@@ -889,12 +889,11 @@ sum(bact.pa)
 dim(bactData) ## 123 OTUs remain, out of
 dim(bact.pa) ## 2903 OTUs
 ################################################
-
 Y <- bactData
 ny <- dim(Y)[1]
 ns <- dim(Y)[2]
 Yabu <- Y
-Yabu[Y==0] <- NA ## to avoid zeroes?
+Yabu[Y==0] <- NA ## to avoid zeroes
 Yabu = log(Yabu) ## take log of abundances. They basically decided on the same transformations as Sulari and I.
 Yabu <- scale(Yabu) ## scale, after log? Heavily transformed data. Let's hope they know what they are talking about.
 Ypa = 1*(Y>0)
@@ -904,3 +903,231 @@ plot_coords <- XData[,c("PlotID","xx","yy")]
 plot_coords <- plot_coords[!duplicated(plot_coords),] ## remove duplicated plot rows
 rownames(plot_coords) <- plot_coords$PlotID
 plot_coords$PlotID <- NULL
+
+## use this for our spatial random effects
+rL.site_spatial = HmscRandomLevel(sData = plot_coords)
+rL.site_spatial = setPriors(rL.site_spatial,nfMin=1,nfMax=3) ## try 3. Not sure how to optimize this. But there may multiple spatial scales.
+## random effects by sample is simple:
+sample.id = row.names(Y)
+rL.sample = HmscRandomLevel(units = sample.id)
+## now, how do we implement our temporal variable, season?:
+## acts on individual samples, not plots, necessarily
+## I think we need a subtable that links to a column in our experimental design df 
+## one column would be "season" and the other would be the integer value 
+seasonDF = data.frame(row.names=c( "winter", "spring", "summer" , "fall" ), seasNumber=1:4)
+rL.site_season = HmscRandomLevel(sData = seasonDF)
+rL.site_season = setPriors(rL.site_season,nfMin=1,nfMax=1) ## I can't imagine that such a simple predictor needs more?
+## set the covariates for "null" model:
+XData0 <- XData[,"BacteriaDepth",drop=FALSE]
+XFormula0 = ~ BacteriaDepth
+## set the covariates for hurdle model:
+varsOfmodel1 <- c("soil_respiration","co2flow","Land_type","pH","N","C","Temperature","waterCont")
+XData1 <- XData[,c(varsOfmodel1)] ## clean up to just these for model below
+XFormula1 = ~ soil_respiration + co2flow + Land_type + pH + N + C + Temperature
+## I think this temporal effect acts on the individual sample level
+## this issue is pertinent: https://github.com/hmsc-r/HMSC/issues/103
+## we need a study design that has one row for each date-plot combo,
+studyDesign = data.frame("sample"=as.factor(sample.id), 
+                         "site_spatial"=as.factor(samplePlotid),
+                         "season"=as.factor(XData$season)
+                          )
+## sanity check for random effects, these pairs of numbers should match
+rL.sample
+length(levels(as.factor(studyDesign$sample)))
+rL.site_spatial
+length(levels(as.factor(studyDesign$site_spatial)))
+rL.site_season
+length(levels(as.factor(studyDesign$season)))
+
+as.factor(XData$season)
+
+## build the models
+
+## spatiotemporal model, but no environmental effects, just read depths
+## 1. m_spatTemp_ReadAbundancesOnly
+m_spatTemp_ReadAbundancesOnly = Hmsc(Y=Y,
+         XData = XData0,  XFormula = XFormula0,
+         distr={"lognormal poisson"} ,
+         studyDesign=studyDesign,
+         ranLevels={list("sample"=rL.sample, 
+                         "site_spatial" = rL.site_spatial,
+                         "season" = rL.site_season)},
+         YScale=TRUE
+)
+save(m_spatTemp_ReadAbundancesOnly, file="m_spatTemp_ReadAbundancesOnly.rda")
+
+## for comparison, a model with full environmental covariates and spatial patterning, but 
+## no temporal effects? To be fully comparable, we need to do the two-model hurdle 
+## approach:
+
+## 2.1 m_spatTemp_noTemp_PA
+m_spatTemp_noTemp_PA = Hmsc(Y=Ypa,
+         XData = XData1,  XFormula = XFormula1,
+         distr={"probit"} ,
+         studyDesign=studyDesign,
+         ranLevels={list("sample"=rL.sample, 
+                         "site_spatial" = rL.site_spatial
+                         )},
+)
+save(m_spatTemp_noTemp_PA, file="m_spatTemp_noTemp_PA.rda")
+
+## 2.2 m_spatTemp_noTemp_abu
+m_spatTemp_noTemp_abu = Hmsc(Y=Yabu,
+         XData = XData1,  XFormula = XFormula1,
+         distr={"normal"} ,
+         studyDesign=studyDesign,
+         ranLevels={list("sample"=rL.sample, 
+                         "site_spatial" = rL.site_spatial)},
+         YScale=TRUE
+                    )
+save(m_spatTemp_noTemp_abu, file="m_spatTemp_noTemp_abu.rda")
+
+## the full spatiotemporal, environmental hurdle model:
+## 3.1 m_spatTemp_Env_PA
+m_spatTemp_Env_PA = Hmsc(Y=Ypa,
+         XData = XData1,  XFormula = XFormula1,
+         distr={"probit"} ,
+         studyDesign=studyDesign,
+         ranLevels={list("sample"=rL.sample, 
+                         "site_spatial" = rL.site_spatial,
+                         "season" = rL.site_season)}
+              )
+save(m_spatTemp_Env_PA, file="m_spatTemp_Env_PA.rda")
+
+## 3.2 m_spatTemp_Env_abu
+m_spatTemp_Env_abu = Hmsc(Y=Yabu,
+         XData = XData1,  XFormula = XFormula1,
+         distr={"normal"} ,
+         studyDesign=studyDesign,
+         ranLevels={list("sample"=rL.sample,
+                         "site_spatial" = rL.site_spatial,
+                         "season" = rL.site_season)},
+         YScale=TRUE
+)
+
+save(m_spatTemp_Env_abu, file="m_spatTemp_Env_abu.rda")
+
+## let's try running the first three on the lab comp.
+## if memory is too high, kill it. If low, add the other models:
+
+m_spatTemp_ReadAbundancesOnly.rda
+m_spatTemp_noTemp_PA.rda
+m_spatTemp_noTemp_abu.rda
+m_spatTemp_Env_PA.rda
+m_spatTemp_Env_abu.rda
+
+## 1.  m_spatTemp_ReadAbundancesOnly
+#### m_spatTemp_ReadAbundancesOnly.r ####
+
+library(Hmsc)
+print("starting model:")
+print("m_spatTemp_ReadAbundancesOnly")
+print(paste("start time is", Sys.time()))
+load("m_spatTemp_ReadAbundancesOnly.rda")
+thin = 20
+samples = 1000
+nChains = 2
+nP = 4
+m_spatTemp_ReadAbundancesOnly = sampleMcmc(m_spatTemp_ReadAbundancesOnly,
+                     samples = samples,
+                     thin=thin,
+                     transient = ceiling(0.5*samples*thin),
+                     nChains = nChains,
+                     nParallel = nP
+                     )
+save(m_spatTemp_ReadAbundancesOnly, file="m_spatTemp_ReadAbundancesOnly_sampled.rda")
+print(paste("finish time is", Sys.time()))
+###########################################
+
+nohup Rscript m_spatTemp_ReadAbundancesOnly.r &> m_spatTemp_ReadAbundancesOnly.log &
+
+## 2.1 m_spatTemp_noTemp_PA
+#### m_spatTemp_noTemp_PA.r ####
+library(Hmsc)
+print("starting model:")
+print("m_spatTemp_noTemp_PA")
+print(paste("start time is", Sys.time()))
+load("m_spatTemp_noTemp_PA.rda")
+thin = 20
+samples = 1000
+nChains = 4
+nP = 2
+m_spatTemp_noTemp_PA = sampleMcmc(m_spatTemp_noTemp_PA,
+                     samples = samples,
+                     thin=thin,
+                     transient = ceiling(0.5*samples*thin),
+                     nChains = nChains,
+                     nParallel = nP
+                     )
+save(m_spatTemp_noTemp_PA, file="m_spatTemp_noTemp_PA_sampled.rda")
+print(paste("finish time is", Sys.time()))
+###########################################
+
+nohup Rscript m_spatTemp_noTemp_PA.r &> m_spatTemp_noTemp_PA.log &
+
+## 2.2 m_spatTemp_noTemp_abu
+#### m_spatTemp_noTemp_abu.r ####
+library(Hmsc)
+print("starting model:")
+print("m_spatTemp_noTemp_abu")
+print(paste("start time is", Sys.time()))
+load("m_spatTemp_noTemp_abu.rda")
+thin = 20
+samples = 1000
+nChains = 4
+nP = 2
+m_spatTemp_noTemp_abu = sampleMcmc(m_spatTemp_noTemp_abu,
+                     samples = samples,
+                     thin=thin,
+                     transient = ceiling(0.5*samples*thin),
+                     nChains = nChains,
+                     nParallel = nP
+                     )
+save(m_spatTemp_noTemp_abu, file="m_spatTemp_noTemp_abu_sampled.rda")
+print(paste("finish time is", Sys.time()))
+###########################################
+
+
+## 3.1 m_spatTemp_Env_PA
+#### m_spatTemp_Env_PA.r ####
+library(Hmsc)
+print("starting model:")
+print("m_spatTemp_Env_PA")
+print(paste("start time is", Sys.time()))
+load("m_spatTemp_Env_PA.rda")
+thin = 20
+samples = 1000
+nChains = 4
+nP = 2
+m_spatTemp_Env_PA = sampleMcmc(m_spatTemp_Env_PA,
+                     samples = samples,
+                     thin=thin,
+                     transient = ceiling(0.5*samples*thin),
+                     nChains = nChains,
+                     nParallel = nP
+                     )
+save(m_spatTemp_Env_PA, file="m_spatTemp_Env_PA_sampled.rda")
+print(paste("finish time is", Sys.time()))
+###########################################
+
+## 3.2 m_spatTemp_Env_abu
+#### m_spatTemp_Env_abu.r ####
+library(Hmsc)
+print("starting model:")
+print("m_spatTemp_Env_abu")
+print(paste("start time is", Sys.time()))
+load("m_spatTemp_Env_abu.rda")
+thin = 20
+samples = 1000
+nChains = 4
+nP = 2
+m_spatTemp_Env_abu = sampleMcmc(m_spatTemp_Env_abu,
+                     samples = samples,
+                     thin=thin,
+                     transient = ceiling(0.5*samples*thin),
+                     nChains = nChains,
+                     nParallel = nP
+                     )
+save(m_spatTemp_Env_abu, file="m_spatTemp_Env_abu_sampled.rda")
+print(paste("finish time is", Sys.time()))
+###########################################

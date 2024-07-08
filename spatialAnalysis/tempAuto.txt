@@ -599,6 +599,7 @@ library(phyloseq)
 library(ape)
 
 rm(list=ls())
+
 envData <- read.csv("repeatedPlotsEnv.csv", row.names="SampleID")
 load("psCleanedUp.rda")
 ## trim down to repeated sites, removed zeroed species
@@ -649,6 +650,7 @@ plot_coords <- XData[,c("PlotID","xx","yy")]
 plot_coords <- plot_coords[!duplicated(plot_coords),] ## remove duplicated plot rows
 rownames(plot_coords) <- plot_coords$PlotID
 plot_coords$PlotID <- NULL
+
 ## use this for our spatial random effects
 rL.site_spatial = HmscRandomLevel(sData = plot_coords)
 rL.site_spatial = setPriors(rL.site_spatial,nfMin=1,nfMax=3) ## try 3. Not sure how to optimize this. But there may multiple spatial scales.
@@ -806,7 +808,7 @@ find . -type f -size +20M -exec ls -lh {} \;
 ## remember, the goal is to find the species associated with high respiration,
 ## and maybe predict bacterial presence or abundace with raised temperature or deforestation
 
-## I think we were running two models - a spatial model, and a spatiotemporal model
+## I was running two models - a spatial model, and a spatiotemporal model
 ## the spatial model had a lot more points, but is simpler (no temporal component)
 ## the spatial-only model was run on de.nbi, the spatiotemporal on the lab computer 
  
@@ -818,7 +820,87 @@ find . -type f -size +20M -exec ls -lh {} \;
 
 nanoComp
 
+soil
+
+conda activate spatialDirt
+
+python3
+
+import pandas as pd
+import os
+
+## we need to update the repeatedPlots environmental data
+
+repeatedPlotsEnv = pd.read_csv("repeatedPlotsEnv.csv", index_col="SampleID")
+envData = pd.read_csv("sulariEnv.csv", index_col="SampleID")
+repeatedPlotsEnv = pd.merge(repeatedPlotsEnv, envData["co2flow"], left_index=True, right_index=True)
+#repeatedPlotsEnv.to_csv("repeatedPlotsEnv.csv")
+
+## read it back, check:
+repeatedPlotsEnv = pd.read_csv("repeatedPlotsEnv.csv", index_col="SampleID")
+repeatedPlotsEnv['Date'] = pd.to_datetime(repeatedPlotsEnv['Date'], yearfirst=True, errors='coerce')
+repeatedPlotsEnv ## looks okay
+
+## back to R, modify model to use the new CO2 data:
+
 soil; conda activate spatialDirt; R
 
-
 library(Hmsc)
+library(phyloseq)
+
+rm(list=ls())
+
+envData <- read.csv("repeatedPlotsEnv.csv", row.names="SampleID")
+load("psCleanedUp.rda")
+## trim down to repeated sites, removed zeroed species
+repeatedSitesPS = prune_samples(rownames(envData), psCleanedUp)
+repeatedSitesPS = prune_taxa( colSums(otu_table(repeatedSitesPS)) > 0, repeatedSitesPS)
+## lost ~400 OTUs, means that the vast majority of species are 
+## still in our spatiotemporal subsample
+varsOfInterest = c("PlotID","soil_respiration","co2flow","Land_type","pH","N","C","Temperature","waterCont","season","xx","yy")
+XData<-data.frame(envData[,varsOfInterest])
+XData$Land_type <- as.factor(XData$Land_type)
+## we can only use complete cases
+ccases <- complete.cases(XData) 
+XData = XData[ccases,] ## lose one sample
+bactRaw <- otu_table(repeatedSitesPS)@.Data
+bactRaw <- bactRaw[ccases,]
+XData$Land_type <- as.factor(XData$Land_type)
+XData['BacteriaDepth'] <- log(rowSums(bactRaw))
+bact.pa<-ifelse(bactRaw>0,1,0)
+rowsumsInv = 1/rowSums(bactRaw)
+nASVs <- dim(bactRaw)[2]
+scalarMat = matrix( rep(rowsumsInv, nASVs), ncol = nASVs)
+bact.rel <- bactRaw * scalarMat
+
+
+##################### thresholds!! ###########
+## not sure the appropriate thresholds her
+## in the case of the full spatial model, 
+## ended up subsetting down to ~160 OTUs
+threshold.prev = 6/33 ## not a lot of difference between 0 and 6
+threshold.abu = 0.008 ## only OTU that reaches at least 0.8% abundance of one sample
+ny = dim(bactRaw)[1]
+cond1=!(colSums(bact.pa)<=threshold.prev*ny)
+cond2=apply(bact.rel,2,max)>=threshold.abu
+bactData <- bactRaw[, cond1 & cond2 ]
+sum(bactData > 0)
+sum(bact.pa)
+dim(bactData) ## 123 OTUs remain, out of
+dim(bact.pa) ## 2903 OTUs
+################################################
+
+Y <- bactData
+ny <- dim(Y)[1]
+ns <- dim(Y)[2]
+Yabu <- Y
+Yabu[Y==0] <- NA ## to avoid zeroes?
+Yabu = log(Yabu) ## take log of abundances. They basically decided on the same transformations as Sulari and I.
+Yabu <- scale(Yabu) ## scale, after log? Heavily transformed data. Let's hope they know what they are talking about.
+Ypa = 1*(Y>0)
+all(rownames(XData) == rownames(Y))
+samplePlotid = XData$PlotID
+plot_coords <- XData[,c("PlotID","xx","yy")]
+plot_coords <- plot_coords[!duplicated(plot_coords),] ## remove duplicated plot rows
+rownames(plot_coords) <- plot_coords$PlotID
+plot_coords$PlotID <- NULL

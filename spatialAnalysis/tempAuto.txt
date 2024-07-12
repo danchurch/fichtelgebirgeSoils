@@ -1026,8 +1026,8 @@ print(paste("start time is", Sys.time()))
 load("m_spatTemp_ReadAbundancesOnly.rda")
 thin = 20
 samples = 1000
-nChains = 2
-nP = 4
+nChains = 8
+nP = 8
 m_spatTemp_ReadAbundancesOnly = sampleMcmc(m_spatTemp_ReadAbundancesOnly,
                      samples = samples,
                      thin=thin,
@@ -1036,6 +1036,8 @@ m_spatTemp_ReadAbundancesOnly = sampleMcmc(m_spatTemp_ReadAbundancesOnly,
                      nParallel = nP
                      )
 save(m_spatTemp_ReadAbundancesOnly, file="m_spatTemp_ReadAbundancesOnly_sampled.rda")
+## additional, deeper sampling:
+#save(m_spatTemp_ReadAbundancesOnly, file="m_spatTemp_ReadAbundancesOnly_sampled2.rda")
 print(paste("finish time is", Sys.time()))
 ###########################################
 
@@ -1059,14 +1061,17 @@ m_spatTemp_noTemp_PA = sampleMcmc(m_spatTemp_noTemp_PA,
                      nChains = nChains,
                      nParallel = nP
                      )
-save(m_spatTemp_noTemp_PA, file="m_spatTemp_noTemp_PA_sampled.rda")
+#save(m_spatTemp_noTemp_PA, file="m_spatTemp_noTemp_PA_sampled.rda")
+## additional, deeper sampling:
+save(m_spatTemp_noTemp_PA, file="m_spatTemp_noTemp_PA_sampled2.rda")
 print(paste("finish time is", Sys.time()))
 ###########################################
 
-nohup Rscript m_spatTemp_noTemp_PA.r &> m_spatTemp_noTemp_PA.log &
+nohup Rscript m_spatTemp_noTemp_PA.r &>> m_spatTemp_noTemp_PA.log &
 
 ## 2.2 m_spatTemp_noTemp_abu
 #### m_spatTemp_noTemp_abu.r ####
+
 library(Hmsc)
 print("starting model:")
 print("m_spatTemp_noTemp_abu")
@@ -1083,13 +1088,17 @@ m_spatTemp_noTemp_abu = sampleMcmc(m_spatTemp_noTemp_abu,
                      nChains = nChains,
                      nParallel = nP
                      )
-save(m_spatTemp_noTemp_abu, file="m_spatTemp_noTemp_abu_sampled.rda")
+#save(m_spatTemp_noTemp_abu, file="m_spatTemp_noTemp_abu_sampled.rda")
+## additional, deeper sampling:
+save(m_spatTemp_noTemp_abu, file="m_spatTemp_noTemp_abu_sampled2.rda")
 print(paste("finish time is", Sys.time()))
 ###########################################
 
+nohup m_spatTemp_noTemp_abu.r &>> m_spatTemp_noTemp_abu.log &
 
 ## 3.1 m_spatTemp_Env_PA
 #### m_spatTemp_Env_PA.r ####
+
 library(Hmsc)
 print("starting model:")
 print("m_spatTemp_Env_PA")
@@ -1106,9 +1115,14 @@ m_spatTemp_Env_PA = sampleMcmc(m_spatTemp_Env_PA,
                      nChains = nChains,
                      nParallel = nP
                      )
-save(m_spatTemp_Env_PA, file="m_spatTemp_Env_PA_sampled.rda")
+#save(m_spatTemp_Env_PA, file="m_spatTemp_Env_PA_sampled.rda")
+## additional, deeper sampling:
+save(m_spatTemp_Env_PA, file="m_spatTemp_Env_PA_sampled2.rda")
 print(paste("finish time is", Sys.time()))
+
 ###########################################
+
+nohup m_spatTemp_Env_PA.r &> m_spatTemp_Env_PA.log &
 
 ## 3.2 m_spatTemp_Env_abu
 #### m_spatTemp_Env_abu.r ####
@@ -1128,6 +1142,191 @@ m_spatTemp_Env_abu = sampleMcmc(m_spatTemp_Env_abu,
                      nChains = nChains,
                      nParallel = nP
                      )
-save(m_spatTemp_Env_abu, file="m_spatTemp_Env_abu_sampled.rda")
+#save(m_spatTemp_Env_abu, file="m_spatTemp_Env_abu_sampled.rda")
+## additional, deeper sampling:
+save(m_spatTemp_Env_abu, file="m_spatTemp_Env_abu_sampled2.rda")
 print(paste("finish time is", Sys.time()))
 ###########################################
+nohup m_spatTemp_Env_abu.r &>> m_spatTemp_Env_abu.log &
+
+## 1. m_spatTemp_ReadAbundancesOnly
+nohup Rscript m_spatTemp_ReadAbundancesOnly.r &>> m_spatTemp_ReadAbundancesOnly.log &
+
+## 2.1 m_spatTemp_noTemp_PA
+nohup Rscript m_spatTemp_noTemp_PA.r &>> m_spatTemp_noTemp_PA.log &
+
+## 2.2 m_spatTemp_noTemp_abu
+nohup Rscript m_spatTemp_noTemp_abu.r &>> m_spatTemp_noTemp_abu.log &
+
+## 3.1 m_spatTemp_Env_PA
+nohup Rscript m_spatTemp_Env_PA.r &>> m_spatTemp_Env_PA.log &
+
+## 3.2 m_spatTemp_Env_abu
+nohup Rscript m_spatTemp_Env_abu.r &>> m_spatTemp_Env_abu.log &
+
+## as before, the spatTemp_ReadAbu only model is failing. What is it about this model?
+## try it interactively. 
+## but worked when rerun. Might be simply that there weren't enough processors with all
+## models sampling at the same time.
+
+## given what we saw before, and the fact that the sampling was so quick,
+## maybe rerun these, and combine the results
+
+## processors when the other models were started?
+## it's very quick (~1/2 hour), so rerun for deeper sampling alone, then run the others
+## again together for deeper sampling after this finishes
+
+## and done. 
+
+## how do we combine these? For instance:
+
+soil; conda activate spatialDirt; R
+
+library(Hmsc)
+
+## 1.  m_spatTemp_ReadAbundancesOnly
+## actually, this model we are rerunning with 8 chains, all at once
+## probably no need for deeper sampling and combining. Onto the others
+
+## 2.1 m_spatTemp_noTemp_PA
+load("m_spatTemp_noTemp_PA_sampled.rda")
+m_spatTemp_noTemp_PA1 <- m_spatTemp_noTemp_PA 
+rm(m_spatTemp_noTemp_PA)
+load("m_spatTemp_noTemp_PA_sampled2.rda")
+m_spatTemp_noTemp_PA2 <- m_spatTemp_noTemp_PA 
+rm(m_spatTemp_noTemp_PA)
+m_spatTemp_noTemp_PA_C <- c(m_spatTemp_noTemp_PA1, m_spatTemp_noTemp_PA2)
+save(m_spatTemp_noTemp_PA_C, file="m_spatTemp_noTemp_PA_sampled_C.rda")
+
+## 2.2 m_spatTemp_noTemp_abu
+load("m_spatTemp_noTemp_abu_sampled.rda")
+m_spatTemp_noTemp_abu1 <- m_spatTemp_noTemp_abu 
+rm(m_spatTemp_noTemp_abu)
+load("m_spatTemp_noTemp_abu_sampled2.rda")
+m_spatTemp_noTemp_abu2 <- m_spatTemp_noTemp_abu 
+rm(m_spatTemp_noTemp_abu)
+m_spatTemp_noTemp_abu_C <- c(m_spatTemp_noTemp_abu1, m_spatTemp_noTemp_abu2)
+save(m_spatTemp_noTemp_abu_C, file="m_spatTemp_noTemp_abu_sampled_C.rda")
+
+## 3.1 m_spatTemp_Env_PA
+load("m_spatTemp_Env_PA_sampled.rda")
+m_spatTemp_Env_PA1 <- m_spatTemp_Env_PA 
+rm(m_spatTemp_Env_PA)
+load("m_spatTemp_Env_PA_sampled2.rda")
+m_spatTemp_Env_PA2 <- m_spatTemp_Env_PA 
+rm(m_spatTemp_Env_PA)
+m_spatTemp_Env_PA_C <- c(m_spatTemp_Env_PA1, m_spatTemp_Env_PA2)
+save(m_spatTemp_Env_PA_C, file="m_spatTemp_Env_PA_sampled_C.rda")
+
+## 3.2 m_spatTemp_Env_abu
+load("m_spatTemp_Env_abu_sampled.rda")
+m_spatTemp_Env_abu1 <- m_spatTemp_Env_abu 
+rm(m_spatTemp_Env_abu)
+load("m_spatTemp_Env_abu_sampled2.rda")
+m_spatTemp_Env_abu2 <- m_spatTemp_Env_abu 
+rm(m_spatTemp_Env_abu)
+m_spatTemp_Env_abu_C <- c(m_spatTemp_Env_abu1, m_spatTemp_Env_abu2)
+save(m_spatTemp_Env_abu_C, file="m_spatTemp_Env_abu_sampled_C.rda")
+
+## check these:
+
+rm(list=ls())
+load("m_spatTemp_noTemp_PA_sampled_C.rda")
+load("m_spatTemp_noTemp_abu_sampled_C.rda")
+load("m_spatTemp_Env_PA_sampled_C.rda")
+load("m_spatTemp_Env_abu_sampled_C.rda")
+
+m_spatTemp_noTemp_PA_C
+m_spatTemp_noTemp_abu_C
+m_spatTemp_Env_PA_C
+m_spatTemp_Env_abu_C
+
+## Okay, why do we have all these models?
+
+## when the processors are available, compare R2 etc 
+
+## in the meantime, check mixing:
+m_spatTemp_Env_PA_C_coda = convertToCodaObject(m_spatTemp_Env_PA_C)
+m_spatTemp_Env_PA_C.beta = effectiveSize(m_spatTemp_Env_PA_C_coda$Beta)
+hist(m_spatTemp_Env_PA_C.beta, main="effective sample size for beta", breaks=30)
+mean(m_spatTemp_Env_PA_C.beta) ## mean = 4000, okay, that is deep
+
+pdf(file="m_spatTemp_Env_PA_C_beta_mixing.pdf")
+plot(m_spatTemp_Env_PA_C_coda$Beta)
+dev.off() ## get local etc
+
+## get it local
+getFile="/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis/m_spatTemp_Env_PA_C_beta_mixing.pdf"
+putItHere="/home/daniel/Documents/projects/fichtelSoils/files2big4git"
+scp test@132.180.112.115:$getFile $putItHere
+
+## and repeat for the species-species interactions:
+m_spatTemp_Env_PA_C_coda$temp = m_spatTemp_Env_PA_C_coda$Omega[[1]]
+for(i in 1:length(m_spatTemp_Env_PA_C_coda$temp)){
+  m_spatTemp_Env_PA_C_coda$temp[[i]] = m_spatTemp_Env_PA_C_coda$temp[[i]][,1:1000]
+}
+
+es.omega1 = effectiveSize(m_spatTemp_Env_PA_C_coda$temp)
+ge.omega1 = gelman.diag(m_spatTemp_Env_PA_C_coda$temp,multivariate=FALSE)$psrf
+
+#png(file="essOmega1_SpTmpSmall_thin150.png")
+par(mfrow=c(1,2))
+hist(es.omega1, main="ess(omega)")
+hist(ge.omega1, main="psrf(omega)")
+#dev.off()
+mean(es.omega1) ## 3335, pretty good.
+
+pdf(file="m_spatTemp_Env_PA_C_Omega_mixing.pdf")
+plot(m_spatTemp_Env_PA_C_coda$temp)
+dev.off() ## get local etc
+
+## get it local
+getFile="/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis/m_spatTemp_Env_PA_C_Omega_mixing.pdf"
+putItHere="/home/daniel/Documents/projects/fichtelSoils/files2big4git"
+scp test@132.180.112.115:$getFile $putItHere
+
+## okay, the beta and the omega are well sampling on the Presence/Absence of the hurdle model. 
+## how about the abundance-based model that is conditioned on the PA?:
+  
+#m_spatTemp_Env_abu_C
+m_spatTemp_Env_abu_C_coda = convertToCodaObject(m_spatTemp_Env_abu_C)
+m_spatTemp_Env_abu_C.beta = effectiveSize(m_spatTemp_Env_abu_C_coda$Beta)
+
+hist(m_spatTemp_Env_abu_C.beta, main="effective sample size for beta", breaks=30) ## wow, 
+mean(m_spatTemp_Env_abu_C.beta) ## mean = 7177, okay, that is really deep
+
+
+m_spatTemp_Env_abu_C_coda$temp = m_spatTemp_Env_abu_C_coda$Omega[[1]]
+for(i in 1:length(m_spatTemp_Env_abu_C_coda$temp)){
+  m_spatTemp_Env_abu_C_coda$temp[[i]] = m_spatTemp_Env_abu_C_coda$temp[[i]][,1:1000]
+}
+
+es.omega1 = effectiveSize(m_spatTemp_Env_abu_C_coda$temp)
+ge.omega1 = gelman.diag(m_spatTemp_Env_abu_C_coda$temp,multivariate=FALSE)$psrf
+
+par(mfrow=c(1,2))
+hist(es.omega1, main="ess(omega)")
+hist(ge.omega1, main="psrf(omega)")
+#dev.off()
+mean(es.omega1) ## 3054, pretty good.
+
+## check the mixing
+pdf(file="m_spatTemp_Env_abu_C_beta_mixing.pdf")
+plot(m_spatTemp_Env_abu_C_coda$Beta)
+dev.off() ## get local etc
+
+pdf(file="m_spatTemp_Env_abu_C_Omega_mixing.pdf")
+plot(m_spatTemp_Env_abu_C_coda$temp)
+dev.off() ## get local etc
+
+summary(m_spatTemp_Env_abu_C_coda$Beta)
+
+## get them local
+getFile="/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis/m_spatTemp_Env_abu_C_beta_mixing.pdf"
+putItHere="/home/daniel/Documents/projects/fichtelSoils/files2big4git"
+scp test@132.180.112.115:$getFile $putItHere
+
+getFile="/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis/m_spatTemp_Env_abu_C_Omega_mixing.pdf"
+putItHere="/home/daniel/Documents/projects/fichtelSoils/files2big4git"
+scp test@132.180.112.115:$getFile $putItHere
+

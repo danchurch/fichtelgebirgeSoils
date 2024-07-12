@@ -8969,3 +8969,37 @@ print(paste("finish time is", Sys.time()))
 #################################################
 
 nohup Rscript m_hurdle_abu_sampling.r &> m_hurdle_abu_sampling.log &
+
+## some of these models are finishing up. 
+
+## it takes even longer to predictive R2 out of these,
+## maybe start them? 
+
+## also, we may want deeper sampling...ugh...
+
+## so much work and computing.
+
+## start by checking the mixing of the models that have finished:
+
+## on denbi:
+
+
+soil; conda activate r_env; R
+
+library(Hmsc)
+
+load('m_ReadAbundancesOnly_sampled.rda')
+
+m_ReadAbundancesOnly
+
+m_ReadAbundancesOnly_coda = convertToCodaObject(m_ReadAbundancesOnly)
+
+m_ReadAbundancesOnly.beta = effectiveSize(m_ReadAbundancesOnly_coda$Beta)  
+
+hist(m_ReadAbundancesOnly.beta, main="effective sample size for beta", breaks=30) 
+## not horrible, but mean is somewhere around 500
+## might be good to run more sampling, but wait till the other models come in
+
+
+
+

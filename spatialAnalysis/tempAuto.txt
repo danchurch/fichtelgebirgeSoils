@@ -1231,11 +1231,13 @@ save(m_spatTemp_Env_abu_C, file="m_spatTemp_Env_abu_sampled_C.rda")
 ## check these:
 
 rm(list=ls())
+load("m_spatTemp_ReadAbundancesOnly_sampled.rda")
 load("m_spatTemp_noTemp_PA_sampled_C.rda")
 load("m_spatTemp_noTemp_abu_sampled_C.rda")
 load("m_spatTemp_Env_PA_sampled_C.rda")
 load("m_spatTemp_Env_abu_sampled_C.rda")
 
+m_spatTemp_ReadAbundancesOnly
 m_spatTemp_noTemp_PA_C
 m_spatTemp_noTemp_abu_C
 m_spatTemp_Env_PA_C
@@ -1243,7 +1245,7 @@ m_spatTemp_Env_abu_C
 
 ## Okay, why do we have all these models?
 
-## when the processors are available, compare R2 etc 
+## 
 
 ## in the meantime, check mixing:
 m_spatTemp_Env_PA_C_coda = convertToCodaObject(m_spatTemp_Env_PA_C)
@@ -1330,3 +1332,114 @@ getFile="/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialA
 putItHere="/home/daniel/Documents/projects/fichtelSoils/files2big4git"
 scp test@132.180.112.115:$getFile $putItHere
 
+### compare variance explained
+
+## let's go ahead and set up the code for comparisons of R2 from the 
+## various models, and restart the notebook showing this.
+
+m_spatTemp_ReadAbundancesOnly
+m_spatTemp_noTemp_PA_C
+m_spatTemp_noTemp_abu_C
+m_spatTemp_Env_PA_C
+m_spatTemp_Env_abu_C
+
+## explanatory
+
+preds = computePredictedValues(m_spat_noEnv)
+MF = evaluateModelFit(hM=m_spat_noEnv, predY=preds)
+postBeta = getPostEstimate(m_spat_noEnv, parName="Beta")
+hist(MF$RMSE)
+hist(MF$C.RMSE)
+
+## to get one RMSE value:
+
+preds = computePredictedValues(m_spatTemp_ReadAbundancesOnly)
+m_spatTemp_ReadAbundancesOnly_MF = evaluateModelFit(hM=m_spatTemp_ReadAbundancesOnly, predY=preds)
+
+m_spatTemp_ReadAbundancesOnly_MF$RMSE
+
+
+
+str(m_spatTemp_ReadAbundancesOnly)
+
+models = list(
+m_spatTemp_ReadAbundancesOnly,
+m_spatTemp_noTemp_PA_C,
+m_spatTemp_noTemp_abu_C,
+m_spatTemp_Env_PA_C,
+m_spatTemp_Env_abu_C
+)
+
+
+predlist <- list()
+modelFitList <- list()
+for (i in 1:length(models)) { 
+  print(models[[i]])
+  preds = computePredictedValues(models[[i]])
+  MF = evaluateModelFit(hM=models[[i]], predY=preds)
+  predlist[[i]] <- preds
+  modelFitList[[i]] <- MF
+}
+
+modelFitList[[i]]
+
+## we want a dataframe for each. For instance, for RMSE
+
+nSpecies <- length(modelFitList[[1]][[1]])
+RMSEmat <- matrix(ncol=length(modelFitList), nrow=nSpecies)
+for (i in 1:length(modelFitList)){
+RMSEmat[,i] <- modelFitList[[i]]$RMSE
+}
+modelNames=c("m_spatTemp_ReadAbundancesOnly", "m_spatTemp_noTemp_PA_C", "m_spatTemp_noTemp_abu_C", "m_spatTemp_Env_PA_C", "m_spatTemp_Env_abu_C")
+RMSEdf <- as.data.frame(RMSEmat)
+colnames(RMSEdf) = modelNames
+
+head(RMSEdf)
+
+## to plot it:
+
+boxplot(RMSEdf)
+
+# prepare the data
+ozone <- airquality$Ozone
+temp <- airquality$Temp
+# gererate normal distribution with same mean and sd
+ozone_norm <- rnorm(200,mean=mean(ozone, na.rm=TRUE), sd=sd(ozone, na.rm=TRUE))
+temp_norm <- rnorm(200,mean=mean(temp, na.rm=TRUE), sd=sd(temp, na.rm=TRUE))
+
+boxplot(ozone, ozone_norm, temp, temp_norm,
+    main = "Multiple boxplots for comparision",
+    at = c(1,2,3,4),
+    names = c("ozone", "normal", "temp", "normal"),
+    las = 2,
+    col = c("orange","red"),
+    border = "brown",
+    horizontal = FALSE,
+    notch = TRUE
+)
+
+boxplot(ozone, ozone_norm, temp, temp_norm,
+    main = "Multiple boxplots for comparision",
+    at = c(1,2,3,4),
+    names = c("ozone", "normal", "temp", "normal"),
+    las = 2,
+    col = c("orange","red"),
+    border = "brown",
+    horizontal = FALSE,
+    notch = TRUE
+)
+
+
+hist(m_spatTemp_ReadAbundancesOnly_MF$C.RMSE, breaks=1000, xlim=c(0,1000))
+
+## etc, explanatory power of model pretty good.
+## for cross-validation predictive-type R2: 
+partition = createPartition(m_spat_noEnv, nfolds = 2, column = "sample")
+
+preds = computePredictedValues(m_spat_noEnv, partition=partition, nParallel = 4)
+## started 14:26
+
+MF = evaluateModelFit(hM=m, predY=preds)
+
+
+  

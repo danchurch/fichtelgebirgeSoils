@@ -1035,16 +1035,14 @@ m_spatTemp_ReadAbundancesOnly = sampleMcmc(m_spatTemp_ReadAbundancesOnly,
                      nChains = nChains,
                      nParallel = nP
                      )
-save(m_spatTemp_ReadAbundancesOnly, file="m_spatTemp_ReadAbundancesOnly_sampled.rda")
-## additional, deeper sampling:
-#save(m_spatTemp_ReadAbundancesOnly, file="m_spatTemp_ReadAbundancesOnly_sampled2.rda")
+saveRDS(m_spatTemp_ReadAbundancesOnly, file="m_spatTemp_ReadAbundancesOnly_sampled.rds")
 print(paste("finish time is", Sys.time()))
-###########################################
 
-nohup Rscript m_spatTemp_ReadAbundancesOnly.r &> m_spatTemp_ReadAbundancesOnly.log &
+###########################################
 
 ## 2.1 m_spatTemp_noTemp_PA
 #### m_spatTemp_noTemp_PA.r ####
+
 library(Hmsc)
 print("starting model:")
 print("m_spatTemp_noTemp_PA")
@@ -1052,7 +1050,7 @@ print(paste("start time is", Sys.time()))
 load("m_spatTemp_noTemp_PA.rda")
 thin = 20
 samples = 1000
-nChains = 4
+nChains = 8
 nP = 2
 m_spatTemp_noTemp_PA = sampleMcmc(m_spatTemp_noTemp_PA,
                      samples = samples,
@@ -1061,13 +1059,11 @@ m_spatTemp_noTemp_PA = sampleMcmc(m_spatTemp_noTemp_PA,
                      nChains = nChains,
                      nParallel = nP
                      )
-#save(m_spatTemp_noTemp_PA, file="m_spatTemp_noTemp_PA_sampled.rda")
-## additional, deeper sampling:
-save(m_spatTemp_noTemp_PA, file="m_spatTemp_noTemp_PA_sampled2.rda")
+saveRDS(m_spatTemp_noTemp_PA, file="m_spatTemp_noTemp_PA_sampled.rds")
 print(paste("finish time is", Sys.time()))
+
 ###########################################
 
-nohup Rscript m_spatTemp_noTemp_PA.r &>> m_spatTemp_noTemp_PA.log &
 
 ## 2.2 m_spatTemp_noTemp_abu
 #### m_spatTemp_noTemp_abu.r ####
@@ -1079,7 +1075,7 @@ print(paste("start time is", Sys.time()))
 load("m_spatTemp_noTemp_abu.rda")
 thin = 20
 samples = 1000
-nChains = 4
+nChains = 8
 nP = 2
 m_spatTemp_noTemp_abu = sampleMcmc(m_spatTemp_noTemp_abu,
                      samples = samples,
@@ -1088,13 +1084,10 @@ m_spatTemp_noTemp_abu = sampleMcmc(m_spatTemp_noTemp_abu,
                      nChains = nChains,
                      nParallel = nP
                      )
-#save(m_spatTemp_noTemp_abu, file="m_spatTemp_noTemp_abu_sampled.rda")
-## additional, deeper sampling:
-save(m_spatTemp_noTemp_abu, file="m_spatTemp_noTemp_abu_sampled2.rda")
+saveRDS(m_spatTemp_noTemp_abu, file="m_spatTemp_noTemp_abu_sampled.rds")
 print(paste("finish time is", Sys.time()))
-###########################################
 
-nohup m_spatTemp_noTemp_abu.r &>> m_spatTemp_noTemp_abu.log &
+###########################################
 
 ## 3.1 m_spatTemp_Env_PA
 #### m_spatTemp_Env_PA.r ####
@@ -1106,7 +1099,7 @@ print(paste("start time is", Sys.time()))
 load("m_spatTemp_Env_PA.rda")
 thin = 20
 samples = 1000
-nChains = 4
+nChains = 8
 nP = 2
 m_spatTemp_Env_PA = sampleMcmc(m_spatTemp_Env_PA,
                      samples = samples,
@@ -1115,17 +1108,14 @@ m_spatTemp_Env_PA = sampleMcmc(m_spatTemp_Env_PA,
                      nChains = nChains,
                      nParallel = nP
                      )
-#save(m_spatTemp_Env_PA, file="m_spatTemp_Env_PA_sampled.rda")
-## additional, deeper sampling:
-save(m_spatTemp_Env_PA, file="m_spatTemp_Env_PA_sampled2.rda")
+saveRDS(m_spatTemp_Env_PA, file="m_spatTemp_Env_PA_sampled.rds")
 print(paste("finish time is", Sys.time()))
 
 ###########################################
 
-nohup m_spatTemp_Env_PA.r &> m_spatTemp_Env_PA.log &
-
 ## 3.2 m_spatTemp_Env_abu
 #### m_spatTemp_Env_abu.r ####
+
 library(Hmsc)
 print("starting model:")
 print("m_spatTemp_Env_abu")
@@ -1133,7 +1123,7 @@ print(paste("start time is", Sys.time()))
 load("m_spatTemp_Env_abu.rda")
 thin = 20
 samples = 1000
-nChains = 4
+nChains = 8
 nP = 2
 m_spatTemp_Env_abu = sampleMcmc(m_spatTemp_Env_abu,
                      samples = samples,
@@ -1142,12 +1132,10 @@ m_spatTemp_Env_abu = sampleMcmc(m_spatTemp_Env_abu,
                      nChains = nChains,
                      nParallel = nP
                      )
-#save(m_spatTemp_Env_abu, file="m_spatTemp_Env_abu_sampled.rda")
-## additional, deeper sampling:
-save(m_spatTemp_Env_abu, file="m_spatTemp_Env_abu_sampled2.rda")
+saveRDS(m_spatTemp_Env_abu, file="m_spatTemp_Env_abu_sampled.rds")
 print(paste("finish time is", Sys.time()))
+
 ###########################################
-nohup m_spatTemp_Env_abu.r &>> m_spatTemp_Env_abu.log &
 
 ## 1. m_spatTemp_ReadAbundancesOnly
 nohup Rscript m_spatTemp_ReadAbundancesOnly.r &>> m_spatTemp_ReadAbundancesOnly.log &
@@ -1230,18 +1218,40 @@ save(m_spatTemp_Env_abu_C, file="m_spatTemp_Env_abu_sampled_C.rda")
 
 ## check these:
 
-rm(list=ls())
 load("m_spatTemp_ReadAbundancesOnly_sampled.rda")
 load("m_spatTemp_noTemp_PA_sampled_C.rda")
 load("m_spatTemp_noTemp_abu_sampled_C.rda")
 load("m_spatTemp_Env_PA_sampled_C.rda")
 load("m_spatTemp_Env_abu_sampled_C.rda")
 
+## tired of all the issues caused by having to use
+## the original names of these data objects.
+## let's resave as rds files:
+
+saveRDS(m_spatTemp_ReadAbundancesOnly, file="m_spatTemp_ReadAbundancesOnly_sampled.rds")
+saveRDS(m_spatTemp_noTemp_PA_C, file="m_spatTemp_noTemp_PA_sampled_C.rds")
+saveRDS(m_spatTemp_noTemp_abu_C, file="m_spatTemp_noTemp_abu_sampled_C.rds")
+saveRDS(m_spatTemp_Env_PA_C, file="m_spatTemp_Env_PA_sampled_C.rds")
+saveRDS(m_spatTemp_Env_abu_C, file="m_spatTemp_Env_abu_sampled_C.rds")
+
+m_spatTemp_ReadAbundancesOnly <- readRDS(file="m_spatTemp_ReadAbundancesOnly_sampled.rds")
+m_spatTemp_noTemp_PA_C        <- readRDS(file="m_spatTemp_noTemp_PA_sampled_C.rds")
+m_spatTemp_noTemp_abu_C       <- readRDS(file="m_spatTemp_noTemp_abu_sampled_C.rds")
+m_spatTemp_Env_PA_C           <- readRDS(file="m_spatTemp_Env_PA_sampled_C.rds")
+m_spatTemp_Env_abu_C          <- readRDS(file="m_spatTemp_Env_abu_sampled_C.rds")
+
 m_spatTemp_ReadAbundancesOnly
-m_spatTemp_noTemp_PA_C
-m_spatTemp_noTemp_abu_C
-m_spatTemp_Env_PA_C
-m_spatTemp_Env_abu_C
+m_spatTemp_noTemp_PA_C       
+m_spatTemp_noTemp_abu_C      
+m_spatTemp_Env_PA_C          
+m_spatTemp_Env_abu_C         
+
+## in shell, to clean up:
+rm "m_spatTemp_ReadAbundancesOnly_sampled.rda"
+rm "m_spatTemp_noTemp_PA_sampled_C.rda"
+rm "m_spatTemp_noTemp_abu_sampled_C.rda"
+rm "m_spatTemp_Env_PA_sampled_C.rda"
+rm "m_spatTemp_Env_abu_sampled_C.rda"
 
 ## Okay, why do we have all these models?
 
@@ -1380,15 +1390,36 @@ for (i in 1:length(models)) {
   predlist[[i]] <- preds
   modelFitList[[i]] <- MF
 }
+modelNames=c("m_spatTemp_ReadAbundancesOnly", "m_spatTemp_noTemp_PA_C", "m_spatTemp_noTemp_abu_C", "m_spatTemp_Env_PA_C", "m_spatTemp_Env_abu_C")
+names(modelFitList) <- modelNames
 
-modelFitList[[i]]
+modelFitList$m_spatTemp_ReadAbundancesOnly
 
-## we want a dataframe for each. For instance, for RMSE
+## we want a dataframe for each. For instance, for RMSE across all models:
+
+?evaluateModelFit
+
+## so this data is now available:
+print("m_spatTemp_ReadAbundancesOnly")
+str(modelFitList[[1]])
+
+print("m_spatTemp_noTemp_PA_C")
+str(modelFitList[[2]])
+
+print("m_spatTemp_noTemp_abu_C")
+str(modelFitList[[3]])
+
+print("m_spatTemp_Env_PA_C")
+str(modelFitList[[4]])
+
+print("m_spatTemp_Env_abu_C")
+str(modelFitList[[5]])
+
 
 nSpecies <- length(modelFitList[[1]][[1]])
 RMSEmat <- matrix(ncol=length(modelFitList), nrow=nSpecies)
 for (i in 1:length(modelFitList)){
-RMSEmat[,i] <- modelFitList[[i]]$RMSE
+  RMSEmat[,i] <- modelFitList[[i]]$RMSE
 }
 modelNames=c("m_spatTemp_ReadAbundancesOnly", "m_spatTemp_noTemp_PA_C", "m_spatTemp_noTemp_abu_C", "m_spatTemp_Env_PA_C", "m_spatTemp_Env_abu_C")
 RMSEdf <- as.data.frame(RMSEmat)
@@ -1400,46 +1431,152 @@ head(RMSEdf)
 
 boxplot(RMSEdf)
 
-# prepare the data
-ozone <- airquality$Ozone
-temp <- airquality$Temp
-# gererate normal distribution with same mean and sd
-ozone_norm <- rnorm(200,mean=mean(ozone, na.rm=TRUE), sd=sd(ozone, na.rm=TRUE))
-temp_norm <- rnorm(200,mean=mean(temp, na.rm=TRUE), sd=sd(temp, na.rm=TRUE))
+## but the RMSE isn't really comparable across the models, we y-scaled our yAbu and yPA, but 
+## not the raw Y values that the read abundance model is based on 
+## matrices for the hurdle models.
 
-boxplot(ozone, ozone_norm, temp, temp_norm,
-    main = "Multiple boxplots for comparision",
-    at = c(1,2,3,4),
-    names = c("ozone", "normal", "temp", "normal"),
-    las = 2,
-    col = c("orange","red"),
-    border = "brown",
-    horizontal = FALSE,
-    notch = TRUE
+## maybe best here to compare the PA models of the hurdles, see how 
+## incorporating time (season) changed the explanatory power of the 
+## model, if at all.
+
+## we can include the read-abundance Poisson "observation" fits, because
+## this is conveniently the fit of this model to PA-transformed
+## y data, done automatically 
+
+## in the case of the PA
+nSpecies <- length(modelFitList$m_spatTemp_noTemp_PA_C[[1]])
+RMSEmat <- matrix(ncol=2, nrow=nSpecies)
+RMSEmat[,1] <- modelFitList$m_spatTemp_noTemp_PA_C$RMSE
+RMSEmat[,2] <- modelFitList$m_spatTemp_Env_PA_C$RMSE
+RMSEdf <- as.data.frame(RMSEmat)
+colnames(RMSEdf)=c("m_spatTemp_noTemp_PA", "m_spatTemp_Env_PA")
+boxplot(RMSEdf, main=("mean RMSE of P/A component of Hurdles, without and with season") )
+
+## doesn't look different. Maybe a slight improvment by 
+## considering season.
+
+## other measures of model fit available for the PA are AUC and TjurR2
+
+## can we plot these together for comparison?
+nSpecies <- length(modelFitList$m_spatTemp_noTemp_PA_C[[1]])
+paGFmat <- matrix(ncol=6, nrow=nSpecies)
+paGFmat[,1] <- modelFitList$m_spatTemp_ReadAbundancesOnly$O.AUC
+paGFmat[,3] <- modelFitList$m_spatTemp_noTemp_PA_C$AUC
+paGFmat[,2] <- modelFitList$m_spatTemp_Env_PA_C$AUC
+paGFmat[,4] <- modelFitList$m_spatTemp_ReadAbundancesOnly$O.TjurR2
+paGFmat[,5] <- modelFitList$m_spatTemp_noTemp_PA_C$TjurR2
+paGFmat[,6] <- modelFitList$m_spatTemp_Env_PA_C$TjurR2
+paGFdf <- as.data.frame(paGFmat)
+colnames(paGFdf) <- c("readAbundanceOnlyAUC","noTempAUC","spTempAUC","readAbundanceOnlyTjurR2","noTempTjurR2","spTempTjurR2")
+
+par(cex.axis = .75, mar=c(10,4,4,2))
+boxplot(paGFdf, 
+main=("model fit measures of P/A component of Hurdles,\n without and with season"),
+names=c(
+  "ReadAbundances AUC",
+  "noSeason AUC",
+  "fullModel AUC",
+  "ReadAbundances TjurR2",
+  "noSeason TjurR2",
+  "fullModel TjurR2"
+),
+las=2
 )
 
-boxplot(ozone, ozone_norm, temp, temp_norm,
-    main = "Multiple boxplots for comparision",
-    at = c(1,2,3,4),
-    names = c("ozone", "normal", "temp", "normal"),
-    las = 2,
-    col = c("orange","red"),
-    border = "brown",
-    horizontal = FALSE,
-    notch = TRUE
+## following the Abrego Ovaskainen 2023 paper, the TjurR2 is best for 
+## judging the model's "positive" predictive power: how often does
+## the model properly predict when a species will be present.
+
+## on the other hand, the AUC is perhaps more useful for for 
+## discovering when a species will not be present, more the 
+## ability for discovering unsuitable sites. 
+ 
+## quite complicated. Let's look at the abundance models, using 
+
+nSpecies <- length(modelFitList$m_spatTemp_noTemp_PA_C[[1]])
+paGFmat <- matrix(ncol=3, nrow=nSpecies)
+paGFmat[,1] <- modelFitList$m_spatTemp_ReadAbundancesOnly$C.SR2
+paGFmat[,3] <- modelFitList$m_spatTemp_noTemp_abu_C$R2
+paGFmat[,2] <- modelFitList$m_spatTemp_Env_abu_C$R2
+paGFdf <- as.data.frame(paGFmat)
+colnames(paGFdf) <- c("readAbundanceOnlyR2","noTempAbuR2","spTempAbuR2")
+
+par(cex.axis = .75, mar=c(10,4,4,2))
+boxplot(paGFdf, 
+main=("model fit measures of P/A component of Hurdles,\n without and with season"),
+names=c(
+  "ReadAbundances R2",
+  "noSeason R2",
+  "fullModel R2"
+),
+las=2
 )
 
+## let's get the cross validations of these models going,
+## then update the notebook
 
-hist(m_spatTemp_ReadAbundancesOnly_MF$C.RMSE, breaks=1000, xlim=c(0,1000))
+## cross-validation:
 
-## etc, explanatory power of model pretty good.
-## for cross-validation predictive-type R2: 
-partition = createPartition(m_spat_noEnv, nfolds = 2, column = "sample")
+m_spatTemp_ReadAbundancesOnly
+m_spatTemp_noTemp_PA_C
+m_spatTemp_noTemp_abu_C
+m_spatTemp_Env_PA_C
+m_spatTemp_Env_abu_C
 
-preds = computePredictedValues(m_spat_noEnv, partition=partition, nParallel = 4)
-## started 14:26
+models[[1]]
+
+partition = createPartition(models[[1]], nfolds = 2, column = "sample")
+preds = computePredictedValues(models[[1]], partition=partition, nParallel = 3)
+MF = evaluateModelFit(hM=m, predY=preds)
+
+## we need to build this out, a script for each model, because this will take forever
+
+## I'm tired of rewriting all this code because of different R data object
+## names. Let's try saveRDS instead:
+
+
+
+m_spatTemp_ReadAbundancesOnly <- readRDS(file="m_spatTemp_ReadAbundancesOnly.rds")
+
+m_spatTemp_noTemp_PA_C
+m_spatTemp_noTemp_abu_C
+m_spatTemp_Env_PA_C
+m_spatTemp_Env_abu_C
+
+###### m_spatTemp_ReadAbundancesOnly_crossval.r ######
+
+library(Hmsc)
+
+model="m_spatTemp_ReadAbundancesOnly"
+
+readRDS(paste0(model,"_sampled.rda"))
+
+partition = createPartition(m_spatTemp_ReadAbundancesOnly, nfolds = 2, column = "sample")
+
+preds = computePredictedValues(models, partition=partition, nParallel = 3)
+
+MF = evaluateModelFit(hM=model, predY=preds)
+modelsPredsFits = list(preds, MF)
+
+save(modelsPredsFits, file=paste(model,"crossvalidation.rda", sep=''))
+
+paste(model,"crossvalidation.rda", sep=''))
+
+######################################################
+
 
 MF = evaluateModelFit(hM=m, predY=preds)
 
 
-  
+
+## again, inclusion of seasonality in our model doesn't 
+## improve overall explanatory power
+
+## can we do some "ordinations", using our latent 
+## variables?
+
+etaPost=getPostEstimate(m_spatTemp_ReadAbundancesOnly, "Eta") 
+
+lambdaPost=getPostEstimate(m_spatTemp_ReadAbundancesOnly, "Lambda")
+
+

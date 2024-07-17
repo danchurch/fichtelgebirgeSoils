@@ -1567,7 +1567,7 @@ print(paste("finish time is", Sys.time()))
 
 #####################################################
 
-## we need to build this out, a script for each model, because this will take forever
+## we need to get this going, because this will take forever
 nohup Rscript getCrossValFit.r "m_spatTemp_ReadAbundancesOnly_sampled.rds"  &> m_spatTemp_ReadAbundancesOnly_crossval.log &
 nohup Rscript getCrossValFit.r "m_spatTemp_noTemp_PA_sampled.rds" &> m_spatTemp_noTemp_PA_crossval.log &
 nohup Rscript getCrossValFit.r "m_spatTemp_noTemp_abu_sampled.rds" &> m_spatTemp_noTemp_abu_crossval.log &
@@ -1581,7 +1581,22 @@ nohup Rscript getCrossValFit.r "m_spatTemp_Env_PA_sampled.rds" &> m_spatTemp_Env
 ## time to update the notebook, if for no other reason to remember 
 ## what the hell we are doing.
 
-## I think we have to synch things up a bit first:
+## from local computer:
+## run this to activate the tcp forwarding
 
+ssh -L 8080:localhost:8080 test@132.180.112.115
+
+## on nanocomp
+jupyter notebook --no-browser --port=8080 spatialAnalysisSulariData.ipynb
+
+## from local computer:
+## run this to activate the tcp forwarding
+ssh -L 8080:localhost:8080 test@132.180.112.115
+
+## then open browser to:
+http://localhost:8080/notebooks/spatialAnalysisSulariData.ipynb
+ 
+
+git checkout dea37cba0f1f22b51f10fdcea46a3e62298d8395 spatialAnalysisSulariData.ipynb
 
 

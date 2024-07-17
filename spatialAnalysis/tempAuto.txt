@@ -1587,16 +1587,13 @@ nohup Rscript getCrossValFit.r "m_spatTemp_Env_PA_sampled.rds" &> m_spatTemp_Env
 ssh -L 8080:localhost:8080 test@132.180.112.115
 
 ## on nanocomp
+conda activate spatialDirt
 jupyter notebook --no-browser --port=8080 spatialAnalysisSulariData.ipynb
-
-## from local computer:
-## run this to activate the tcp forwarding
-ssh -L 8080:localhost:8080 test@132.180.112.115
 
 ## then open browser to:
 http://localhost:8080/notebooks/spatialAnalysisSulariData.ipynb
  
-
+## oops get that notebook back to the latest commit 
 git checkout dea37cba0f1f22b51f10fdcea46a3e62298d8395 spatialAnalysisSulariData.ipynb
 
 

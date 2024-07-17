@@ -599,6 +599,7 @@ library(phyloseq)
 library(ape)
 
 rm(list=ls())
+
 envData <- read.csv("repeatedPlotsEnv.csv", row.names="SampleID")
 load("psCleanedUp.rda")
 ## trim down to repeated sites, removed zeroed species
@@ -649,6 +650,7 @@ plot_coords <- XData[,c("PlotID","xx","yy")]
 plot_coords <- plot_coords[!duplicated(plot_coords),] ## remove duplicated plot rows
 rownames(plot_coords) <- plot_coords$PlotID
 plot_coords$PlotID <- NULL
+
 ## use this for our spatial random effects
 rL.site_spatial = HmscRandomLevel(sData = plot_coords)
 rL.site_spatial = setPriors(rL.site_spatial,nfMin=1,nfMax=3) ## try 3. Not sure how to optimize this. But there may multiple spatial scales.
@@ -665,6 +667,7 @@ rL.site_season = setPriors(rL.site_season,nfMin=1,nfMax=1) ## I can imagine that
 ## set the covariates for "null" model:
 XData0 <- XData[,"BacteriaDepth",drop=FALSE]
 XFormula0 = ~ BacteriaDepth
+
 ## set the covariates for hurdle model:
 varsOfmodel1 <- c("soil_respiration","Land_type","pH","N","C","Temperature","waterCont")
 XData1 <- XData[,c(varsOfmodel1)] ## clean up to just these for model below
@@ -806,7 +809,7 @@ find . -type f -size +20M -exec ls -lh {} \;
 ## remember, the goal is to find the species associated with high respiration,
 ## and maybe predict bacterial presence or abundace with raised temperature or deforestation
 
-## I think we were running two models - a spatial model, and a spatiotemporal model
+## I was running two models - a spatial model, and a spatiotemporal model
 ## the spatial model had a lot more points, but is simpler (no temporal component)
 ## the spatial-only model was run on de.nbi, the spatiotemporal on the lab computer 
  
@@ -818,7 +821,767 @@ find . -type f -size +20M -exec ls -lh {} \;
 
 nanoComp
 
+soil
+
+conda activate spatialDirt
+
+python3
+
+import pandas as pd
+import os
+
+## we need to update the repeatedPlots environmental data
+
+repeatedPlotsEnv = pd.read_csv("repeatedPlotsEnv.csv", index_col="SampleID")
+envData = pd.read_csv("sulariEnv.csv", index_col="SampleID")
+repeatedPlotsEnv = pd.merge(repeatedPlotsEnv, envData["co2flow"], left_index=True, right_index=True)
+#repeatedPlotsEnv.to_csv("repeatedPlotsEnv.csv")
+
+## read it back, check:
+repeatedPlotsEnv = pd.read_csv("repeatedPlotsEnv.csv", index_col="SampleID")
+repeatedPlotsEnv['Date'] = pd.to_datetime(repeatedPlotsEnv['Date'], yearfirst=True, errors='coerce')
+repeatedPlotsEnv ## looks okay
+
+## back to R, modify model to use the new CO2 data:
+
+nanoComp
+
 soil; conda activate spatialDirt; R
 
+library(Hmsc)
+library(phyloseq)
+
+rm(list=ls())
+envData <- read.csv("repeatedPlotsEnv.csv", row.names="SampleID")
+load("psCleanedUp.rda")
+## trim down to repeated sites, removed zeroed species
+repeatedSitesPS = prune_samples(rownames(envData), psCleanedUp)
+repeatedSitesPS = prune_taxa( colSums(otu_table(repeatedSitesPS)) > 0, repeatedSitesPS)
+## lost ~400 OTUs, means that the vast majority of species are 
+## still in our spatiotemporal subsample
+varsOfInterest = c("PlotID","soil_respiration","co2flow","Land_type","pH","N","C","Temperature","waterCont","season","xx","yy")
+XData<-data.frame(envData[,varsOfInterest])
+XData$Land_type <- as.factor(XData$Land_type)
+## we can only use complete cases
+ccases <- complete.cases(XData) 
+XData = XData[ccases,] ## lose one sample
+bactRaw <- otu_table(repeatedSitesPS)@.Data
+bactRaw <- bactRaw[ccases,]
+XData$Land_type <- as.factor(XData$Land_type)
+XData['BacteriaDepth'] <- log(rowSums(bactRaw))
+bact.pa<-ifelse(bactRaw>0,1,0)
+rowsumsInv = 1/rowSums(bactRaw)
+nASVs <- dim(bactRaw)[2]
+scalarMat = matrix( rep(rowsumsInv, nASVs), ncol = nASVs)
+bact.rel <- bactRaw * scalarMat
+##################### thresholds!! ###########
+## not sure the appropriate thresholds her
+## in the case of the full spatial model, 
+## ended up subsetting down to ~160 OTUs
+threshold.prev = 6/33 ## not a lot of difference between 0 and 6
+threshold.abu = 0.008 ## only OTU that reaches at least 0.8% abundance of one sample
+ny = dim(bactRaw)[1]
+cond1=!(colSums(bact.pa)<=threshold.prev*ny)
+cond2=apply(bact.rel,2,max)>=threshold.abu
+bactData <- bactRaw[, cond1 & cond2 ]
+sum(bactData > 0)
+sum(bact.pa)
+dim(bactData) ## 123 OTUs remain, out of
+dim(bact.pa) ## 2903 OTUs
+################################################
+Y <- bactData
+ny <- dim(Y)[1]
+ns <- dim(Y)[2]
+Yabu <- Y
+Yabu[Y==0] <- NA ## to avoid zeroes
+Yabu = log(Yabu) ## take log of abundances. They basically decided on the same transformations as Sulari and I.
+Yabu <- scale(Yabu) ## scale, after log? Heavily transformed data. Let's hope they know what they are talking about.
+Ypa = 1*(Y>0)
+all(rownames(XData) == rownames(Y))
+samplePlotid = XData$PlotID
+plot_coords <- XData[,c("PlotID","xx","yy")]
+plot_coords <- plot_coords[!duplicated(plot_coords),] ## remove duplicated plot rows
+rownames(plot_coords) <- plot_coords$PlotID
+plot_coords$PlotID <- NULL
+
+## use this for our spatial random effects
+rL.site_spatial = HmscRandomLevel(sData = plot_coords)
+rL.site_spatial = setPriors(rL.site_spatial,nfMin=1,nfMax=3) ## try 3. Not sure how to optimize this. But there may multiple spatial scales.
+## random effects by sample is simple:
+sample.id = row.names(Y)
+rL.sample = HmscRandomLevel(units = sample.id)
+## now, how do we implement our temporal variable, season?:
+## acts on individual samples, not plots, necessarily
+## I think we need a subtable that links to a column in our experimental design df 
+## one column would be "season" and the other would be the integer value 
+seasonDF = data.frame(row.names=c( "winter", "spring", "summer" , "fall" ), seasNumber=1:4)
+rL.site_season = HmscRandomLevel(sData = seasonDF)
+rL.site_season = setPriors(rL.site_season,nfMin=1,nfMax=1) ## I can't imagine that such a simple predictor needs more?
+## set the covariates for "null" model:
+XData0 <- XData[,"BacteriaDepth",drop=FALSE]
+XFormula0 = ~ BacteriaDepth
+## set the covariates for hurdle model:
+varsOfmodel1 <- c("soil_respiration","co2flow","Land_type","pH","N","C","Temperature","waterCont")
+XData1 <- XData[,c(varsOfmodel1)] ## clean up to just these for model below
+XFormula1 = ~ soil_respiration + co2flow + Land_type + pH + N + C + Temperature
+## I think this temporal effect acts on the individual sample level
+## this issue is pertinent: https://github.com/hmsc-r/HMSC/issues/103
+## we need a study design that has one row for each date-plot combo,
+studyDesign = data.frame("sample"=as.factor(sample.id), 
+                         "site_spatial"=as.factor(samplePlotid),
+                         "season"=as.factor(XData$season)
+                          )
+## sanity check for random effects, these pairs of numbers should match
+rL.sample
+length(levels(as.factor(studyDesign$sample)))
+rL.site_spatial
+length(levels(as.factor(studyDesign$site_spatial)))
+rL.site_season
+length(levels(as.factor(studyDesign$season)))
+
+as.factor(XData$season)
+
+## build the models
+
+## spatiotemporal model, but no environmental effects, just read depths
+## 1. m_spatTemp_ReadAbundancesOnly
+m_spatTemp_ReadAbundancesOnly = Hmsc(Y=Y,
+         XData = XData0,  XFormula = XFormula0,
+         distr={"lognormal poisson"} ,
+         studyDesign=studyDesign,
+         ranLevels={list("sample"=rL.sample, 
+                         "site_spatial" = rL.site_spatial,
+                         "season" = rL.site_season)},
+         YScale=TRUE
+)
+save(m_spatTemp_ReadAbundancesOnly, file="m_spatTemp_ReadAbundancesOnly.rda")
+
+## for comparison, a model with full environmental covariates and spatial patterning, but 
+## no temporal effects? To be fully comparable, we need to do the two-model hurdle 
+## approach:
+
+## 2.1 m_spatTemp_noTemp_PA
+m_spatTemp_noTemp_PA = Hmsc(Y=Ypa,
+         XData = XData1,  XFormula = XFormula1,
+         distr={"probit"} ,
+         studyDesign=studyDesign,
+         ranLevels={list("sample"=rL.sample, 
+                         "site_spatial" = rL.site_spatial
+                         )},
+)
+save(m_spatTemp_noTemp_PA, file="m_spatTemp_noTemp_PA.rda")
+
+## 2.2 m_spatTemp_noTemp_abu
+m_spatTemp_noTemp_abu = Hmsc(Y=Yabu,
+         XData = XData1,  XFormula = XFormula1,
+         distr={"normal"} ,
+         studyDesign=studyDesign,
+         ranLevels={list("sample"=rL.sample, 
+                         "site_spatial" = rL.site_spatial)},
+         YScale=TRUE
+                    )
+save(m_spatTemp_noTemp_abu, file="m_spatTemp_noTemp_abu.rda")
+
+## the full spatiotemporal, environmental hurdle model:
+## 3.1 m_spatTemp_Env_PA
+m_spatTemp_Env_PA = Hmsc(Y=Ypa,
+         XData = XData1,  XFormula = XFormula1,
+         distr={"probit"} ,
+         studyDesign=studyDesign,
+         ranLevels={list("sample"=rL.sample, 
+                         "site_spatial" = rL.site_spatial,
+                         "season" = rL.site_season)}
+              )
+save(m_spatTemp_Env_PA, file="m_spatTemp_Env_PA.rda")
+
+## 3.2 m_spatTemp_Env_abu
+m_spatTemp_Env_abu = Hmsc(Y=Yabu,
+         XData = XData1,  XFormula = XFormula1,
+         distr={"normal"} ,
+         studyDesign=studyDesign,
+         ranLevels={list("sample"=rL.sample,
+                         "site_spatial" = rL.site_spatial,
+                         "season" = rL.site_season)},
+         YScale=TRUE
+)
+
+save(m_spatTemp_Env_abu, file="m_spatTemp_Env_abu.rda")
+
+## let's try running the first three on the lab comp.
+## if memory is too high, kill it. If low, add the other models:
+
+m_spatTemp_ReadAbundancesOnly.rda
+m_spatTemp_noTemp_PA.rda
+m_spatTemp_noTemp_abu.rda
+m_spatTemp_Env_PA.rda
+m_spatTemp_Env_abu.rda
+
+## 1.  m_spatTemp_ReadAbundancesOnly
+#### m_spatTemp_ReadAbundancesOnly.r ####
 
 library(Hmsc)
+print("starting model:")
+print("m_spatTemp_ReadAbundancesOnly")
+print(paste("start time is", Sys.time()))
+load("m_spatTemp_ReadAbundancesOnly.rda")
+thin = 20
+samples = 1000
+nChains = 8
+nP = 8
+m_spatTemp_ReadAbundancesOnly = sampleMcmc(m_spatTemp_ReadAbundancesOnly,
+                     samples = samples,
+                     thin=thin,
+                     transient = ceiling(0.5*samples*thin),
+                     nChains = nChains,
+                     nParallel = nP
+                     )
+saveRDS(m_spatTemp_ReadAbundancesOnly, file="m_spatTemp_ReadAbundancesOnly_sampled.rds")
+print(paste("finish time is", Sys.time()))
+
+###########################################
+
+## 2.1 m_spatTemp_noTemp_PA
+#### m_spatTemp_noTemp_PA.r ####
+
+library(Hmsc)
+print("starting model:")
+print("m_spatTemp_noTemp_PA")
+print(paste("start time is", Sys.time()))
+load("m_spatTemp_noTemp_PA.rda")
+thin = 20
+samples = 1000
+nChains = 8
+nP = 2
+m_spatTemp_noTemp_PA = sampleMcmc(m_spatTemp_noTemp_PA,
+                     samples = samples,
+                     thin=thin,
+                     transient = ceiling(0.5*samples*thin),
+                     nChains = nChains,
+                     nParallel = nP
+                     )
+saveRDS(m_spatTemp_noTemp_PA, file="m_spatTemp_noTemp_PA_sampled.rds")
+print(paste("finish time is", Sys.time()))
+
+###########################################
+
+
+## 2.2 m_spatTemp_noTemp_abu
+#### m_spatTemp_noTemp_abu.r ####
+
+library(Hmsc)
+print("starting model:")
+print("m_spatTemp_noTemp_abu")
+print(paste("start time is", Sys.time()))
+load("m_spatTemp_noTemp_abu.rda")
+thin = 20
+samples = 1000
+nChains = 8
+nP = 2
+m_spatTemp_noTemp_abu = sampleMcmc(m_spatTemp_noTemp_abu,
+                     samples = samples,
+                     thin=thin,
+                     transient = ceiling(0.5*samples*thin),
+                     nChains = nChains,
+                     nParallel = nP
+                     )
+saveRDS(m_spatTemp_noTemp_abu, file="m_spatTemp_noTemp_abu_sampled.rds")
+print(paste("finish time is", Sys.time()))
+
+###########################################
+
+## 3.1 m_spatTemp_Env_PA
+#### m_spatTemp_Env_PA.r ####
+
+library(Hmsc)
+print("starting model:")
+print("m_spatTemp_Env_PA")
+print(paste("start time is", Sys.time()))
+load("m_spatTemp_Env_PA.rda")
+thin = 20
+samples = 1000
+nChains = 8
+nP = 2
+m_spatTemp_Env_PA = sampleMcmc(m_spatTemp_Env_PA,
+                     samples = samples,
+                     thin=thin,
+                     transient = ceiling(0.5*samples*thin),
+                     nChains = nChains,
+                     nParallel = nP
+                     )
+saveRDS(m_spatTemp_Env_PA, file="m_spatTemp_Env_PA_sampled.rds")
+print(paste("finish time is", Sys.time()))
+
+###########################################
+
+## 3.2 m_spatTemp_Env_abu
+#### m_spatTemp_Env_abu.r ####
+
+library(Hmsc)
+print("starting model:")
+print("m_spatTemp_Env_abu")
+print(paste("start time is", Sys.time()))
+load("m_spatTemp_Env_abu.rda")
+thin = 20
+samples = 1000
+nChains = 8
+nP = 2
+m_spatTemp_Env_abu = sampleMcmc(m_spatTemp_Env_abu,
+                     samples = samples,
+                     thin=thin,
+                     transient = ceiling(0.5*samples*thin),
+                     nChains = nChains,
+                     nParallel = nP
+                     )
+saveRDS(m_spatTemp_Env_abu, file="m_spatTemp_Env_abu_sampled.rds")
+print(paste("finish time is", Sys.time()))
+
+###########################################
+
+## 1. m_spatTemp_ReadAbundancesOnly
+nohup Rscript m_spatTemp_ReadAbundancesOnly.r &>> m_spatTemp_ReadAbundancesOnly.log &
+
+## 2.1 m_spatTemp_noTemp_PA
+nohup Rscript m_spatTemp_noTemp_PA.r &>> m_spatTemp_noTemp_PA.log &
+
+## 2.2 m_spatTemp_noTemp_abu
+nohup Rscript m_spatTemp_noTemp_abu.r &>> m_spatTemp_noTemp_abu.log &
+
+## 3.1 m_spatTemp_Env_PA
+nohup Rscript m_spatTemp_Env_PA.r &>> m_spatTemp_Env_PA.log &
+
+## 3.2 m_spatTemp_Env_abu
+nohup Rscript m_spatTemp_Env_abu.r &>> m_spatTemp_Env_abu.log &
+
+## as before, the spatTemp_ReadAbu only model is failing. What is it about this model?
+## try it interactively. 
+## but worked when rerun. Might be simply that there weren't enough processors with all
+## models sampling at the same time.
+
+## given what we saw before, and the fact that the sampling was so quick,
+## maybe rerun these, and combine the results
+
+## processors when the other models were started?
+## it's very quick (~1/2 hour), so rerun for deeper sampling alone, then run the others
+## again together for deeper sampling after this finishes
+
+## and done. 
+
+## how do we combine these? For instance:
+
+soil; conda activate spatialDirt; R
+
+library(Hmsc)
+
+## 1.  m_spatTemp_ReadAbundancesOnly
+## actually, this model we are rerunning with 8 chains, all at once
+## probably no need for deeper sampling and combining. Onto the others
+
+## 2.1 m_spatTemp_noTemp_PA
+load("m_spatTemp_noTemp_PA_sampled.rda")
+m_spatTemp_noTemp_PA1 <- m_spatTemp_noTemp_PA 
+rm(m_spatTemp_noTemp_PA)
+load("m_spatTemp_noTemp_PA_sampled2.rda")
+m_spatTemp_noTemp_PA2 <- m_spatTemp_noTemp_PA 
+rm(m_spatTemp_noTemp_PA)
+m_spatTemp_noTemp_PA_C <- c(m_spatTemp_noTemp_PA1, m_spatTemp_noTemp_PA2)
+save(m_spatTemp_noTemp_PA_C, file="m_spatTemp_noTemp_PA_sampled_C.rda")
+
+## 2.2 m_spatTemp_noTemp_abu
+load("m_spatTemp_noTemp_abu_sampled.rda")
+m_spatTemp_noTemp_abu1 <- m_spatTemp_noTemp_abu 
+rm(m_spatTemp_noTemp_abu)
+load("m_spatTemp_noTemp_abu_sampled2.rda")
+m_spatTemp_noTemp_abu2 <- m_spatTemp_noTemp_abu 
+rm(m_spatTemp_noTemp_abu)
+m_spatTemp_noTemp_abu_C <- c(m_spatTemp_noTemp_abu1, m_spatTemp_noTemp_abu2)
+save(m_spatTemp_noTemp_abu_C, file="m_spatTemp_noTemp_abu_sampled_C.rda")
+
+## 3.1 m_spatTemp_Env_PA
+load("m_spatTemp_Env_PA_sampled.rda")
+m_spatTemp_Env_PA1 <- m_spatTemp_Env_PA 
+rm(m_spatTemp_Env_PA)
+load("m_spatTemp_Env_PA_sampled2.rda")
+m_spatTemp_Env_PA2 <- m_spatTemp_Env_PA 
+rm(m_spatTemp_Env_PA)
+m_spatTemp_Env_PA_C <- c(m_spatTemp_Env_PA1, m_spatTemp_Env_PA2)
+save(m_spatTemp_Env_PA_C, file="m_spatTemp_Env_PA_sampled_C.rda")
+
+## 3.2 m_spatTemp_Env_abu
+load("m_spatTemp_Env_abu_sampled.rda")
+m_spatTemp_Env_abu1 <- m_spatTemp_Env_abu 
+rm(m_spatTemp_Env_abu)
+load("m_spatTemp_Env_abu_sampled2.rda")
+m_spatTemp_Env_abu2 <- m_spatTemp_Env_abu 
+rm(m_spatTemp_Env_abu)
+m_spatTemp_Env_abu_C <- c(m_spatTemp_Env_abu1, m_spatTemp_Env_abu2)
+save(m_spatTemp_Env_abu_C, file="m_spatTemp_Env_abu_sampled_C.rda")
+
+## check these:
+
+load("m_spatTemp_ReadAbundancesOnly_sampled.rda")
+load("m_spatTemp_noTemp_PA_sampled_C.rda")
+load("m_spatTemp_noTemp_abu_sampled_C.rda")
+load("m_spatTemp_Env_PA_sampled_C.rda")
+load("m_spatTemp_Env_abu_sampled_C.rda")
+
+## tired of all the issues caused by having to use
+## the original names of these data objects.
+## let's resave as rds files:
+
+saveRDS(m_spatTemp_ReadAbundancesOnly, file="m_spatTemp_ReadAbundancesOnly_sampled.rds")
+saveRDS(m_spatTemp_noTemp_PA_C, file="m_spatTemp_noTemp_PA_sampled_C.rds")
+saveRDS(m_spatTemp_noTemp_abu_C, file="m_spatTemp_noTemp_abu_sampled_C.rds")
+saveRDS(m_spatTemp_Env_PA_C, file="m_spatTemp_Env_PA_sampled_C.rds")
+saveRDS(m_spatTemp_Env_abu_C, file="m_spatTemp_Env_abu_sampled_C.rds")
+
+m_spatTemp_ReadAbundancesOnly <- readRDS(file="m_spatTemp_ReadAbundancesOnly_sampled.rds")
+m_spatTemp_noTemp_PA_C        <- readRDS(file="m_spatTemp_noTemp_PA_sampled_C.rds")
+m_spatTemp_noTemp_abu_C       <- readRDS(file="m_spatTemp_noTemp_abu_sampled_C.rds")
+m_spatTemp_Env_PA_C           <- readRDS(file="m_spatTemp_Env_PA_sampled_C.rds")
+m_spatTemp_Env_abu_C          <- readRDS(file="m_spatTemp_Env_abu_sampled_C.rds")
+
+m_spatTemp_ReadAbundancesOnly
+m_spatTemp_noTemp_PA_C       
+m_spatTemp_noTemp_abu_C      
+m_spatTemp_Env_PA_C          
+m_spatTemp_Env_abu_C         
+
+## in shell, to clean up:
+rm "m_spatTemp_ReadAbundancesOnly_sampled.rda"
+rm "m_spatTemp_noTemp_PA_sampled_C.rda"
+rm "m_spatTemp_noTemp_abu_sampled_C.rda"
+rm "m_spatTemp_Env_PA_sampled_C.rda"
+rm "m_spatTemp_Env_abu_sampled_C.rda"
+
+## and did that out of order, deleted everything. Great.
+## rerunning models, with 8 chains, saving as rds. Code modified above.
+
+## now to load these:
+
+soil; conda activate spatialDirt; R
+
+library(Hmsc)
+
+m_spatTemp_ReadAbundancesOnly <- readRDS("m_spatTemp_ReadAbundancesOnly_sampled.rds")
+m_spatTemp_noTemp_PA <- readRDS("m_spatTemp_noTemp_PA_sampled.rds")
+m_spatTemp_noTemp_abu <- readRDS("m_spatTemp_noTemp_abu_sampled.rds")
+m_spatTemp_Env_PA <- readRDS("m_spatTemp_Env_PA_sampled.rds")
+m_spatTemp_Env_abu <- readRDS("m_spatTemp_Env_abu_sampled.rds")
+
+m_spatTemp_ReadAbundancesOnly
+m_spatTemp_noTemp_PA
+m_spatTemp_noTemp_abu
+m_spatTemp_Env_PA
+m_spatTemp_Env_abu
+
+## Okay, why do we have all these models again? Head hurts.
+
+## check mixing:
+
+m_spatTemp_Env_PA_coda = convertToCodaObject(m_spatTemp_Env_PA)
+m_spatTemp_Env_PA.beta = effectiveSize(m_spatTemp_Env_PA_coda$Beta)
+
+##
+
+hist(m_spatTemp_Env_PA.beta, main="effective sample size for beta", breaks=30)
+mean(m_spatTemp_Env_PA.beta) ## mean = 4000, okay, that is deep
+
+pdf(file="m_spatTemp_Env_PA_beta_mixing.pdf")
+plot(m_spatTemp_Env_PA_coda$Beta)
+dev.off() ## get local etc
+
+## get it local
+getFile="/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis/m_spatTemp_Env_PA_beta_mixing.pdf"
+putItHere="/home/daniel/Documents/projects/fichtelSoils/files2big4git"
+scp test@132.180.112.115:$getFile $putItHere
+
+## and repeat for the species-species interactions:
+m_spatTemp_Env_PA_coda$temp = m_spatTemp_Env_PA_coda$Omega[[1]]
+for(i in 1:length(m_spatTemp_Env_PA_coda$temp)){
+  m_spatTemp_Env_PA_coda$temp[[i]] = m_spatTemp_Env_PA_coda$temp[[i]][,1:1000]
+}
+
+es.omega1 = effectiveSize(m_spatTemp_Env_PA_coda$temp)
+ge.omega1 = gelman.diag(m_spatTemp_Env_PA_coda$temp,multivariate=FALSE)$psrf
+
+#png(file="essOmega1_SpTmpSmall_thin150.png")
+par(mfrow=c(1,2))
+hist(es.omega1, main="ess(omega)")
+hist(ge.omega1, main="psrf(omega)")
+#dev.off()
+mean(es.omega1) ## 3335, pretty good.
+
+pdf(file="m_spatTemp_Env_PA_Omega_mixing.pdf")
+plot(m_spatTemp_Env_PA_coda$temp)
+dev.off() ## get local etc
+
+## get it local
+getFile="/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis/m_spatTemp_Env_PA_Omega_mixing.pdf"
+putItHere="/home/daniel/Documents/projects/fichtelSoils/files2big4git"
+scp test@132.180.112.115:$getFile $putItHere
+
+## okay, the beta and the omega are well sampling on the Presence/Absence of the hurdle model. 
+## how about the abundance-based model that is conditioned on the PA?:
+  
+#m_spatTemp_Env_abu
+m_spatTemp_Env_abu_coda = convertToCodaObject(m_spatTemp_Env_abu)
+m_spatTemp_Env_abu.beta = effectiveSize(m_spatTemp_Env_abu_coda$Beta)
+
+hist(m_spatTemp_Env_abu.beta, main="effective sample size for beta", breaks=30) ## wow, 
+mean(m_spatTemp_Env_abu.beta) ## mean = 7177, okay, that is really deep
+
+
+m_spatTemp_Env_abu_coda$temp = m_spatTemp_Env_abu_coda$Omega[[1]]
+for(i in 1:length(m_spatTemp_Env_abu_coda$temp)){
+  m_spatTemp_Env_abu_coda$temp[[i]] = m_spatTemp_Env_abu_coda$temp[[i]][,1:1000]
+}
+
+es.omega1 = effectiveSize(m_spatTemp_Env_abu_coda$temp)
+ge.omega1 = gelman.diag(m_spatTemp_Env_abu_coda$temp,multivariate=FALSE)$psrf
+
+par(mfrow=c(1,2))
+hist(es.omega1, main="ess(omega)")
+hist(ge.omega1, main="psrf(omega)")
+#dev.off()
+mean(es.omega1) ## 3054, pretty good.
+
+## check the mixing
+pdf(file="m_spatTemp_Env_abu_beta_mixing.pdf")
+plot(m_spatTemp_Env_abu_coda$Beta)
+dev.off() ## get local etc
+
+pdf(file="m_spatTemp_Env_abu_Omega_mixing.pdf")
+plot(m_spatTemp_Env_abu_coda$temp)
+dev.off() ## get local etc
+
+summary(m_spatTemp_Env_abu_coda$Beta)
+
+## get them local
+getFile="/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis/m_spatTemp_Env_abu_beta_mixing.pdf"
+putItHere="/home/daniel/Documents/projects/fichtelSoils/files2big4git"
+scp test@132.180.112.115:$getFile $putItHere
+
+getFile="/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis/m_spatTemp_Env_abu_Omega_mixing.pdf"
+putItHere="/home/daniel/Documents/projects/fichtelSoils/files2big4git"
+scp test@132.180.112.115:$getFile $putItHere
+
+### compare variance explained
+
+## let's go ahead and set up the code for comparisons of R2 from the 
+## various models, and restart the notebook showing this.
+
+m_spatTemp_ReadAbundancesOnly
+m_spatTemp_noTemp_PA
+m_spatTemp_noTemp_abu
+m_spatTemp_Env_PA
+m_spatTemp_Env_abu
+
+## explanatory
+
+preds = computePredictedValues(m_spat_noEnv)
+MF = evaluateModelFit(hM=m_spat_noEnv, predY=preds)
+postBeta = getPostEstimate(m_spat_noEnv, parName="Beta")
+hist(MF$RMSE)
+hist(MF$C.RMSE)
+
+## to get one RMSE value:
+
+preds = computePredictedValues(m_spatTemp_ReadAbundancesOnly)
+m_spatTemp_ReadAbundancesOnly_MF = evaluateModelFit(hM=m_spatTemp_ReadAbundancesOnly, predY=preds)
+
+m_spatTemp_ReadAbundancesOnly_MF$RMSE
+
+
+
+str(m_spatTemp_ReadAbundancesOnly)
+
+models = list(
+m_spatTemp_ReadAbundancesOnly,
+m_spatTemp_noTemp_PA,
+m_spatTemp_noTemp_abu,
+m_spatTemp_Env_PA,
+m_spatTemp_Env_abu
+)
+
+
+predlist <- list()
+modelFitList <- list()
+for (i in 1:length(models)) { 
+  print(models[[i]])
+  preds = computePredictedValues(models[[i]])
+  MF = evaluateModelFit(hM=models[[i]], predY=preds)
+  predlist[[i]] <- preds
+  modelFitList[[i]] <- MF
+}
+modelNames=c("m_spatTemp_ReadAbundancesOnly", "m_spatTemp_noTemp_PA", "m_spatTemp_noTemp_abu", "m_spatTemp_Env_PA", "m_spatTemp_Env_abu")
+names(modelFitList) <- modelNames
+
+modelFitList$m_spatTemp_ReadAbundancesOnly
+
+## we want a dataframe for each. For instance, for RMSE across all models:
+
+?evaluateModelFit
+
+## so this data is now available:
+print("m_spatTemp_ReadAbundancesOnly")
+str(modelFitList[[1]])
+
+print("m_spatTemp_noTemp_PA")
+str(modelFitList[[2]])
+
+print("m_spatTemp_noTemp_abu")
+str(modelFitList[[3]])
+
+print("m_spatTemp_Env_PA")
+str(modelFitList[[4]])
+
+print("m_spatTemp_Env_abu")
+str(modelFitList[[5]])
+
+
+nSpecies <- length(modelFitList[[1]][[1]])
+
+RMSEmat <- matrix(ncol=length(modelFitList), nrow=nSpecies)
+for (i in 1:length(modelFitList)){
+  RMSEmat[,i] <- modelFitList[[i]]$RMSE
+}
+
+modelNames=c("m_spatTemp_ReadAbundancesOnly", "m_spatTemp_noTemp_PA", "m_spatTemp_noTemp_abu", "m_spatTemp_Env_PA", "m_spatTemp_Env_abu")
+RMSEdf <- as.data.frame(RMSEmat)
+colnames(RMSEdf) = modelNames
+
+head(RMSEdf)
+
+## to plot it:
+
+boxplot(RMSEdf)
+
+## but the RMSE isn't really comparable across the models, we y-scaled our yAbu and yPA, but 
+## not the raw Y values that the read abundance model is based on 
+## matrices for the hurdle models.
+
+## maybe best here to compare the PA models of the hurdles, see how 
+## incorporating time (season) changed the explanatory power of the 
+## model, if at all.
+
+## we can include the read-abundance Poisson "observation" fits, because
+## this is conveniently the fit of this model to PA-transformed
+## y data, done automatically 
+
+## in the case of the PA
+nSpecies <- length(modelFitList$m_spatTemp_noTemp_PA[[1]])
+RMSEmat <- matrix(ncol=2, nrow=nSpecies)
+RMSEmat[,1] <- modelFitList$m_spatTemp_noTemp_PA$RMSE
+RMSEmat[,2] <- modelFitList$m_spatTemp_Env_PA$RMSE
+RMSEdf <- as.data.frame(RMSEmat)
+colnames(RMSEdf)=c("m_spatTemp_noTemp_PA", "m_spatTemp_Env_PA")
+boxplot(RMSEdf, main=("mean RMSE of P/A component of Hurdles, without and with season") )
+
+## doesn't look different. Maybe a slight improvment by 
+## considering season.
+
+## other measures of model fit available for the PA are AUC and TjurR2
+
+## can we plot these together for comparison?
+nSpecies <- length(modelFitList$m_spatTemp_noTemp_PA[[1]])
+paGFmat <- matrix(ncol=6, nrow=nSpecies)
+paGFmat[,1] <- modelFitList$m_spatTemp_ReadAbundancesOnly$O.AUC
+paGFmat[,3] <- modelFitList$m_spatTemp_noTemp_PA$AUC
+paGFmat[,2] <- modelFitList$m_spatTemp_Env_PA$AUC
+paGFmat[,4] <- modelFitList$m_spatTemp_ReadAbundancesOnly$O.TjurR2
+paGFmat[,5] <- modelFitList$m_spatTemp_noTemp_PA$TjurR2
+paGFmat[,6] <- modelFitList$m_spatTemp_Env_PA$TjurR2
+paGFdf <- as.data.frame(paGFmat)
+colnames(paGFdf) <- c("readAbundanceOnlyAUC","noTempAUC","spTempAUC","readAbundanceOnlyTjurR2","noTempTjurR2","spTempTjurR2")
+
+par(cex.axis = .75, mar=c(10,4,4,2))
+boxplot(paGFdf, 
+main=("model fit measures of P/A component of Hurdles,\n without and with season"),
+names=c(
+  "ReadAbundances AUC",
+  "noSeason AUC",
+  "fullModel AUC",
+  "ReadAbundances TjurR2",
+  "noSeason TjurR2",
+  "fullModel TjurR2"
+),
+las=2
+)
+
+## following the Abrego Ovaskainen 2023 paper, the TjurR2 is best for 
+## judging the model's "positive" predictive power: how often does
+## the model properly predict when a species will be present.
+
+## on the other hand, the AUC is perhaps more useful for for 
+## discovering when a species will not be present, more the 
+## ability for discovering unsuitable sites. 
+ 
+## quite complicated. Let's look at the abundance models, using 
+
+nSpecies <- length(modelFitList$m_spatTemp_noTemp_PA[[1]])
+paGFmat <- matrix(ncol=3, nrow=nSpecies)
+paGFmat[,1] <- modelFitList$m_spatTemp_ReadAbundancesOnly$C.SR2
+paGFmat[,3] <- modelFitList$m_spatTemp_noTemp_abu$R2
+paGFmat[,2] <- modelFitList$m_spatTemp_Env_abu$R2
+paGFdf <- as.data.frame(paGFmat)
+colnames(paGFdf) <- c("readAbundanceOnlyR2","noTempAbuR2","spTempAbuR2")
+
+par(cex.axis = .75, mar=c(10,4,4,2))
+boxplot(paGFdf, 
+main=("model fit measures of P/A component of Hurdles,\n without and with season"),
+names=c(
+  "ReadAbundances R2",
+  "noSeason R2",
+  "fullModel R2"
+),
+las=2
+)
+
+## let's get the cross validations of these models going,
+## then update the notebook
+
+## cross-validation:
+
+m_spatTemp_ReadAbundancesOnly
+m_spatTemp_noTemp_PA
+m_spatTemp_noTemp_abu
+m_spatTemp_Env_PA
+m_spatTemp_Env_abu
+
+## we need scripts for each, because parallelizing.
+
+conda activate spatialDirt
+
+################ getCrossValFit.r ###################
+
+library(Hmsc)
+modelfile = commandArgs(trailingOnly=TRUE)[1]
+print(paste("starting",modelfile))
+m = readRDS(modelfile)
+partition = createPartition(m, nfolds = 2, column = "sample")
+preds = computePredictedValues(m, partition=partition, nParallel = 2)
+MF = evaluateModelFit(hM=m, predY=preds)
+saveRDS(preds, file=sub("_sampled.rds", "_crossValPreds.rds",modelfile))
+saveRDS(MF, file=sub("_sampled.rds", "_crossValModelFit.rds",modelfile))
+print(paste("finish time is", Sys.time()))
+
+#####################################################
+
+## we need to build this out, a script for each model, because this will take forever
+nohup Rscript getCrossValFit.r "m_spatTemp_ReadAbundancesOnly_sampled.rds"  &> m_spatTemp_ReadAbundancesOnly_crossval.log &
+nohup Rscript getCrossValFit.r "m_spatTemp_noTemp_PA_sampled.rds" &> m_spatTemp_noTemp_PA_crossval.log &
+nohup Rscript getCrossValFit.r "m_spatTemp_noTemp_abu_sampled.rds" &> m_spatTemp_noTemp_abu_crossval.log &
+nohup Rscript getCrossValFit.r "m_spatTemp_Env_abu_sampled.rds" &> m_spatTemp_Env_abu_crossval.log &
+nohup Rscript getCrossValFit.r "m_spatTemp_Env_PA_sampled.rds" &> m_spatTemp_Env_PA_crossval.log &
+
+## these were all started July17, 11:20am
+
+## okay, hope that runs well
+
+## time to update the notebook, if for no other reason to remember 
+## what the hell we are doing.
+
+## I think we have to synch things up a bit first:
+
+
+

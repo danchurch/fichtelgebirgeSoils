@@ -1,9 +1,0 @@
-.gitignore
-*.sw?
-spatialAnalysis/.ipynb_checkpoints/
-tooBig
-m_fullModel_logNorm_sampled.rda
-m_ReadAbundancesSpatial_sampled.rda
-m_environmentalOnly_sampled.rda
-m_ReadAbundancesOnly_sampled.rda
-

@@ -1,0 +1,4 @@
+nohup: ignoring input
+Loading required package: coda
+[1] "starting m_spatTemp_ReadAbundancesOnly_sampled.rds"
+Cross-validation, fold 1 out of 2

@@ -1,10 +1,10 @@
 *.sw?
 spatialAnalysis/.ipynb_checkpoints/
-hmscSpatialmodel_sampled.rds
-hmscSpatialmodel.rds
 tooBig
-m_hurdleSpatial_sampled.rda
-m_SpTmpSmall_sampled_thin150.rda
-m_SpTmpSmall_sampled_thin300.rda
-m_SpTmpSmall_sampled_thin50.rda
 m_ReadAbundancesOnly_sampled.rda
+m_spatTemp_noTemp_abu_sampled.rds
+m_spatTemp_Env_abu_sampled.rds
+m_spatTemp_noTemp_PA_sampled.rds
+m_spatTemp_ReadAbundancesOnly_sampled.rds
+m_spatTemp_Env_PA_sampled.rds
+

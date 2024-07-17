@@ -1581,6 +1581,7 @@ nohup Rscript getCrossValFit.r "m_spatTemp_Env_PA_sampled.rds" &> m_spatTemp_Env
 ## time to update the notebook, if for no other reason to remember 
 ## what the hell we are doing.
 
-## the notebook is here:
+## I think we have to synch things up a bit first:
+
 
 

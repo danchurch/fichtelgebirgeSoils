@@ -1253,33 +1253,56 @@ rm "m_spatTemp_noTemp_abu_sampled_C.rda"
 rm "m_spatTemp_Env_PA_sampled_C.rda"
 rm "m_spatTemp_Env_abu_sampled_C.rda"
 
-## Okay, why do we have all these models?
+## and did that out of order, deleted everything. Great.
+## rerunning models, with 8 chains, saving as rds. Code modified above.
 
-## 
+## now to load these:
 
-## in the meantime, check mixing:
-m_spatTemp_Env_PA_C_coda = convertToCodaObject(m_spatTemp_Env_PA_C)
-m_spatTemp_Env_PA_C.beta = effectiveSize(m_spatTemp_Env_PA_C_coda$Beta)
-hist(m_spatTemp_Env_PA_C.beta, main="effective sample size for beta", breaks=30)
-mean(m_spatTemp_Env_PA_C.beta) ## mean = 4000, okay, that is deep
+soil; conda activate spatialDirt; R
 
-pdf(file="m_spatTemp_Env_PA_C_beta_mixing.pdf")
-plot(m_spatTemp_Env_PA_C_coda$Beta)
+library(Hmsc)
+
+m_spatTemp_ReadAbundancesOnly <- readRDS("m_spatTemp_ReadAbundancesOnly_sampled.rds")
+m_spatTemp_noTemp_PA <- readRDS("m_spatTemp_noTemp_PA_sampled.rds")
+m_spatTemp_noTemp_abu <- readRDS("m_spatTemp_noTemp_abu_sampled.rds")
+m_spatTemp_Env_PA <- readRDS("m_spatTemp_Env_PA_sampled.rds")
+m_spatTemp_Env_abu <- readRDS("m_spatTemp_Env_abu_sampled.rds")
+
+m_spatTemp_ReadAbundancesOnly
+m_spatTemp_noTemp_PA
+m_spatTemp_noTemp_abu
+m_spatTemp_Env_PA
+m_spatTemp_Env_abu
+
+## Okay, why do we have all these models again? Head hurts.
+
+## check mixing:
+
+m_spatTemp_Env_PA_coda = convertToCodaObject(m_spatTemp_Env_PA)
+m_spatTemp_Env_PA.beta = effectiveSize(m_spatTemp_Env_PA_coda$Beta)
+
+##
+
+hist(m_spatTemp_Env_PA.beta, main="effective sample size for beta", breaks=30)
+mean(m_spatTemp_Env_PA.beta) ## mean = 4000, okay, that is deep
+
+pdf(file="m_spatTemp_Env_PA_beta_mixing.pdf")
+plot(m_spatTemp_Env_PA_coda$Beta)
 dev.off() ## get local etc
 
 ## get it local
-getFile="/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis/m_spatTemp_Env_PA_C_beta_mixing.pdf"
+getFile="/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis/m_spatTemp_Env_PA_beta_mixing.pdf"
 putItHere="/home/daniel/Documents/projects/fichtelSoils/files2big4git"
 scp test@132.180.112.115:$getFile $putItHere
 
 ## and repeat for the species-species interactions:
-m_spatTemp_Env_PA_C_coda$temp = m_spatTemp_Env_PA_C_coda$Omega[[1]]
-for(i in 1:length(m_spatTemp_Env_PA_C_coda$temp)){
-  m_spatTemp_Env_PA_C_coda$temp[[i]] = m_spatTemp_Env_PA_C_coda$temp[[i]][,1:1000]
+m_spatTemp_Env_PA_coda$temp = m_spatTemp_Env_PA_coda$Omega[[1]]
+for(i in 1:length(m_spatTemp_Env_PA_coda$temp)){
+  m_spatTemp_Env_PA_coda$temp[[i]] = m_spatTemp_Env_PA_coda$temp[[i]][,1:1000]
 }
 
-es.omega1 = effectiveSize(m_spatTemp_Env_PA_C_coda$temp)
-ge.omega1 = gelman.diag(m_spatTemp_Env_PA_C_coda$temp,multivariate=FALSE)$psrf
+es.omega1 = effectiveSize(m_spatTemp_Env_PA_coda$temp)
+ge.omega1 = gelman.diag(m_spatTemp_Env_PA_coda$temp,multivariate=FALSE)$psrf
 
 #png(file="essOmega1_SpTmpSmall_thin150.png")
 par(mfrow=c(1,2))
@@ -1288,33 +1311,33 @@ hist(ge.omega1, main="psrf(omega)")
 #dev.off()
 mean(es.omega1) ## 3335, pretty good.
 
-pdf(file="m_spatTemp_Env_PA_C_Omega_mixing.pdf")
-plot(m_spatTemp_Env_PA_C_coda$temp)
+pdf(file="m_spatTemp_Env_PA_Omega_mixing.pdf")
+plot(m_spatTemp_Env_PA_coda$temp)
 dev.off() ## get local etc
 
 ## get it local
-getFile="/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis/m_spatTemp_Env_PA_C_Omega_mixing.pdf"
+getFile="/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis/m_spatTemp_Env_PA_Omega_mixing.pdf"
 putItHere="/home/daniel/Documents/projects/fichtelSoils/files2big4git"
 scp test@132.180.112.115:$getFile $putItHere
 
 ## okay, the beta and the omega are well sampling on the Presence/Absence of the hurdle model. 
 ## how about the abundance-based model that is conditioned on the PA?:
   
-#m_spatTemp_Env_abu_C
-m_spatTemp_Env_abu_C_coda = convertToCodaObject(m_spatTemp_Env_abu_C)
-m_spatTemp_Env_abu_C.beta = effectiveSize(m_spatTemp_Env_abu_C_coda$Beta)
+#m_spatTemp_Env_abu
+m_spatTemp_Env_abu_coda = convertToCodaObject(m_spatTemp_Env_abu)
+m_spatTemp_Env_abu.beta = effectiveSize(m_spatTemp_Env_abu_coda$Beta)
 
-hist(m_spatTemp_Env_abu_C.beta, main="effective sample size for beta", breaks=30) ## wow, 
-mean(m_spatTemp_Env_abu_C.beta) ## mean = 7177, okay, that is really deep
+hist(m_spatTemp_Env_abu.beta, main="effective sample size for beta", breaks=30) ## wow, 
+mean(m_spatTemp_Env_abu.beta) ## mean = 7177, okay, that is really deep
 
 
-m_spatTemp_Env_abu_C_coda$temp = m_spatTemp_Env_abu_C_coda$Omega[[1]]
-for(i in 1:length(m_spatTemp_Env_abu_C_coda$temp)){
-  m_spatTemp_Env_abu_C_coda$temp[[i]] = m_spatTemp_Env_abu_C_coda$temp[[i]][,1:1000]
+m_spatTemp_Env_abu_coda$temp = m_spatTemp_Env_abu_coda$Omega[[1]]
+for(i in 1:length(m_spatTemp_Env_abu_coda$temp)){
+  m_spatTemp_Env_abu_coda$temp[[i]] = m_spatTemp_Env_abu_coda$temp[[i]][,1:1000]
 }
 
-es.omega1 = effectiveSize(m_spatTemp_Env_abu_C_coda$temp)
-ge.omega1 = gelman.diag(m_spatTemp_Env_abu_C_coda$temp,multivariate=FALSE)$psrf
+es.omega1 = effectiveSize(m_spatTemp_Env_abu_coda$temp)
+ge.omega1 = gelman.diag(m_spatTemp_Env_abu_coda$temp,multivariate=FALSE)$psrf
 
 par(mfrow=c(1,2))
 hist(es.omega1, main="ess(omega)")
@@ -1323,22 +1346,22 @@ hist(ge.omega1, main="psrf(omega)")
 mean(es.omega1) ## 3054, pretty good.
 
 ## check the mixing
-pdf(file="m_spatTemp_Env_abu_C_beta_mixing.pdf")
-plot(m_spatTemp_Env_abu_C_coda$Beta)
+pdf(file="m_spatTemp_Env_abu_beta_mixing.pdf")
+plot(m_spatTemp_Env_abu_coda$Beta)
 dev.off() ## get local etc
 
-pdf(file="m_spatTemp_Env_abu_C_Omega_mixing.pdf")
-plot(m_spatTemp_Env_abu_C_coda$temp)
+pdf(file="m_spatTemp_Env_abu_Omega_mixing.pdf")
+plot(m_spatTemp_Env_abu_coda$temp)
 dev.off() ## get local etc
 
-summary(m_spatTemp_Env_abu_C_coda$Beta)
+summary(m_spatTemp_Env_abu_coda$Beta)
 
 ## get them local
-getFile="/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis/m_spatTemp_Env_abu_C_beta_mixing.pdf"
+getFile="/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis/m_spatTemp_Env_abu_beta_mixing.pdf"
 putItHere="/home/daniel/Documents/projects/fichtelSoils/files2big4git"
 scp test@132.180.112.115:$getFile $putItHere
 
-getFile="/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis/m_spatTemp_Env_abu_C_Omega_mixing.pdf"
+getFile="/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis/m_spatTemp_Env_abu_Omega_mixing.pdf"
 putItHere="/home/daniel/Documents/projects/fichtelSoils/files2big4git"
 scp test@132.180.112.115:$getFile $putItHere
 
@@ -1348,10 +1371,10 @@ scp test@132.180.112.115:$getFile $putItHere
 ## various models, and restart the notebook showing this.
 
 m_spatTemp_ReadAbundancesOnly
-m_spatTemp_noTemp_PA_C
-m_spatTemp_noTemp_abu_C
-m_spatTemp_Env_PA_C
-m_spatTemp_Env_abu_C
+m_spatTemp_noTemp_PA
+m_spatTemp_noTemp_abu
+m_spatTemp_Env_PA
+m_spatTemp_Env_abu
 
 ## explanatory
 
@@ -1374,10 +1397,10 @@ str(m_spatTemp_ReadAbundancesOnly)
 
 models = list(
 m_spatTemp_ReadAbundancesOnly,
-m_spatTemp_noTemp_PA_C,
-m_spatTemp_noTemp_abu_C,
-m_spatTemp_Env_PA_C,
-m_spatTemp_Env_abu_C
+m_spatTemp_noTemp_PA,
+m_spatTemp_noTemp_abu,
+m_spatTemp_Env_PA,
+m_spatTemp_Env_abu
 )
 
 
@@ -1390,7 +1413,7 @@ for (i in 1:length(models)) {
   predlist[[i]] <- preds
   modelFitList[[i]] <- MF
 }
-modelNames=c("m_spatTemp_ReadAbundancesOnly", "m_spatTemp_noTemp_PA_C", "m_spatTemp_noTemp_abu_C", "m_spatTemp_Env_PA_C", "m_spatTemp_Env_abu_C")
+modelNames=c("m_spatTemp_ReadAbundancesOnly", "m_spatTemp_noTemp_PA", "m_spatTemp_noTemp_abu", "m_spatTemp_Env_PA", "m_spatTemp_Env_abu")
 names(modelFitList) <- modelNames
 
 modelFitList$m_spatTemp_ReadAbundancesOnly
@@ -1403,25 +1426,27 @@ modelFitList$m_spatTemp_ReadAbundancesOnly
 print("m_spatTemp_ReadAbundancesOnly")
 str(modelFitList[[1]])
 
-print("m_spatTemp_noTemp_PA_C")
+print("m_spatTemp_noTemp_PA")
 str(modelFitList[[2]])
 
-print("m_spatTemp_noTemp_abu_C")
+print("m_spatTemp_noTemp_abu")
 str(modelFitList[[3]])
 
-print("m_spatTemp_Env_PA_C")
+print("m_spatTemp_Env_PA")
 str(modelFitList[[4]])
 
-print("m_spatTemp_Env_abu_C")
+print("m_spatTemp_Env_abu")
 str(modelFitList[[5]])
 
 
 nSpecies <- length(modelFitList[[1]][[1]])
+
 RMSEmat <- matrix(ncol=length(modelFitList), nrow=nSpecies)
 for (i in 1:length(modelFitList)){
   RMSEmat[,i] <- modelFitList[[i]]$RMSE
 }
-modelNames=c("m_spatTemp_ReadAbundancesOnly", "m_spatTemp_noTemp_PA_C", "m_spatTemp_noTemp_abu_C", "m_spatTemp_Env_PA_C", "m_spatTemp_Env_abu_C")
+
+modelNames=c("m_spatTemp_ReadAbundancesOnly", "m_spatTemp_noTemp_PA", "m_spatTemp_noTemp_abu", "m_spatTemp_Env_PA", "m_spatTemp_Env_abu")
 RMSEdf <- as.data.frame(RMSEmat)
 colnames(RMSEdf) = modelNames
 
@@ -1444,10 +1469,10 @@ boxplot(RMSEdf)
 ## y data, done automatically 
 
 ## in the case of the PA
-nSpecies <- length(modelFitList$m_spatTemp_noTemp_PA_C[[1]])
+nSpecies <- length(modelFitList$m_spatTemp_noTemp_PA[[1]])
 RMSEmat <- matrix(ncol=2, nrow=nSpecies)
-RMSEmat[,1] <- modelFitList$m_spatTemp_noTemp_PA_C$RMSE
-RMSEmat[,2] <- modelFitList$m_spatTemp_Env_PA_C$RMSE
+RMSEmat[,1] <- modelFitList$m_spatTemp_noTemp_PA$RMSE
+RMSEmat[,2] <- modelFitList$m_spatTemp_Env_PA$RMSE
 RMSEdf <- as.data.frame(RMSEmat)
 colnames(RMSEdf)=c("m_spatTemp_noTemp_PA", "m_spatTemp_Env_PA")
 boxplot(RMSEdf, main=("mean RMSE of P/A component of Hurdles, without and with season") )
@@ -1458,14 +1483,14 @@ boxplot(RMSEdf, main=("mean RMSE of P/A component of Hurdles, without and with s
 ## other measures of model fit available for the PA are AUC and TjurR2
 
 ## can we plot these together for comparison?
-nSpecies <- length(modelFitList$m_spatTemp_noTemp_PA_C[[1]])
+nSpecies <- length(modelFitList$m_spatTemp_noTemp_PA[[1]])
 paGFmat <- matrix(ncol=6, nrow=nSpecies)
 paGFmat[,1] <- modelFitList$m_spatTemp_ReadAbundancesOnly$O.AUC
-paGFmat[,3] <- modelFitList$m_spatTemp_noTemp_PA_C$AUC
-paGFmat[,2] <- modelFitList$m_spatTemp_Env_PA_C$AUC
+paGFmat[,3] <- modelFitList$m_spatTemp_noTemp_PA$AUC
+paGFmat[,2] <- modelFitList$m_spatTemp_Env_PA$AUC
 paGFmat[,4] <- modelFitList$m_spatTemp_ReadAbundancesOnly$O.TjurR2
-paGFmat[,5] <- modelFitList$m_spatTemp_noTemp_PA_C$TjurR2
-paGFmat[,6] <- modelFitList$m_spatTemp_Env_PA_C$TjurR2
+paGFmat[,5] <- modelFitList$m_spatTemp_noTemp_PA$TjurR2
+paGFmat[,6] <- modelFitList$m_spatTemp_Env_PA$TjurR2
 paGFdf <- as.data.frame(paGFmat)
 colnames(paGFdf) <- c("readAbundanceOnlyAUC","noTempAUC","spTempAUC","readAbundanceOnlyTjurR2","noTempTjurR2","spTempTjurR2")
 
@@ -1493,11 +1518,11 @@ las=2
  
 ## quite complicated. Let's look at the abundance models, using 
 
-nSpecies <- length(modelFitList$m_spatTemp_noTemp_PA_C[[1]])
+nSpecies <- length(modelFitList$m_spatTemp_noTemp_PA[[1]])
 paGFmat <- matrix(ncol=3, nrow=nSpecies)
 paGFmat[,1] <- modelFitList$m_spatTemp_ReadAbundancesOnly$C.SR2
-paGFmat[,3] <- modelFitList$m_spatTemp_noTemp_abu_C$R2
-paGFmat[,2] <- modelFitList$m_spatTemp_Env_abu_C$R2
+paGFmat[,3] <- modelFitList$m_spatTemp_noTemp_abu$R2
+paGFmat[,2] <- modelFitList$m_spatTemp_Env_abu$R2
 paGFdf <- as.data.frame(paGFmat)
 colnames(paGFdf) <- c("readAbundanceOnlyR2","noTempAbuR2","spTempAbuR2")
 
@@ -1518,65 +1543,44 @@ las=2
 ## cross-validation:
 
 m_spatTemp_ReadAbundancesOnly
-m_spatTemp_noTemp_PA_C
-m_spatTemp_noTemp_abu_C
-m_spatTemp_Env_PA_C
-m_spatTemp_Env_abu_C
+m_spatTemp_noTemp_PA
+m_spatTemp_noTemp_abu
+m_spatTemp_Env_PA
+m_spatTemp_Env_abu
 
-models[[1]]
+## we need scripts for each, because parallelizing.
 
-partition = createPartition(models[[1]], nfolds = 2, column = "sample")
-preds = computePredictedValues(models[[1]], partition=partition, nParallel = 3)
-MF = evaluateModelFit(hM=m, predY=preds)
+conda activate spatialDirt
 
-## we need to build this out, a script for each model, because this will take forever
-
-## I'm tired of rewriting all this code because of different R data object
-## names. Let's try saveRDS instead:
-
-
-
-m_spatTemp_ReadAbundancesOnly <- readRDS(file="m_spatTemp_ReadAbundancesOnly.rds")
-
-m_spatTemp_noTemp_PA_C
-m_spatTemp_noTemp_abu_C
-m_spatTemp_Env_PA_C
-m_spatTemp_Env_abu_C
-
-###### m_spatTemp_ReadAbundancesOnly_crossval.r ######
+################ getCrossValFit.r ###################
 
 library(Hmsc)
-
-model="m_spatTemp_ReadAbundancesOnly"
-
-readRDS(paste0(model,"_sampled.rda"))
-
-partition = createPartition(m_spatTemp_ReadAbundancesOnly, nfolds = 2, column = "sample")
-
-preds = computePredictedValues(models, partition=partition, nParallel = 3)
-
-MF = evaluateModelFit(hM=model, predY=preds)
-modelsPredsFits = list(preds, MF)
-
-save(modelsPredsFits, file=paste(model,"crossvalidation.rda", sep=''))
-
-paste(model,"crossvalidation.rda", sep=''))
-
-######################################################
-
-
+modelfile = commandArgs(trailingOnly=TRUE)[1]
+print(paste("starting",modelfile))
+m = readRDS(modelfile)
+partition = createPartition(m, nfolds = 2, column = "sample")
+preds = computePredictedValues(m, partition=partition, nParallel = 2)
 MF = evaluateModelFit(hM=m, predY=preds)
+saveRDS(preds, file=sub("_sampled.rds", "_crossValPreds.rds",modelfile))
+saveRDS(MF, file=sub("_sampled.rds", "_crossValModelFit.rds",modelfile))
+print(paste("finish time is", Sys.time()))
 
+#####################################################
 
+## we need to build this out, a script for each model, because this will take forever
+nohup Rscript getCrossValFit.r "m_spatTemp_ReadAbundancesOnly_sampled.rds"  &> m_spatTemp_ReadAbundancesOnly_crossval.log &
+nohup Rscript getCrossValFit.r "m_spatTemp_noTemp_PA_sampled.rds" &> m_spatTemp_noTemp_PA_crossval.log &
+nohup Rscript getCrossValFit.r "m_spatTemp_noTemp_abu_sampled.rds" &> m_spatTemp_noTemp_abu_crossval.log &
+nohup Rscript getCrossValFit.r "m_spatTemp_Env_abu_sampled.rds" &> m_spatTemp_Env_abu_crossval.log &
+nohup Rscript getCrossValFit.r "m_spatTemp_Env_PA_sampled.rds" &> m_spatTemp_Env_PA_crossval.log &
 
-## again, inclusion of seasonality in our model doesn't 
-## improve overall explanatory power
+## these were all started July17, 11:20am
 
-## can we do some "ordinations", using our latent 
-## variables?
+## okay, hope that runs well
 
-etaPost=getPostEstimate(m_spatTemp_ReadAbundancesOnly, "Eta") 
+## time to update the notebook, if for no other reason to remember 
+## what the hell we are doing.
 
-lambdaPost=getPostEstimate(m_spatTemp_ReadAbundancesOnly, "Lambda")
+## the notebook is here:
 
 

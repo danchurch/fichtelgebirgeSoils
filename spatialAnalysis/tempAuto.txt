@@ -1279,9 +1279,13 @@ m_spatTemp_Env_abu
 ## check mixing:
 
 m_spatTemp_Env_PA_coda = convertToCodaObject(m_spatTemp_Env_PA)
+
 m_spatTemp_Env_PA.beta = effectiveSize(m_spatTemp_Env_PA_coda$Beta)
 
-##
+## what happens when we try to plot the mixing plots directly, 
+## (prepare for disaster...)
+
+plot(m_spatTemp_Env_PA_coda$Beta)
 
 hist(m_spatTemp_Env_PA.beta, main="effective sample size for beta", breaks=30)
 mean(m_spatTemp_Env_PA.beta) ## mean = 4000, okay, that is deep
@@ -1586,7 +1590,7 @@ nohup Rscript getCrossValFit.r "m_spatTemp_Env_PA_sampled.rds" &> m_spatTemp_Env
 
 ssh -L 8080:localhost:8080 test@132.180.112.115
 
-## on nanocomp
+## using this, on nanocomp
 conda activate spatialDirt
 jupyter notebook --no-browser --port=8080 spatialAnalysisSulariData.ipynb
 
@@ -1595,5 +1599,4 @@ http://localhost:8080/notebooks/spatialAnalysisSulariData.ipynb
  
 ## oops get that notebook back to the latest commit 
 git checkout dea37cba0f1f22b51f10fdcea46a3e62298d8395 spatialAnalysisSulariData.ipynb
-
 

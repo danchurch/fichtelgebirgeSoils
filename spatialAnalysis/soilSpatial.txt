@@ -8813,6 +8813,7 @@ save(m_hurdle_abu, file="m_hurdle_abu.rda")
 
 ## 1
 #### m_ReadAbundancesOnly_sampling.r ####
+
 library(Hmsc)
 print("starting model:")
 print("m_ReadAbundancesOnly")
@@ -8822,21 +8823,27 @@ thin = 20
 samples = 1000
 nChains = 4
 nP = 2
-m_ReadAbundancesOnly = sampleMcmc(m_ReadAbundancesOnly, 
+#m_ReadAbundancesOnly = sampleMcmc(m_ReadAbundancesOnly, 
+m_ReadAbundancesOnly2 = sampleMcmc(m_ReadAbundancesOnly, 
                      samples = samples, 
                      thin=thin, 
                      transient = ceiling(0.5*samples*thin), 
                      nChains = nChains, 
                      nParallel = nP
                      )
-save(m_ReadAbundancesOnly, file="m_ReadAbundancesOnly_sampled.rda")
+#save(m_ReadAbundancesOnly, file="m_ReadAbundancesOnly_sampled.rda")
+save(m_ReadAbundancesOnly2, file="m_ReadAbundancesOnly_sampled2.rda")
 print(paste("finish time is", Sys.time()))
+
 ##############################################################################
-nohup Rscript m_ReadAbundancesOnly_sampling.r &> m_ReadAbundancesOnly_sampling.log & 
+
+nohup Rscript m_ReadAbundancesOnly_sampling.r &>> m_ReadAbundancesOnly_sampling.log & 
+
 ## 15517
 
 ## 2
 #### m_ReadAbundancesSpatial_sampling.r ####
+
 library(Hmsc)
 print("starting model:")
 print("m_ReadAbundancesSpatial")
@@ -8846,20 +8853,23 @@ thin = 20
 samples = 1000
 nChains = 4
 nP = 2
-m_ReadAbundancesSpatial = sampleMcmc(m_ReadAbundancesSpatial, 
+#m_ReadAbundancesSpatial = sampleMcmc(m_ReadAbundancesSpatial, 
+m_ReadAbundancesSpatial2 = sampleMcmc(m_ReadAbundancesSpatial, 
                      samples = samples, 
                      thin=thin, 
                      transient = ceiling(0.5*samples*thin), 
                      nChains = nChains, 
                      nParallel = nP
                      )
-save(m_ReadAbundancesSpatial, file="m_ReadAbundancesSpatial_sampled.rda")
+#save(m_ReadAbundancesSpatial, file="m_ReadAbundancesSpatial_sampled.rda")
+save(m_ReadAbundancesSpatial2, file="m_ReadAbundancesSpatial_sampled2.rda")
 print(paste("finish time is", Sys.time()))
 
 #################################################
 
 nohup Rscript m_ReadAbundancesSpatial_sampling.r &> m_ReadAbundancesSpatial_sampling.log &
-## 15609
+
+## 
 
 
 m_environmentalOnly.rda
@@ -8876,25 +8886,29 @@ thin = 20
 samples = 1000
 nChains = 4
 nP = 2
-m_environmentalOnly = sampleMcmc(m_environmentalOnly, 
+#m_environmentalOnly = sampleMcmc(m_environmentalOnly, 
+m_environmentalOnly2 = sampleMcmc(m_environmentalOnly, 
                      samples = samples, 
                      thin=thin, 
                      transient = ceiling(0.5*samples*thin), 
                      nChains = nChains, 
                      nParallel = nP
                      )
-save(m_environmentalOnly, file="m_environmentalOnly_sampled.rda")
+#save(m_environmentalOnly, file="m_environmentalOnly_sampled.rda")
+save(m_environmentalOnly2, file="m_environmentalOnly_sampled2.rda")
 print(paste("finish time is", Sys.time()))
 
 #################################################
 
 nohup Rscript m_environmentalOnly_sampling.r &> m_environmentalOnly_sampling.log &
+
 ## 15695
 
 ## m_fullModel_logNorm
 
 ## 4 
 #### m_fullModel_logNorm_sampling.r ####
+
 library(Hmsc)
 print("starting model:")
 print("m_fullModel_logNorm")
@@ -8904,18 +8918,22 @@ thin = 20
 samples = 1000
 nChains = 4
 nP = 2
-m_fullModel_logNorm = sampleMcmc(m_fullModel_logNorm,
+#m_fullModel_logNorm = sampleMcmc(m_fullModel_logNorm,
+m_fullModel_logNorm2 = sampleMcmc(m_fullModel_logNorm,
                      samples = samples, 
                      thin=thin, 
                      transient = ceiling(0.5*samples*thin), 
                      nChains = nChains, 
                      nParallel = nP
                      )
-save(m_fullModel_logNorm, file="m_fullModel_logNorm_sampled.rda")
+#save(m_fullModel_logNorm, file="m_fullModel_logNorm_sampled.rda")
+save(m_fullModel_logNorm2, file="m_fullModel_logNorm_sampled2.rda")
 print(paste("finish time is", Sys.time()))
+
 #################################################
 
 nohup Rscript m_fullModel_logNorm_sampling.r &> m_fullModel_logNorm_sampling.log &
+
 ## 15813
 
 ## 5.1 m_hurdle_PA
@@ -9000,6 +9018,12 @@ hist(m_ReadAbundancesOnly.beta, main="effective sample size for beta", breaks=30
 ## not horrible, but mean is somewhere around 500
 ## might be good to run more sampling, but wait till the other models come in
 
+## except this is taking forever, the full hurdle models are still going. 
+
+## might as well keep  working on the other models, get 
+## deeper sampling. let's rerun the above sampling, code edited accordingly.
+
+## models 1-4 are resampling. Wait on 5.1 and 5.2, maybe not necessary?
 
 
 

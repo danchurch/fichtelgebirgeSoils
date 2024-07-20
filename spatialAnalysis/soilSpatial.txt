@@ -9025,5 +9025,11 @@ hist(m_ReadAbundancesOnly.beta, main="effective sample size for beta", breaks=30
 
 ## models 1-4 are resampling. Wait on 5.1 and 5.2, maybe not necessary?
 
+## some models are coming in. Let's back them up locally:
+
+## on local:
+getFile="/vol/data/fichtelgebirgeSoils/spatialAnalysis/m_ReadAbundancesOnly_sampled2.rda"
+putItHere="/media/vol/fichtelberg/hmscBackups/spatial/"
+scp -P 30267 ubuntu@129.70.51.6:$getFile $putItHere
 
 

@@ -1369,6 +1369,18 @@ getFile="/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialA
 putItHere="/home/daniel/Documents/projects/fichtelSoils/files2big4git"
 scp test@132.180.112.115:$getFile $putItHere
 
+## while we're here, lets back up our sampled models:
+
+cd /media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis/
+
+tar -cvzf sampledSpatioTempMods.tgz *sampled.rds
+
+getFile="/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis/sampledSpatioTempMods.tgz"
+putItHere="/media/vol/fichtelberg/hmscBackups/spTemp"
+scp test@132.180.112.115:$getFile $putItHere
+
+ls $getFile
+
 ### compare variance explained
 
 ## let's go ahead and set up the code for comparisons of R2 from the 
@@ -1594,9 +1606,13 @@ ssh -L 8080:localhost:8080 test@132.180.112.115
 conda activate spatialDirt
 jupyter notebook --no-browser --port=8080 spatialAnalysisSulariData.ipynb
 
+jupyter lab --no-browser --port=8080
+
 ## then open browser to:
 http://localhost:8080/notebooks/spatialAnalysisSulariData.ipynb
  
 ## oops get that notebook back to the latest commit 
 git checkout dea37cba0f1f22b51f10fdcea46a3e62298d8395 spatialAnalysisSulariData.ipynb
+
+## need to update notebook, and 
 

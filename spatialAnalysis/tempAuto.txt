@@ -1640,3 +1640,7 @@ pdftk m_spatTemp_Env_PA_beta_mixing.pdf cat 1 m_spatTemp_Env_PA_beta_mixing_p1.p
 
 ## need to update notebook, and 
 
+## then proceed with the general pipeline of finding modules in the cooccurrence network and see if 
+## any are associated with CO2 emissions or high respiration.
+
+## can I do this with the results I have?

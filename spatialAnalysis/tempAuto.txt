@@ -1285,6 +1285,26 @@ m_spatTemp_Env_PA.beta = effectiveSize(m_spatTemp_Env_PA_coda$Beta)
 ## what happens when we try to plot the mixing plots directly, 
 ## (prepare for disaster...)
 
+str(m_spatTemp_Env_PA_coda$Beta)
+
+plot(m_spatTemp_Env_PA_coda$Beta[[1]][1:5,1])
+
+plot(m_spatTemp_Env_PA_coda$Beta[[1]][,1])
+
+m_spatTemp_Env_PA_coda$Beta[[1]]["soil_respiration (C2), ASV91 (S1)"]
+
+## meh, nothing is working. Just point folks to a pdf in the 
+## github repo.
+
+
+str(m_spatTemp_Env_PA_coda$Beta[[1]])
+
+m_spatTemp_Env_PA_coda$Beta[[1]][[3]]
+
+plot(m_spatTemp_Env_PA_coda$Beta[[1]])
+
+m_spatTemp_Env_PA_coda$Beta[1]
+
 plot(m_spatTemp_Env_PA_coda$Beta)
 
 hist(m_spatTemp_Env_PA.beta, main="effective sample size for beta", breaks=30)
@@ -1354,6 +1374,9 @@ pdf(file="m_spatTemp_Env_abu_beta_mixing.pdf")
 plot(m_spatTemp_Env_abu_coda$Beta)
 dev.off() ## get local etc
 
+## just get the first page, put it on the repo for the notebook:
+
+
 pdf(file="m_spatTemp_Env_abu_Omega_mixing.pdf")
 plot(m_spatTemp_Env_abu_coda$temp)
 dev.off() ## get local etc
@@ -1368,6 +1391,18 @@ scp test@132.180.112.115:$getFile $putItHere
 getFile="/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis/m_spatTemp_Env_abu_Omega_mixing.pdf"
 putItHere="/home/daniel/Documents/projects/fichtelSoils/files2big4git"
 scp test@132.180.112.115:$getFile $putItHere
+
+## while we're here, lets back up our sampled models:
+
+cd /media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis/
+
+tar -cvzf sampledSpatioTempMods.tgz *sampled.rds
+
+getFile="/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis/sampledSpatioTempMods.tgz"
+putItHere="/media/vol/fichtelberg/hmscBackups/spTemp"
+scp test@132.180.112.115:$getFile $putItHere
+
+ls $getFile
 
 ### compare variance explained
 
@@ -1594,9 +1629,14 @@ ssh -L 8080:localhost:8080 test@132.180.112.115
 conda activate spatialDirt
 jupyter notebook --no-browser --port=8080 spatialAnalysisSulariData.ipynb
 
+jupyter lab --no-browser --port=8080
+
 ## then open browser to:
 http://localhost:8080/notebooks/spatialAnalysisSulariData.ipynb
  
 ## oops get that notebook back to the latest commit 
 git checkout dea37cba0f1f22b51f10fdcea46a3e62298d8395 spatialAnalysisSulariData.ipynb
+pdftk m_spatTemp_Env_PA_beta_mixing.pdf cat 1 m_spatTemp_Env_PA_beta_mixing_p1.pdf
+
+## need to update notebook, and 
 

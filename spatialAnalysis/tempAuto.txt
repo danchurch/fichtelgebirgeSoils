@@ -1636,6 +1636,7 @@ http://localhost:8080/notebooks/spatialAnalysisSulariData.ipynb
  
 ## oops get that notebook back to the latest commit 
 git checkout dea37cba0f1f22b51f10fdcea46a3e62298d8395 spatialAnalysisSulariData.ipynb
+pdftk m_spatTemp_Env_PA_beta_mixing.pdf cat 1 m_spatTemp_Env_PA_beta_mixing_p1.pdf
 
 ## need to update notebook, and 
 

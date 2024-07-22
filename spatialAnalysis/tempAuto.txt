@@ -1285,6 +1285,26 @@ m_spatTemp_Env_PA.beta = effectiveSize(m_spatTemp_Env_PA_coda$Beta)
 ## what happens when we try to plot the mixing plots directly, 
 ## (prepare for disaster...)
 
+str(m_spatTemp_Env_PA_coda$Beta)
+
+plot(m_spatTemp_Env_PA_coda$Beta[[1]][1:5,1])
+
+plot(m_spatTemp_Env_PA_coda$Beta[[1]][,1])
+
+m_spatTemp_Env_PA_coda$Beta[[1]]["soil_respiration (C2), ASV91 (S1)"]
+
+## meh, nothing is working. Just point folks to a pdf in the 
+## github repo.
+
+
+str(m_spatTemp_Env_PA_coda$Beta[[1]])
+
+m_spatTemp_Env_PA_coda$Beta[[1]][[3]]
+
+plot(m_spatTemp_Env_PA_coda$Beta[[1]])
+
+m_spatTemp_Env_PA_coda$Beta[1]
+
 plot(m_spatTemp_Env_PA_coda$Beta)
 
 hist(m_spatTemp_Env_PA.beta, main="effective sample size for beta", breaks=30)
@@ -1353,6 +1373,9 @@ mean(es.omega1) ## 3054, pretty good.
 pdf(file="m_spatTemp_Env_abu_beta_mixing.pdf")
 plot(m_spatTemp_Env_abu_coda$Beta)
 dev.off() ## get local etc
+
+## just get the first page, put it on the repo for the notebook:
+
 
 pdf(file="m_spatTemp_Env_abu_Omega_mixing.pdf")
 plot(m_spatTemp_Env_abu_coda$temp)

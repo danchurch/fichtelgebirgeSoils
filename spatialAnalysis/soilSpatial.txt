@@ -2419,8 +2419,42 @@ x1 = rnorm(n)
 x2 = rnorm(n)
 XData = data.frame(x1=x1,x2=x2)
 alpha = c(0,0,0,0,0)
-         col=colorRampPalette(c("blue","white","red"))(200),
-         title=paste("random effect level:", m$rLNames[1]), mar=c(0,0,1,0))
+beta1 = c(1,1,-1,-1,0)
+beta2 = c(1,-1,1,-1,0)
+sigma = c(1,1,1,1,1)
+L = matrix(NA,nrow=n,ncol=5)
+
+Y = matrix(NA,nrow=n,ncol=5)
+for (j in 1:5){
+L[,j] = alpha[j] + beta1[j]*x1 + beta2[j]*x2
+Y[,j] = L[,j] + rnorm(n, sd = sigma[j])
+}
+
+m = Hmsc(Y = Y, XData = XData, XFormula = ~x1+x2)
+
+nChains = 2
+test.run = TRUE
+if (test.run){
+  #with this option, the vignette runs fast but results are not reliable
+  thin = 1
+  samples = 10
+  transient = 5
+  verbose = 0
+} else {
+  #with this option, the vignette evaluates slow but it reproduces the results of the
+  #.pdf version
+  thin = 10
+  samples = 1000
+  transient = 500*thin
+  verbose = 0
+}
+
+m = sampleMcmc(m, thin = thin, samples = samples, transient = transient,
+    nChains = nChains, nParallel = nChains, verbose = verbose)
+
+mpost = convertToCodaObject(m)
+
+effectiveSize(mpost$Beta)
 
 ## the resulting checkerboard shows what happens when an important 
 ## predictor is left out. The residual covariance after that is left
@@ -2435,13 +2469,52 @@ preds = computePredictedValues(m)
 
 evaluateModelFit(hM = m, predY = preds)
 
+m = Hmsc(Y=Y, XData=XData, XFormula=~x1,
+          studyDesign=studyDesign, ranLevels=list(sample=rL))
+m = sampleMcmc(m, thin = thin, samples = samples, transient = transient,
+          nChains = nChains, nParallel = nChains, verbose = verbose)
+
+postBeta = getPostEstimate(m, parName="Beta")
+
+plotBeta(m, post=postBeta, param="Support", supportLevel = 0.95)
+
 ## the latent variable is actually doing a good job of 
 
 ## predictive/cross-validated R2
 ## making up the missing predictor. 
-oo
 
+## simpleOrdination
 
+studyDesign = data.frame(sample = as.factor(1:n))
+rL = HmscRandomLevel(units = studyDesign$sample)
+
+## force number of latent factors:
+
+rL$nfMin=2
+rL$nfMax=2
+m = Hmsc(Y=Y, XData=XData, XFormula=~1,
+         studyDesign=studyDesign, ranLevels=list(sample=rL))
+
+m = sampleMcmc(m, thin = thin, samples = samples, transient = transient,
+nChains = nChains, nParallel = nChains, verbose = verbose)
+
+etaPost=getPostEstimate(m, "Eta")
+
+dim(etaPost$mean)
+## interesting, number of rows is equal to number of sites,
+## and number of columns is equal to number of latent factors
+## but with lambda:
+
+lambdaPost=getPostEstimate(m, "Lambda")
+
+dim(lambdaPost$mean)
+## number of rows is equal to number of latent variables and
+## number of columns is equal to number of species
+## inverted, don't know why
+
+lambdaPost$mean
+
+biPlot(m, etaPost = etaPost, lambdaPost = lambdaPost, factors = c(1,2), "x2")
 
 
 ## but this breaks down when you split the data
@@ -9031,5 +9104,148 @@ hist(m_ReadAbundancesOnly.beta, main="effective sample size for beta", breaks=30
 getFile="/vol/data/fichtelgebirgeSoils/spatialAnalysis/m_ReadAbundancesOnly_sampled2.rda"
 putItHere="/media/vol/fichtelberg/hmscBackups/spatial/"
 scp -P 30267 ubuntu@129.70.51.6:$getFile $putItHere
+
+## also the older models:
+
+ls *sampled.rda
+
+tar -cvzf sampledSpatiolFirstRound.tgz *sampled.rda
+getFile="/vol/data/fichtelgebirgeSoils/spatialAnalysis/sampledSpatiolFirstRound.tgz"
+putItHere="/media/vol/fichtelberg/hmscBackups/spatial/"
+scp -P 30267 ubuntu@129.70.51.6:$getFile $putItHere
+
+getFile="/vol/data/fichtelgebirgeSoils/spatialAnalysis/sampledSpatiolFirstRound.tgz"
+cd "/media/vol/fichtelberg/hmscBackups/spatial/"
+
+tar -xzvf sampledSpatiolFirstRound.tgz
+
+## okay backed up
+
+## plan: get cooccurrence matrices, add column with respiration and CO2 emission rates
+## build coccurence network, then try the visualization pipelines in NetCoMi
+
+## not sure exactly how to proceed with the hurdle model here. Most analyses 
+## just contrast the results of the two submodels, and don't really synthesize 
+## them into a single result.
+
+## we can play with the models we have, while we wait for the full sampling to come in.
+## models are here, on denbi:
+
+
+
+## a couple things we want to do  
+
+#### m_ReadAbundancesOnly_sampling.r ####
+#### m_ReadAbundancesSpatial_sampling.r ####
+#### m_environmentalOnly_sampling.r ####
+#### m_fullModel_logNorm_sampling.r ####
+#### m_hurdle_PA_sampling.r ####
+#### m_hurdle_abu_sampling.r ####
+
+## we have the following already sampled:
+m_ReadAbundancesOnly_sampled.rda
+m_fullModel_logNorm_sampled.rda
+m_ReadAbundancesSpatial_sampled.rda
+m_environmentalOnly_sampled.rda
+
+## means that we lack  the following 
+#### m_hurdle_PA_sampling.r ####
+#### m_hurdle_abu_sampling.r ####
+
+## these are still running, right?
+## the record of these were lost in a synch
+git log --all --full-history -- "m_hurdle_PA_sampling.r"
+git log --all --full-history -- "m_hurdle_PA_sampling.log"
+git log --all --full-history -- "m_hurdle_abu_sampling.r"
+git log --all --full-history -- "m_hurdle_abu_sampling.r"
+
+## there they are
+git checkout  8572b393b533a4bb1cab7e4d3d45a3e370e4316a~1 m_hurdle_PA_sampling.r
+git checkout  8572b393b533a4bb1cab7e4d3d45a3e370e4316a~1 m_hurdle_PA_sampling.log
+git checkout 8572b393b533a4bb1cab7e4d3d45a3e370e4316a~1 m_hurdle_abu_sampling.r
+git checkout 8572b393b533a4bb1cab7e4d3d45a3e370e4316a~1 m_hurdle_abu_sampling.log
+
+ps ax | grep "m_hurdle_abu_sampling.r" ## yep, still running
+ps ax | grep "m_hurdle_PA_sampling.r" ## yep, still running
+
+## okay, so we keep those running, and as soon as other models come in, start the 
+## deeper sampling on the hurdles
+
+## for the moment, we can play with what we have
+## on denbi:
+
+conda activate r_env; soil; R
+
+library(Hmsc)
+
+load("m_ReadAbundancesOnly_sampled.rda")
+load("m_fullModel_logNorm_sampled.rda")
+load("m_ReadAbundancesSpatial_sampled.rda")
+load("m_environmentalOnly_sampled.rda")
+
+## so, can we check ordinations to see what 
+## differences, if any, are changed by 
+## including spatial effects, etc.
+
+## p182-3 the book, they cover ordination using the latent variables
+
+## in the book, they do it this way:
+
+for (j in 1:2){
+  m = models[[2]][[j]]
+  biPlot(m, etaPost = getPostEstimate(m, “Eta”),
+  lambdaPost = getPostEstimate(m, “Lambda”), colVar = 2)
+}
+
+m = m_ReadAbundancesOnly
+
+aa = getPostEstimate(m, "Eta")  ## site scores
+
+aa = getPostEstimate(m, "Eta", r=1)  ## site scores
+
+bb = getPostEstimate(m, "Lambda") ## species scores
+
+str(aa)
+
+str(bb)
+
+biPlot(m, etaPost = aa, lambdaPost = bb) ## works, but what the heck are we looking at?
+
+biPlot(m, etaPost = aa, lambdaPost = bb, xlim=c(0.06,0.065), ylim=c(0.07,0.08))
+
+c(0.06070615, 0.07510617)
+
+bb[,1]
+
+identify(bb$mean[1,],bb$mean[2,])
+
+?identify
+
+x = 1:10
+y = x^2
+
+name = letters[1:10]    
+plot(x, y)
+
+identify(x, y, labels = name, plot=TRUE)
+
+## where is our species 
+?biPlot
+
+
+biPlot(m, etaPost = getPostEstimate(m, "Eta"), lambdaPost = getPostEstimate(m, "Lambda"), colVar = 2)
+
+bb$mean[1:5,1:9]
+
+bb 
+
+?getPostEstimate
+
+https://www.r-bloggers.com/2020/06/guide-to-using-the-hmsc-package-for-the-production-of-joint-species-distribtuion-models/
+
+## need to try the Hmsc::plotBeta command, looks useful
+
+## above, useful ordination scripts at: ## simpleOrdination
+
 
 

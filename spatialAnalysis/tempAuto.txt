@@ -1613,7 +1613,7 @@ nohup Rscript getCrossValFit.r "m_spatTemp_noTemp_abu_sampled.rds" &> m_spatTemp
 nohup Rscript getCrossValFit.r "m_spatTemp_Env_abu_sampled.rds" &> m_spatTemp_Env_abu_crossval.log &
 nohup Rscript getCrossValFit.r "m_spatTemp_Env_PA_sampled.rds" &> m_spatTemp_Env_PA_crossval.log &
 
-## these were all started July17, 11:20am
+## these were all started July 17, 11:20am
 
 ## okay, hope that runs well
 
@@ -1644,3 +1644,14 @@ pdftk m_spatTemp_Env_PA_beta_mixing.pdf cat 1 m_spatTemp_Env_PA_beta_mixing_p1.p
 ## any are associated with CO2 emissions or high respiration.
 
 ## can I do this with the results I have?
+
+## now we have to question, what is the point of two parallel analyses?
+## so far, we have no indication that the temporal component is changing our
+## results
+
+## where does this end?
+
+## Think about this, and for the moment work in the spatial model with 
+## all samples.    
+
+

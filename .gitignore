@@ -8,3 +8,12 @@ m_ReadAbundancesSpatial_sampled.rda
 m_environmentalOnly_sampled.rda
 m_ReadAbundancesOnly_sampled.rda
 m_*sampled2.rda
+spatialAnalysis/m_spatTemp_noTemp_abu_crossValPreds.rds
+spatialAnalysis/m_spatTemp_noTemp_abu_sampled.rds
+spatialAnalysis/m_spatTemp_Env_abu_sampled.rds
+spatialAnalysis/m_spatTemp_noTemp_PA_crossValPreds.rds
+spatialAnalysis/m_spatTemp_ReadAbundancesOnly_crossValPreds.rds
+spatialAnalysis/m_spatTemp_noTemp_PA_sampled.rds
+spatialAnalysis/m_spatTemp_ReadAbundancesOnly_sampled.rds
+spatialAnalysis/m_spatTemp_Env_PA_sampled.rds
+

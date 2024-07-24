@@ -2510,7 +2510,7 @@ lambdaPost=getPostEstimate(m, "Lambda")
 dim(lambdaPost$mean)
 ## number of rows is equal to number of latent variables and
 ## number of columns is equal to number of species
-## inverted, don't know why
+## inverted, don't know why, maybe for matrix multiplication?
 
 lambdaPost$mean
 
@@ -9021,20 +9021,26 @@ thin = 20
 samples = 1000
 nChains = 4
 nP = 2
-m_hurdle_PA = sampleMcmc(m_hurdle_PA,
+#m_hurdle_PA = sampleMcmc(m_hurdle_PA,
+m_hurdle_PA2 = sampleMcmc(m_hurdle_PA,
                      samples = samples, 
                      thin=thin, 
                      transient = ceiling(0.5*samples*thin), 
                      nChains = nChains, 
                      nParallel = nP
                      )
-save(m_hurdle_PA, file="m_hurdle_PA_sampled.rda")
+save(m_hurdle_PA2, file="m_hurdle_PA_sampled2.rda")
+#save(m_hurdle_PA, file="m_hurdle_PA_sampled.rda")
 print(paste("finish time is", Sys.time()))
+
 #################################################
 
-nohup Rscript m_hurdle_PA_sampling.r &> m_hurdle_PA_sampling.log &
+#nohup Rscript m_hurdle_PA_sampling.r &> m_hurdle_PA_sampling.log &
 ## 15900
 
+conda activate r_env
+
+nohup Rscript m_hurdle_PA_sampling.r &> m_hurdle_PA_sampling.log &
 
 ## 5.2 m_hurdle_abu
 #### m_hurdle_abu_sampling.r ####
@@ -9073,7 +9079,6 @@ nohup Rscript m_hurdle_abu_sampling.r &> m_hurdle_abu_sampling.log &
 ## start by checking the mixing of the models that have finished:
 
 ## on denbi:
-
 
 soil; conda activate r_env; R
 
@@ -9154,6 +9159,13 @@ m_environmentalOnly_sampled.rda
 
 ## these are still running, right?
 ## the record of these were lost in a synch
+
+## including unsampled models themselves, hope these are the right versions:
+git log --all --full-history -- "m_hurdle_PA.rda"
+git checkout cfe086f8e18bf60b22af1919c2761c584b8cca92~1 m_hurdle_PA.rda
+git log --all --full-history -- "m_hurdle_abu.rda"
+git checkout cfe086f8e18bf60b22af1919c2761c584b8cca92~1 m_hurdle_abu.rda
+
 git log --all --full-history -- "m_hurdle_PA_sampling.r"
 git log --all --full-history -- "m_hurdle_PA_sampling.log"
 git log --all --full-history -- "m_hurdle_abu_sampling.r"
@@ -9178,10 +9190,13 @@ conda activate r_env; soil; R
 
 library(Hmsc)
 
+## let's start with the test of the 
+## effects of spatial effects only. 
+
 load("m_ReadAbundancesOnly_sampled.rda")
-load("m_fullModel_logNorm_sampled.rda")
 load("m_ReadAbundancesSpatial_sampled.rda")
-load("m_environmentalOnly_sampled.rda")
+#load("m_fullModel_logNorm_sampled.rda")
+#load("m_environmentalOnly_sampled.rda")
 
 ## so, can we check ordinations to see what 
 ## differences, if any, are changed by 
@@ -9197,55 +9212,57 @@ for (j in 1:2){
   lambdaPost = getPostEstimate(m, “Lambda”), colVar = 2)
 }
 
-m = m_ReadAbundancesOnly
+m_abu = m_ReadAbundancesOnly
 
-aa = getPostEstimate(m, "Eta")  ## site scores
-
-aa = getPostEstimate(m, "Eta", r=1)  ## site scores
-
-bb = getPostEstimate(m, "Lambda") ## species scores
+aa = getPostEstimate(m_abu, "Eta")  ## site scores
+bb = getPostEstimate(m_abu, "Lambda") ## species scores
 
 str(aa)
-
 str(bb)
 
-biPlot(m, etaPost = aa, lambdaPost = bb) ## works, but what the heck are we looking at?
+biPlot(m_abu, etaPost = aa, lambdaPost = bb) ## works, but what the heck are we looking at? Too many species. 
+biPlot(m_abu, etaPost = aa, lambdaPost = bb, xlim=c(0.06,0.065), ylim=c(0.07,0.08))
 
-biPlot(m, etaPost = aa, lambdaPost = bb, xlim=c(0.06,0.065), ylim=c(0.07,0.08))
+## we should be able to color this by read abundance:
+biPlot(m_abu, etaPost = aa, lambdaPost = bb, xlim=c(-1,0.5), ylim=c(-0.05,0.5), )
+biPlot(m_abu, etaPost = aa, lambdaPost = bb, factors = c(1,2), "BacteriaDepth")
 
-c(0.06070615, 0.07510617)
+## can we extract these points ourselves? first two latent variables are presumably most important:
+dev.new()
+plot(t(bb$mean[1:2,]))
+## promising, but how do we know OTU names? 
+## ah, there they are:
+text(bb$mean[1,], bb$mean[2,], m_abu$spNames, pos=1, cex=1)
 
-bb[,1]
+## looks right. Not scaled, but otherwise the same ordination as 
+## produced by their biplot function
 
-identify(bb$mean[1,],bb$mean[2,])
+## let's see if plots group by read abundance: 
+col = m_abu$XData["BacteriaDepth"]
+col = round((col - min(col))/diff(range(col)) * (length(colors) - 1) + 1)
+colors = colorRampPalette(c("blue", "white", "red"))
+colors <- colors(100)
+cols = colors[col$BacteriaDepth]
 
-?identify
+## we can try different combinations of LVs:
+plot(aa$mean[,1:2], col=cols)
 
-x = 1:10
-y = x^2
+dev.new()
+plot(aa$mean[,1:3], col=cols)
 
-name = letters[1:10]    
-plot(x, y)
+dev.new()
+plot(aa$mean[,2:3], col=cols)
 
-identify(x, y, labels = name, plot=TRUE)
+## I don't see a pattern. mostly noise. I wonder why the ~high r2 on the spatiotemporal 
+## on this model of read abundances only...
+## there are two large groupings as far as sites along the first LV, 
+## worth checking this out later, let's see if this explained by our 
+## evironmental data when we introduce it
 
-## where is our species 
-?biPlot
+## let's apply this to our spTemp data and update the notebook with it. 
 
+## another backup to do:
 
-biPlot(m, etaPost = getPostEstimate(m, "Eta"), lambdaPost = getPostEstimate(m, "Lambda"), colVar = 2)
-
-bb$mean[1:5,1:9]
-
-bb 
-
-?getPostEstimate
-
-https://www.r-bloggers.com/2020/06/guide-to-using-the-hmsc-package-for-the-production-of-joint-species-distribtuion-models/
-
-## need to try the Hmsc::plotBeta command, looks useful
-
-## above, useful ordination scripts at: ## simpleOrdination
-
-
-
+getFile="/vol/data/fichtelgebirgeSoils/spatialAnalysis/m_fullModel_logNorm_sampled2.rda"
+putItHere="/media/vol/fichtelberg/hmscBackups/spatial/"
+scp -P 30267 ubuntu@129.70.51.6:$getFile $putItHere

@@ -1654,4 +1654,120 @@ pdftk m_spatTemp_Env_PA_beta_mixing.pdf cat 1 m_spatTemp_Env_PA_beta_mixing_p1.p
 ## Think about this, and for the moment work in the spatial model with 
 ## all samples.    
 
+## let's keep going with model exploration here, because we have 
+## all models completely sampled. We have the data, let's look at it.
+
+## start with ordinations of the latent variables
+
+## compare the differences among the models
+
+soil; conda activate spatialDirt; R
+
+library(Hmsc)
+
+m_spatTemp_ReadAbundancesOnly <- readRDS("m_spatTemp_ReadAbundancesOnly_sampled.rds")
+m_spatTemp_noTemp_PA <- readRDS("m_spatTemp_noTemp_PA_sampled.rds")
+m_spatTemp_noTemp_abu <- readRDS("m_spatTemp_noTemp_abu_sampled.rds")
+m_spatTemp_Env_PA <- readRDS("m_spatTemp_Env_PA_sampled.rds")
+m_spatTemp_Env_abu <- readRDS("m_spatTemp_Env_abu_sampled.rds")
+
+
+dev.new()
+m_i <- m_spatTemp_ReadAbundancesOnly
+aa <- getPostEstimate(m_i, "Eta")  ## site scores
+bb <- getPostEstimate(m_i, "Lambda") ## species scores
+biPlot(m_i, etaPost = aa, lambdaPost = bb, factors = c(1,3))
+
+biPlot(m_i, etaPost = aa, lambdaPost = bb, factors = c(1,2), "BacteriaDepth")
+biPlot(m_i, etaPost = aa, lambdaPost = bb, factors = c(1,3), "BacteriaDepth")
+biPlot(m_i, etaPost = aa, lambdaPost = bb, factors = c(2,3), "BacteriaDepth")
+
+## LV looks like the big one. I assume this is land use. 
+
+## can we quickly use the data from other models? As in, is order of names preserved
+## amoung our models?:
+
+m_spatTemp_ReadAbundancesOnly$spNames == m_spatTemp_noTemp_PA$spNames
+m_spatTemp_noTemp_PA$spNames == m_spatTemp_noTemp_abu$spNames
+m_spatTemp_noTemp_abu$spNames == m_spatTemp_Env_PA$spNames
+## yeah, looks like it
+
+## so check our other data to see if any of it explains this latent variable 1
+
+head(m_spatTemp_ReadAbundancesOnly$XData)
+
+head(m_spatTemp_Env_PA$XData)
+
+## so if we want to color by land type, 
+ltype <- m_spatTemp_Env_PA$XData$Land_type
+cols = c("#862d2d", "#006600", "#FF7F00")[ltype]
+
+## for continuous variables:
+colors = colorRampPalette(c("blue", "white", "red"))
+colors <- colors(100)
+#var="soil_respiration"
+var="co2flow"
+col = m_spatTemp_Env_PA$XData[[var]]
+col = round((col - min(col))/diff(range(col)) * (length(colors) - 1) + 1)
+cols = colors[col]
+
+biPlot(m_i, etaPost = aa, lambdaPost = bb, factors = c(1,2), "BacteriaDepth")
+
+biPlot(m_i, etaPost = aa, lambdaPost = bb, factors = c(1,2), colors=cols)
+
+## nope, gotta do it the old fashioned way:
+
+dev.new()
+
+plot(aa$mean[,1:2], col=cols)
+
+plot(aa$mean[,c(1,3)], col=cols)
+
+plot(aa$mean[,c(1,6)], col=cols)
+
+plot(aa$mean[,1], col=cols)
+
+plot(aa$mean[,4], col=cols)
+
+## hard to decipher any patterns in this. Let's look at the other models
+
+dev.new()
+m_i <- m_spatTemp_Env_PA
+aa <- getPostEstimate(m_i, "Eta")  ## site scores
+bb <- getPostEstimate(m_i, "Lambda") ## species scores
+biPlot(m_i, etaPost = aa, lambdaPost = bb, factors = c(1,2)) 
+biPlot(m_i, etaPost = aa, lambdaPost = bb, factors = c(1,2), "soil_respiration")
+
+
+## latent variable 1 appears to be by far most important, but 
+## not sure what explains it:
+
+m_i <- m_spatTemp_ReadAbundancesOnly
+aa <- getPostEstimate(m_i, "Eta")  ## site scores
+bb <- getPostEstimate(m_i, "Lambda") ## species scores
+covars = colnames(m_spatTemp_Env_PA$XData)[colnames(m_spatTemp_Env_PA$XData) != "Land_type"]
+for (i in covars){
+   print(i)
+   readline(prompt="Press [enter] to continue")
+   colors = colorRampPalette(c("blue", "white", "red"))
+   colors <- colors(100)
+   col = m_spatTemp_Env_PA$XData[[i]]
+   col = round((col - min(col))/diff(range(col)) * (length(colors) - 1) + 1)
+   cols = colors[col]
+   plot(aa$mean[,1:2], col=cols, asp = 1, main=i)
+}
+
+## and land type:
+ltype <- m_spatTemp_Env_PA$XData$Land_type
+cols = c("#862d2d", "#006600", "#FF7F00")[ltype]
+plot(aa$mean[,1:2], col=cols, asp = 1, main="Land type")
+
+## with this data I cannot really explain any groupings in these sites.
+## interestingly, I also cannot recover the land use separation,
+## which is the strongest signal in traditional multivariate analysis
+
+## funny that this is what my life boils down to right now. 
+
+## so now what? take a quick break, then try to get a cooccurrence 
+## matrix out of these things.
 

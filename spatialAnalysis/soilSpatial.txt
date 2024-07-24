@@ -8743,6 +8743,7 @@ library(Hmsc)
 library(phyloseq)
 
 rm(list=ls()) ## merge the spatial and env data:
+
 xycoords = read.csv("sulariSpatial.csv", row.names=1)
 envData <- read.csv("sulariEnv.csv", row.names="SampleID")
 aa <- merge(x=envData, y=xycoords, by=0, )
@@ -8850,7 +8851,7 @@ m_fullModel_logNorm = Hmsc(Y=Y,
          XData = XData1,  XFormula = XFormula1,
          distr={"lognormal poisson"} ,
          studyDesign=studyDesign, 
-         ranLevels={list("sample"=rL.sample)},
+         ranLevels={list("sample"=rL.sample, "site_spatial" = rL.site_spatial)},
          YScale=TRUE 
 )
 save(m_fullModel_logNorm, file="m_fullModel_logNorm.rda")
@@ -8940,9 +8941,11 @@ print(paste("finish time is", Sys.time()))
 
 #################################################
 
+conda activate r_env
+
 nohup Rscript m_ReadAbundancesSpatial_sampling.r &> m_ReadAbundancesSpatial_sampling.log &
 
-## 
+
 
 
 m_environmentalOnly.rda
@@ -8989,18 +8992,17 @@ print(paste("start time is", Sys.time()))
 load("m_fullModel_logNorm.rda")
 thin = 20
 samples = 1000
-nChains = 4
+nChains = 8
+#nChains = 4
 nP = 2
-#m_fullModel_logNorm = sampleMcmc(m_fullModel_logNorm,
-m_fullModel_logNorm2 = sampleMcmc(m_fullModel_logNorm,
+m_fullModel_logNorm = sampleMcmc(m_fullModel_logNorm,
                      samples = samples, 
                      thin=thin, 
                      transient = ceiling(0.5*samples*thin), 
                      nChains = nChains, 
                      nParallel = nP
                      )
-#save(m_fullModel_logNorm, file="m_fullModel_logNorm_sampled.rda")
-save(m_fullModel_logNorm2, file="m_fullModel_logNorm_sampled2.rda")
+save(m_fullModel_logNorm, file="m_fullModel_logNorm_sampled.rda")
 print(paste("finish time is", Sys.time()))
 
 #################################################
@@ -9153,7 +9155,24 @@ m_fullModel_logNorm_sampled.rda
 m_ReadAbundancesSpatial_sampled.rda
 m_environmentalOnly_sampled.rda
 
-## means that we lack  the following 
+## we have deep (2 x 4 chains) of 
+m_ReadAbundancesOnly_sampled.rda
+m_ReadAbundancesOnly_sampled2.rda
+m_environmentalOnly_sampled.rda
+m_environmentalOnly_sampled2.rda
+m_fullModel_logNorm_sampled.rda
+m_fullModel_logNorm_sampled2.rda
+
+## this leaves:
+m_ReadAbundancesSpatial_sampled.rda
+## without a secondary sampling 
+
+ps au | grep m_ReadAbundancesSpatial_sampling.r
+## doesn't seem to be anything running... weird. 
+## rerun it above
+
+
+## we have no products from:
 #### m_hurdle_PA_sampling.r ####
 #### m_hurdle_abu_sampling.r ####
 
@@ -9178,6 +9197,7 @@ git checkout 8572b393b533a4bb1cab7e4d3d45a3e370e4316a~1 m_hurdle_abu_sampling.r
 git checkout 8572b393b533a4bb1cab7e4d3d45a3e370e4316a~1 m_hurdle_abu_sampling.log
 
 ps ax | grep "m_hurdle_abu_sampling.r" ## yep, still running
+
 ps ax | grep "m_hurdle_PA_sampling.r" ## yep, still running
 
 ## okay, so we keep those running, and as soon as other models come in, start the 
@@ -9263,6 +9283,41 @@ plot(aa$mean[,2:3], col=cols)
 
 ## another backup to do:
 
-getFile="/vol/data/fichtelgebirgeSoils/spatialAnalysis/m_fullModel_logNorm_sampled2.rda"
+m_hurdle_abu.rda
+
+getFile="/vol/data/fichtelgebirgeSoils/spatialAnalysis/m_hurdle_abu.rda"
 putItHere="/media/vol/fichtelberg/hmscBackups/spatial/"
 scp -P 30267 ubuntu@129.70.51.6:$getFile $putItHere
+
+## let's catch up the spatial-only model with the sptemp model
+
+## let's use the logNormal poisson-process of the full spatial model
+## and adapt the scripts for the hurdle model later
+
+library(Hmsc)
+
+load('m_fullModel_logNorm_sampled.rda')
+load('m_fullModel_logNorm_sampled2.rda')
+
+m_fullModel_logNorm
+m_fullModel_logNorm2
+
+comboFullModel <- c(m_fullModel_logNorm,m_fullModel_logNorm2)
+
+## looking closer, it looks this model is missing its spatial
+## component, which is probably why it sampled so quickly.
+## ugh. reformulate it above and restart the sampling. Delete the old
+## models. 
+
+## we can just run the script once, with 8 chains.
+
+load('m_environmentalOnly_sampled.rda')
+load('m_environmentalOnly_sampled2.rda')
+m_environmentalOnly
+m_environmentalOnly2
+
+comboEnvOnly <- c(m_environmentalOnly, m_environmentalOnly2)
+
+load('m_fullModel_logNorm_sampled.rda')
+load('m_fullModel_logNorm_sampled2.rda')
+

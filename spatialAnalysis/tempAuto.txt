@@ -1664,6 +1664,8 @@ pdftk m_spatTemp_Env_PA_beta_mixing.pdf cat 1 m_spatTemp_Env_PA_beta_mixing_p1.p
 soil; conda activate spatialDirt; R
 
 library(Hmsc)
+library(phyloseq)
+library(corrplot)
 
 m_spatTemp_ReadAbundancesOnly <- readRDS("m_spatTemp_ReadAbundancesOnly_sampled.rds")
 m_spatTemp_noTemp_PA <- readRDS("m_spatTemp_noTemp_PA_sampled.rds")
@@ -1906,6 +1908,110 @@ las=2
 ## need to push ahead with coccurrences, etc.
 
 ## may someday remove all the sptemp model stuff from notebook, but for the moment it is a guide of 
-## what-worked.
+## what-worked. For now, mature the pipeline so it is ready for the spatial-only dataset
 
-## get the cooccurrence matrix
+## models work best for presence/absence. Let's look at that, and get the cooccurrence matrix:
+
+m_spatTemp_Env_PA$X
+
+## pure presence absence just shows a few OTUs highly correlated with
+## respiration or presence/Absence
+
+postBetaPA = getPostEstimate(m_spatTemp_Env_PA, parName = "Beta") 
+plotBeta(m_spatTemp_Env_PA, post = postBetaPA, param = "Support", supportLevel = 0.95, spNamesNumbers = c(T,F))
+
+## how can we identify these?  
+
+postBetaPA
+
+head(m_spatTemp_Env_PA$XData)
+
+head(m_spatTemp_Env_PA$X)
+
+str(postBetaPA)
+
+postBetaPA$support[1:5,1:10]
+
+dim(postBetaPA$support)
+
+## soil respiration is our second covariate, after the intercept:
+
+colnames(postBetaPA$support)[postBetaPA$support[2,] > 0.95 ] ## ASV100, which is what?
+
+load("psCleanedUp.rda")
+
+tax_table(psCleanedUp)["ASV100"] ## this is an acidobacter.
+
+## I wonder how udeaobacter came out in all this, check it out later on the full data
+
+## forest is covariate 4, only neg associations
+colnames(postBetaPA$supportNeg)[postBetaPA$supportNeg[4,] > 0.95 ] ## ASV2, ASV21, ASV11
+
+tax_table(psCleanedUp)[c("ASV2", "ASV21", "ASV11")] ## weedy stuff, Micrococcales, Mycobacterium sp
+
+length(postBetaPA$support > 0.95 | postBetaPA$supportNeg > 0.95)
+
+## there is much more info in the abundance models, but not sure I can trust these
+postBetaAbu = getPostEstimate(m_spatTemp_Env_abu, parName = "Beta") 
+plotBeta(m_spatTemp_Env_abu, post = postBetaAbu, param = "Support", supportLevel = 0.95, spNamesNumbers = c(F,F))
+
+## try to get species associations, 
+
+m <- m_spatTemp_Env_PA
+OmegaCor = computeAssociations(m)
+
+#m <- m_spatTemp_Env_abu
+#OmegaCor = computeAssociations(m)
+
+?computeAssociations
+
+supportLevel = 0.95 
+toPlot = ((OmegaCor[[1]]$support>supportLevel) + (OmegaCor[[1]]$support<(1-supportLevel))>0)*OmegaCor[[1]]$mean 
+corrplot(toPlot, method = "color", 
+         col=colorRampPalette(c("blue","white","red"))(200), 
+         tl.cex=.6, tl.col="black", 
+         title=paste("random effect level:", m$rLNames[1]), mar=c(0,0,1,0))
+
+## I'm pretty sure the level we are interested is the sample level. 
+## I'm not sure if this implies we are excluding spatial or temporal effects?
+
+## just to check...
+## spatial
+supportLevel = 0.95 
+toPlot = ((OmegaCor[[2]]$support>supportLevel) + (OmegaCor[[2]]$support<(1-supportLevel))>0)*OmegaCor[[2]]$mean 
+corrplot(toPlot, method = "color", 
+         col=colorRampPalette(c("blue","white","red"))(200), 
+         tl.cex=.6, tl.col="black", 
+         title=paste("random effect level:", m$rLNames[2]), mar=c(0,0,1,0))
+## empty for abundance, but one set of OTUs with PA. not sure how to interpret this?
+
+## and season?
+supportLevel = 0.95 
+toPlot = ((OmegaCor[[3]]$support>supportLevel) + (OmegaCor[[3]]$support<(1-supportLevel))>0)*OmegaCor[[3]]$mean 
+corrplot(toPlot, method = "color", 
+         col=colorRampPalette(c("blue","white","red"))(200), 
+         tl.cex=.6, tl.col="black", 
+         title=paste("random effect level:", m$rLNames[3]), mar=c(0,0,1,0))
+## empty for both
+
+## okay, doesn't really leave us much choice.
+
+## so, how to extract this putative species cooccurrence matrix?
+## and the posterior environmental models for each species?
+
+##  should be as simple as:
+
+m <- m_spatTemp_Env_PA
+supportLevel = 0.95 
+
+OmegaCor = computeAssociations(m)
+postBetaAbu = getPostEstimate(m, parName = "Beta") 
+
+specAssoc_spatTemp_Env_PA = ((OmegaCor[[1]]$support>supportLevel) + (OmegaCor[[1]]$support<(1-supportLevel))>0)*OmegaCor[[1]]$mean 
+
+specAssoc_spatTemp_Env_PA
+
+## this is the covariance matrix? because big values, maybe best to make correlation matrix...
+envCorr_spatTemp_Env_PA = ((postBetaAbu$support>supportLevel) + (postBetaAbu$support<(1-supportLevel))>0)*postBetaAbu$mean 
+
+str(postBetaAbu)

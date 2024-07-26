@@ -9009,7 +9009,7 @@ print(paste("finish time is", Sys.time()))
 
 nohup Rscript m_fullModel_logNorm_sampling.r &> m_fullModel_logNorm_sampling.log &
 
-## 15813
+## 
 
 ## 5.1 m_hurdle_PA
 #### m_hurdle_PA_sampling.r ####
@@ -9294,12 +9294,20 @@ scp -P 30267 ubuntu@129.70.51.6:$getFile $putItHere
 ## let's use the logNormal poisson-process of the full spatial model
 ## and adapt the scripts for the hurdle model later
 
+R
+
 library(Hmsc)
 
+load('m_fullModel_logNorm.rda')
+
 load('m_fullModel_logNorm_sampled.rda')
+
+load("m_fullModel_logNorm_sampled.rda")
+
 load('m_fullModel_logNorm_sampled2.rda')
 
 m_fullModel_logNorm
+
 m_fullModel_logNorm2
 
 comboFullModel <- c(m_fullModel_logNorm,m_fullModel_logNorm2)
@@ -9311,13 +9319,76 @@ comboFullModel <- c(m_fullModel_logNorm,m_fullModel_logNorm2)
 
 ## we can just run the script once, with 8 chains.
 
+rm m_fullModel_logNorm_sampled2.rda
+
+## the log for the sampling is there, but not finished
+
+## head hurts, pretty sure we restarted this sampling but it is nowhwere...
+
+ps aux | grep m_fullModel_logNorm_sampling.r
+
+ps ax | grep "/home/ubuntu/miniconda3/envs/r_env/lib/R/bin/exec/R"
+
+ps ax | grep "file"
+
+## yep, looks like the sampling is going for last three submodels, still need
+## the deeper sampling of the second hurdle model
+
+## check all these and make sure they have the random effects we expect:
+
+m_ReadAbundancesSpatial_sampled2.rda
+
 load('m_environmentalOnly_sampled.rda')
+
 load('m_environmentalOnly_sampled2.rda')
 m_environmentalOnly
 m_environmentalOnly2
 
 comboEnvOnly <- c(m_environmentalOnly, m_environmentalOnly2)
 
+load("m_ReadAbundancesSpatial_sampled2.rda")
+
+
+load('m_environmentalOnly_sampled.rda')
+
 load('m_fullModel_logNorm_sampled.rda')
 load('m_fullModel_logNorm_sampled2.rda')
+
+m_environmentalOnly
+m_fullModel_logNorm
+m_fullModel_logNorm2
+
+## lots of models floating around. We should have 
+## ultimately havew two sampled files for 
+
+m_ReadAbundancesOnly.rda
+m_ReadAbundancesSpatial.rda
+m_environmentalOnly.rda
+m_fullModel_logNorm.rda
+m_hurdle_PA.rda
+m_hurdle_abu.rda
+
+ls m_ReadAbundancesOnly_sampled.rda
+ls m_ReadAbundancesSpatial_sampled.rda
+ls m_environmentalOnly_sampled.rda
+
+ls m_fullModel_logNorm_sampled.rda
+
+ls m_hurdle_PA_sampled.rda
+
+ls m_hurdle_abu_sampled.rda
+
+## It think this means we have to delete these:
+m_fullModel_logNorm_sampled.rda
+m_fullModel_logNorm_sampled2.rda
+## the new one should come in with 8 chains. 
+
+## we also got the second readabu+spatial model sampling:
+getFile="/vol/data/fichtelgebirgeSoils/spatialAnalysis/m_ReadAbundancesSpatial_sampled2.rda"
+putItHere="/media/vol/fichtelberg/hmscBackups/spatial/"
+scp -P 30267 ubuntu@129.70.51.6:$getFile $putItHere
+
+## okay, where are we? we have finished cross-validation in the sptemp models
+## maybe run through the model comparison with these, over in the other script...
+
 

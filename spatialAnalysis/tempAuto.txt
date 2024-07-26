@@ -1771,3 +1771,141 @@ plot(aa$mean[,1:2], col=cols, asp = 1, main="Land type")
 ## so now what? take a quick break, then try to get a cooccurrence 
 ## matrix out of these things.
 
+## but first, examine the cross val results
+
+## back them up:
+
+tar -cvzf crossValPreds.tgz m_spatTemp_*crossValPreds.rds
+
+m_spatTemp_*crossValPreds.rds
+
+getFile="/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis/crossValPreds.tgz"
+putItHere="/media/vol/fichtelberg/hmscBackups/spTemp/crossvalidation/"
+scp test@132.180.112.115:$getFile $putItHere
+
+##### predictive  power ####
+
+m_spatTemp_ReadAbundancesOnly <- readRDS("m_spatTemp_ReadAbundancesOnly_sampled.rds")
+m_spatTemp_noTemp_PA <- readRDS("m_spatTemp_noTemp_PA_sampled.rds")
+m_spatTemp_noTemp_abu <- readRDS("m_spatTemp_noTemp_abu_sampled.rds")
+m_spatTemp_Env_PA <- readRDS("m_spatTemp_Env_PA_sampled.rds")
+m_spatTemp_Env_abu <- readRDS("m_spatTemp_Env_abu_sampled.rds")
+
+models = list(
+m_spatTemp_ReadAbundancesOnly,
+m_spatTemp_noTemp_PA,
+m_spatTemp_noTemp_abu,
+m_spatTemp_Env_PA,
+m_spatTemp_Env_abu
+)
+
+m_spatTemp_ReadAbundancesOnly_crossValPreds <- readRDS("m_spatTemp_ReadAbundancesOnly_crossValPreds.rds")
+m_spatTemp_noTemp_PA_crossValPreds <- readRDS("m_spatTemp_noTemp_PA_crossValPreds.rds")
+m_spatTemp_noTemp_abu_crossValPreds <- readRDS("m_spatTemp_noTemp_abu_crossValPreds.rds")
+m_spatTemp_Env_PA_crossValPreds <- readRDS("m_spatTemp_Env_PA_crossValPreds.rds")
+m_spatTemp_Env_abu_crossValPreds <- readRDS("m_spatTemp_Env_abu_crossValPreds.rds")
+
+m_spatTemp_ReadAbundancesOnly_crossValModelFit <- readRDS("m_spatTemp_ReadAbundancesOnly_crossValModelFit.rds")
+m_spatTemp_noTemp_PA_crossValModelFit <- readRDS("m_spatTemp_noTemp_PA_crossValModelFit.rds")
+m_spatTemp_noTemp_abu_crossValModelFit <- readRDS("m_spatTemp_noTemp_abu_crossValModelFit.rds")
+m_spatTemp_Env_PA_crossValModelFit <- readRDS("m_spatTemp_Env_PA_crossValModelFit.rds")
+m_spatTemp_Env_abu_crossValModelFit <- readRDS("m_spatTemp_Env_abu_crossValModelFit.rds")
+
+## comparing these should follow the same pipeline as with the explanatory fit 
+
+## in order to reuse the above code from explanatory power:
+predlist <- list(
+  m_spatTemp_ReadAbundancesOnly_crossValPreds,
+  m_spatTemp_noTemp_PA_crossValPreds,  
+  m_spatTemp_noTemp_abu_crossValPreds,  
+  m_spatTemp_Env_PA_crossValPreds,  
+  m_spatTemp_Env_abu_crossValPreds
+)
+
+modelFitList <- list(
+  m_spatTemp_ReadAbundancesOnly_crossValModelFit,
+  m_spatTemp_noTemp_PA_crossValModelFit,
+  m_spatTemp_noTemp_abu_crossValModelFit,
+  m_spatTemp_Env_PA_crossValModelFit,
+  m_spatTemp_Env_abu_crossValModelFit
+)
+modelNames=c("m_spatTemp_ReadAbundancesOnly", "m_spatTemp_noTemp_PA", "m_spatTemp_noTemp_abu", "m_spatTemp_Env_PA", "m_spatTemp_Env_abu")
+names(modelFitList) <- modelNames
+names(predlist) <- modelNames
+
+print("m_spatTemp_ReadAbundancesOnly")
+str(modelFitList[[1]])
+print("m_spatTemp_noTemp_PA")
+str(modelFitList[[2]])
+print("m_spatTemp_noTemp_abu")
+str(modelFitList[[3]])
+print("m_spatTemp_Env_PA")
+str(modelFitList[[4]])
+print("m_spatTemp_Env_abu")
+str(modelFitList[[5]])
+
+nSpecies <- length(modelFitList$m_spatTemp_noTemp_PA[[1]])
+paGFmat <- matrix(ncol=6, nrow=nSpecies)
+paGFmat[,1] <- modelFitList$m_spatTemp_ReadAbundancesOnly$O.AUC
+paGFmat[,3] <- modelFitList$m_spatTemp_noTemp_PA$AUC
+paGFmat[,2] <- modelFitList$m_spatTemp_Env_PA$AUC
+paGFmat[,4] <- modelFitList$m_spatTemp_ReadAbundancesOnly$O.TjurR2
+paGFmat[,5] <- modelFitList$m_spatTemp_noTemp_PA$TjurR2
+paGFmat[,6] <- modelFitList$m_spatTemp_Env_PA$TjurR2
+paGFdf <- as.data.frame(paGFmat)
+colnames(paGFdf) <- c("readAbundanceOnlyAUC","noTempAUC","spTempAUC","readAbundanceOnlyTjurR2","noTempTjurR2","spTempTjurR2")
+
+abuGFmat <- matrix(ncol=3, nrow=nSpecies)
+abuGFmat[,1] <- modelFitList$m_spatTemp_ReadAbundancesOnly$C.SR2
+abuGFmat[,3] <- modelFitList$m_spatTemp_noTemp_abu$R2
+abuGFmat[,2] <- modelFitList$m_spatTemp_Env_abu$R2
+abuGFdf <- as.data.frame(abuGFmat)
+colnames(abuGFdf) <- c("readAbundanceOnlyR2","noTempAbuR2","spTempAbuR2")
+
+par(cex.axis = .75, mar=c(10,4,4,2), mfrow=c(1,2))
+boxplot(paGFdf,
+main=("model fit measures of P/A component of Hurdles,\n without and with season"),
+names=c(
+  "ReadAbundances AUC",
+  "noSeason AUC",
+  "fullModel AUC",
+  "ReadAbundances TjurR2",
+  "noSeason TjurR2",
+  "fullModel TjurR2"
+),
+las=2
+)
+boxplot(abuGFdf,
+main=("model fit measures of abundance component of Hurdles,\n without and with season"),
+names=c(
+  "ReadAbundances R2",
+  "noSeason R2",
+  "fullModel R2"
+),
+las=2
+)
+
+## okay, so our models of abundances don't look so good. But this is 
+## a much poorer dataset than with the spatial-only dataset. 
+
+head(abuGFdf)
+
+head(paGFdf)
+
+par(cex.axis = .75, mar=c(10,4,4,2))
+boxplot(paGFdf,
+main=("model fit measures of abundance component of Hurdles,\n without and with season"),
+names=c(
+  "ReadAbundances R2",
+  "noSeason R2",
+  "fullModel R2"
+),
+las=2
+)
+
+## need to push ahead with coccurrences, etc.
+
+## may someday remove all the sptemp model stuff from notebook, but for the moment it is a guide of 
+## what-worked.
+
+## get the cooccurrence matrix

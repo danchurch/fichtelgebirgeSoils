@@ -17,3 +17,5 @@ spatialAnalysis/m_spatTemp_noTemp_PA_sampled.rds
 spatialAnalysis/m_spatTemp_ReadAbundancesOnly_sampled.rds
 spatialAnalysis/m_spatTemp_Env_PA_sampled.rds
 
+m_spatTemp_Env_PA_crossValPreds.rds
+m_spatTemp_Env_abu_crossValPreds.rds

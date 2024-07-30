@@ -1667,6 +1667,8 @@ library(Hmsc)
 library(phyloseq)
 library(corrplot)
 
+library(NetCoMi)
+
 m_spatTemp_ReadAbundancesOnly <- readRDS("m_spatTemp_ReadAbundancesOnly_sampled.rds")
 m_spatTemp_noTemp_PA <- readRDS("m_spatTemp_noTemp_PA_sampled.rds")
 m_spatTemp_noTemp_abu <- readRDS("m_spatTemp_noTemp_abu_sampled.rds")
@@ -1675,16 +1677,18 @@ m_spatTemp_Env_abu <- readRDS("m_spatTemp_Env_abu_sampled.rds")
 
 
 dev.new()
+
 m_i <- m_spatTemp_ReadAbundancesOnly
 aa <- getPostEstimate(m_i, "Eta")  ## site scores
 bb <- getPostEstimate(m_i, "Lambda") ## species scores
 biPlot(m_i, etaPost = aa, lambdaPost = bb, factors = c(1,3))
 
 biPlot(m_i, etaPost = aa, lambdaPost = bb, factors = c(1,2), "BacteriaDepth")
+
 biPlot(m_i, etaPost = aa, lambdaPost = bb, factors = c(1,3), "BacteriaDepth")
 biPlot(m_i, etaPost = aa, lambdaPost = bb, factors = c(2,3), "BacteriaDepth")
 
-## LV looks like the big one. I assume this is land use. 
+## LV1 looks like the big one. I assume this is land use. 
 
 ## can we quickly use the data from other models? As in, is order of names preserved
 ## amoung our models?:
@@ -1912,10 +1916,13 @@ las=2
 
 ## models work best for presence/absence. Let's look at that, and get the cooccurrence matrix:
 
-m_spatTemp_Env_PA$X
+head(m_spatTemp_Env_PA$X)
 
 ## pure presence absence just shows a few OTUs highly correlated with
 ## respiration or presence/Absence
+
+
+par(mar=c(10,4,4,2))
 
 postBetaPA = getPostEstimate(m_spatTemp_Env_PA, parName = "Beta") 
 plotBeta(m_spatTemp_Env_PA, post = postBetaPA, param = "Support", supportLevel = 0.95, spNamesNumbers = c(T,F))
@@ -2003,7 +2010,6 @@ corrplot(toPlot, method = "color",
 
 m <- m_spatTemp_Env_PA
 supportLevel = 0.95 
-
 OmegaCor = computeAssociations(m)
 postBetaAbu = getPostEstimate(m, parName = "Beta") 
 
@@ -2011,7 +2017,64 @@ specAssoc_spatTemp_Env_PA = ((OmegaCor[[1]]$support>supportLevel) + (OmegaCor[[1
 
 specAssoc_spatTemp_Env_PA
 
-## this is the covariance matrix? because big values, maybe best to make correlation matrix...
+any(specAssoc_spatTemp_Env_PA > 1) ## false
+any(specAssoc_spatTemp_Env_PA < -1) ## false
+
+dim(specAssoc_spatTemp_Env_PA < -1) ## 123x123
+
 envCorr_spatTemp_Env_PA = ((postBetaAbu$support>supportLevel) + (postBetaAbu$support<(1-supportLevel))>0)*postBetaAbu$mean 
 
-str(postBetaAbu)
+dim(envCorr_spatTemp_Env_PA)
+
+## this should be what we need. Or maybe a correlation matrix, these are the raw coefficients.
+## have to think about that. Start on making a cooccurrence diagram with just the omega results
+
+
+## first, play with their tutorial 
+
+data("amgut1.filt")
+data("amgut2.filt.phy")
+
+?netConstruct
+
+amgut1.filt
+
+net_spring <- netConstruct(amgut1.filt,
+                           filtTax = "highestFreq",
+                           filtTaxPar = list(highestFreq = 50),
+                           filtSamp = "totalReads",
+                           filtSampPar = list(totalReads = 1000),
+                           measure = "spring",
+                           measurePar = list(nlambda=10, 
+                                             rep.num=10,
+                                             Rmethod = "approx"),
+                           normMethod = "none", 
+                           zeroMethod = "none",
+                           sparsMethod = "none", 
+                           dissFunc = "signed",
+                           verbose = 2,
+                           seed = 123456)
+
+
+props_spring <- netAnalyze(net_spring, 
+                           centrLCC = TRUE,
+                           clustMethod = "cluster_fast_greedy",
+                           hubPar = "eigenvector",
+                           weightDeg = FALSE, normDeg = FALSE)
+
+props_spring
+
+summary(props_spring, numbNodes = 5L)
+
+p <- plot(props_spring, 
+          nodeColor = "cluster", 
+          nodeSize = "eigenvector",
+          title1 = "Network on OTU level with SPRING associations", 
+          showTitle = TRUE,
+          cexTitle = 2.3)
+
+legend(0.7, 1.1, cex = 2.2, title = "estimated association:",
+       legend = c("+","-"), lty = 1, lwd = 3, col = c("#009900","red"), 
+       bty = "n", horiz = TRUE)
+
+

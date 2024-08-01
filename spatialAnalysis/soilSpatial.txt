@@ -9049,25 +9049,30 @@ nohup Rscript m_hurdle_PA_sampling.r &> m_hurdle_PA_sampling.log &
 
 library(Hmsc)
 print("starting model:")
-print("m_hurdle_aba")
+print("m_hurdle_aba_2ndSample")
+#print("m_hurdle_aba")
 print(paste("start time is", Sys.time()))
 load("m_hurdle_abu.rda")
 thin = 20
 samples = 1000
 nChains = 4
 nP = 2
-m_hurdle_abu = sampleMcmc(m_hurdle_abu,
+#m_hurdle_abu = sampleMcmc(m_hurdle_abu,
+m_hurdle_abu2 = sampleMcmc(m_hurdle_abu,
                      samples = samples, 
                      thin=thin, 
                      transient = ceiling(0.5*samples*thin), 
                      nChains = nChains, 
                      nParallel = nP
                      )
-save(m_hurdle_abu, file="m_hurdle_abu_sampled.rda")
+#save(m_hurdle_abu2, file="m_hurdle_abu_sampled.rda")
+save(m_hurdle_abu2, file="m_hurdle_abu_sampled2.rda")
 print(paste("finish time is", Sys.time()))
+
 #################################################
 
-nohup Rscript m_hurdle_abu_sampling.r &> m_hurdle_abu_sampling.log &
+nohup Rscript m_hurdle_abu_sampling.r &> m_hurdle_abu_sampling2.log &
+
 
 ## some of these models are finishing up. 
 
@@ -9391,4 +9396,95 @@ scp -P 30267 ubuntu@129.70.51.6:$getFile $putItHere
 ## okay, where are we? we have finished cross-validation in the sptemp models
 ## maybe run through the model comparison with these, over in the other script...
 
+## but we need to keep the processors busy. 
 
+## There is still some primary sampling to do, I think with the hurdle abundance model
+
+less m_hurdle_abu_sampling.r
+
+less m_hurdle_PA_sampling.r
+
+
+ps ax | grep "m_hurdle_abu_sampling.r" ## done, 
+
+ps ax | grep "m_hurdle_PA_sampling.r" ## yep, still running
+
+library(Hmsc)
+load("m_hurdle_abu_sampled.rda")
+
+## yes, only 4 chains. Start the sampling for the other 4. Code modified above.
+
+## and as far as cross validation?  This has not been started. 
+
+## better get on it. 
+
+## looking at our existing script for cross validation, I don't see why 
+## it shouldn't work for these models also (originall written for the sptemp models)
+## the main problem is that we didn't save these as rds files. So renaming is a problem. 
+
+## last time I tried to fix this I destroyed the models. Make sure everything is 
+## backed up first:
+
+getFile="/vol/data/fichtelgebirgeSoils/spatialAnalysis/m_hurdle_abu_sampled.rda"
+putItHere="/media/vol/fichtelberg/hmscBackups/spatial/"
+scp -P 30267 ubuntu@129.70.51.6:$getFile $putItHere
+
+## now, let's save out an RDS copy of each of these.
+## only the ones that have been completely sampled
+## make sense to do at this point. 
+
+## that is these:
+
+m_ReadAbundancesOnly_sampled.rda
+m_ReadAbundancesOnly_sampled2.rda
+
+m_ReadAbundancesSpatial_sampled.rda
+m_ReadAbundancesSpatial_sampled2.rda
+
+m_environmentalOnly_sampled.rda
+m_environmentalOnly_sampled2.rda
+
+## so each of these pairs needs to be loaded, concatenated, and saved out as an RDS combo file
+
+library(Hmsc)
+
+load("m_ReadAbundancesOnly_sampled.rda")
+load("m_ReadAbundancesOnly_sampled2.rda")
+m_ReadAbundancesOnly_combo <- c(m_ReadAbundancesOnly,m_ReadAbundancesOnly2)
+saveRDS(m_ReadAbundancesOnly_combo, file=("m_ReadAbundancesOnly_combo_sampled.rds"))
+
+rm(list=ls())
+
+load("m_ReadAbundancesSpatial_sampled.rda")
+load("m_ReadAbundancesSpatial_sampled2.rda")
+m_ReadAbundancesSpatial_combo <- c(m_ReadAbundancesSpatial,m_ReadAbundancesSpatial2)
+saveRDS(m_ReadAbundancesSpatial_combo, file=("m_ReadAbundancesSpatial_combo_sampled.rds"))
+
+rm(list=ls())
+
+load("m_environmentalOnly_sampled.rda")
+load("m_environmentalOnly_sampled2.rda")
+m_environmentalOnly_combo <- c(m_environmentalOnly, m_environmentalOnly2)
+saveRDS(m_environmentalOnly_combo, file=("m_environmentalOnly_combo_sampled.rds"))
+
+rm(list=ls())
+
+## now, can we run these through our script?
+
+
+m_ReadAbundancesOnly_combo_sampled.rds
+m_ReadAbundancesSpatial_combo_sampled.rds
+m_environmentalOnly_combo_sampled.rds
+
+nohup Rscript getCrossValFit.r "m_ReadAbundancesOnly_combo_sampled.rds"  &> m_ReadAbundancesOnly_combo_crossval.log &  ## 92204
+## not sure how much to load the processors right now. 
+## plenty of RAM, but processors are really busy. 
+## looking at this, seems like the cross-validation is 
+## relatively RAM heavy but not using a lot of RAM. 
+## Let's go ahead and start the other two, see what happens:
+
+nohup Rscript getCrossValFit.r "m_ReadAbundancesSpatial_combo_sampled.rds"  &> m_ReadAbundancesSpatial_combo_crossval.log &  ## 92302
+nohup Rscript getCrossValFit.r "m_environmentalOnly_combo_sampled.rds"  &> m_environmentalOnly_combo_crossval.log &  ## 92396
+
+## and now, the denbi computer is buzzing, hissing, steaming, popping again. 
+## poor thing.

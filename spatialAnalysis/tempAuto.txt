@@ -1666,7 +1666,6 @@ soil; conda activate spatialDirt; R
 library(Hmsc)
 library(phyloseq)
 library(corrplot)
-
 library(NetCoMi)
 
 m_spatTemp_ReadAbundancesOnly <- readRDS("m_spatTemp_ReadAbundancesOnly_sampled.rds")
@@ -2077,4 +2076,103 @@ legend(0.7, 1.1, cex = 2.2, title = "estimated association:",
        legend = c("+","-"), lty = 1, lwd = 3, col = c("#009900","red"), 
        bty = "n", horiz = TRUE)
 
+## I don't really see how to use this with a custom 
 
+## so, um, what's next? I'm not seeing a way to take advantage of the
+## awesome network analysis and visualization parts of the package, without
+## the custom data object that comes out of their regression command
+
+## this may be relevant:
+https://github.com/stefpeschel/NetCoMi?tab=readme-ov-file#using-an-association-matrix-as-input
+
+library(SPRING)
+
+# Load the QMP data set
+data("QMP") 
+
+# Run SPRING for association estimation
+fit_spring <- SPRING(QMP, 
+                     quantitative = TRUE, 
+                     lambdaseq = "data-specific",
+                     nlambda = 10, 
+                     rep.num = 10,
+                     seed = 123456, 
+                     ncores = 1,
+                     Rmethod = "approx",
+                     verbose = FALSE)
+
+# Optimal lambda
+opt.K <- fit_spring$output$stars$opt.index
+    
+# Association matrix
+assoMat <- as.matrix(SpiecEasi::symBeta(fit_spring$output$est$beta[[opt.K]],
+                                        mode = "ave"))
+rownames(assoMat) <- colnames(assoMat) <- colnames(QMP)
+
+## then they pass this directly onto the netConstruct command
+# Network construction and analysis
+net_asso <- netConstruct(data = assoMat,
+                         dataType = "condDependence",
+                         sparsMethod = "none",
+                         verbose = 0)
+
+props_asso <- netAnalyze(net_asso, clustMethod = "hierarchical")
+
+?netConstruct
+
+## so it looks like we would pass our cooccurrence matrix from 
+## HMSC as an association matrix, with dataType="correlation":
+
+## our sample-level random effects omega is this. Start over. 
+
+## do we have all the sptemp sampled models local?:
+
+
+## start over. 
+
+soil; conda activate spatialDirt; R
+
+library(Hmsc)
+library(phyloseq)
+library(corrplot)
+library(NetCoMi)
+
+backupPath="/media/vol/fichtelberg/hmscBackups/spTemp/sampledSpatioTempMods"
+m_spatTemp_ReadAbundancesOnly <- readRDS(file.path(backupPath, "m_spatTemp_ReadAbundancesOnly_sampled.rds"))
+m_spatTemp_noTemp_PA <- readRDS(file.path(backupPath, "m_spatTemp_noTemp_PA_sampled.rds"))
+m_spatTemp_noTemp_abu <- readRDS(file.path(backupPath, "m_spatTemp_noTemp_abu_sampled.rds"))
+m_spatTemp_Env_PA <- readRDS(file.path(backupPath, "m_spatTemp_Env_PA_sampled.rds"))
+m_spatTemp_Env_abu <- readRDS(file.path(backupPath, "m_spatTemp_Env_abu_sampled.rds"))
+
+## let's use the m_spatTemp_Env_abu model
+
+## to extract the cooccurrence matrix:
+
+#m <- m_spatTemp_Env_abu
+
+m <- m_spatTemp_Env_PA
+OmegaCor = computeAssociations(m)
+supportLevel = 0.95 
+toPlot = ((OmegaCor[[1]]$support>supportLevel) + (OmegaCor[[1]]$support<(1-supportLevel))>0)*OmegaCor[[1]]$mean 
+net_asso <- netConstruct(data = toPlot,
+                         dataType = "correlation",
+                         sparsMethod = "none",
+                         verbose = 3)
+props_asso <- netAnalyze(net_asso, clustMethod = "hierarchical")
+#summary(props_asso, numbNodes = 8L)
+dev.new()
+p <- plot(props_asso, 
+          nodeColor = "cluster", 
+          nodeSize = "eigenvector",
+          title1 = "m_spatTemp_Env_abu", 
+          showTitle = TRUE,
+          cexTitle = 2.3)
+
+legend(0.7, 1.1, cex = 2.2, title = "estimated association:",
+       legend = c("+","-"), lty = 1, lwd = 3, col = c("#009900","red"), 
+       bty = "n", horiz = TRUE)
+
+## two very clear modules. Do we see this with the other models?
+## same with the PA version. 
+
+## interesting. More next week, if time.

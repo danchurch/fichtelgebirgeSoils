@@ -9404,10 +9404,13 @@ less m_hurdle_abu_sampling.r
 
 less m_hurdle_PA_sampling.r
 
-
 ps ax | grep "m_hurdle_abu_sampling.r" ## done, 
 
 ps ax | grep "m_hurdle_PA_sampling.r" ## yep, still running
+
+ps ax -eo pid,lstart,cmd | grep "m_hurdle_PA_sampling.r"
+
+ps ax -eo pid,lstart,cmd | grep "m_hurdle_abu_sampling.r"
 
 library(Hmsc)
 load("m_hurdle_abu_sampled.rda")
@@ -9488,3 +9491,34 @@ nohup Rscript getCrossValFit.r "m_environmentalOnly_combo_sampled.rds"  &> m_env
 
 ## and now, the denbi computer is buzzing, hissing, steaming, popping again. 
 ## poor thing.
+
+## some backups needed for new files:
+
+m_ReadAbundancesOnly_combo_crossValPreds.rds
+m_hurdle_PA_sampled.rda
+m_environmentalOnly_combo_crossValPreds.rds
+
+## on local:
+
+newfiles=( \
+m_ReadAbundancesOnly_combo_crossValPreds.rds \
+m_hurdle_PA_sampled.rda \
+m_environmentalOnly_combo_crossValPreds.rds \
+)
+for i in ${newfiles[@]}; do
+  echo $i
+  getFile="/vol/data/fichtelgebirgeSoils/spatialAnalysis/"${i}
+  putItHere="/media/vol/fichtelberg/hmscBackups/spatial/"
+  scp -P 30267 ubuntu@129.70.51.6:$getFile $putItHere &
+done
+
+## back on denbi
+
+## what is the way forward here? 
+
+## once we have a posterior for both hurdle models for the 
+## spatial-only models, we can switch over to them for 
+## exploration.
+
+## but still don't, so I guess we keep building the analysis
+## using the smaller spatiotemp model.

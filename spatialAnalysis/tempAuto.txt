@@ -2152,9 +2152,11 @@ m_spatTemp_Env_abu <- readRDS(file.path(backupPath, "m_spatTemp_Env_abu_sampled.
 
 m <- m_spatTemp_Env_PA
 OmegaCor = computeAssociations(m)
+
 supportLevel = 0.95 
-toPlot = ((OmegaCor[[1]]$support>supportLevel) + (OmegaCor[[1]]$support<(1-supportLevel))>0)*OmegaCor[[1]]$mean 
-net_asso <- netConstruct(data = toPlot,
+sigAssociations = ((OmegaCor[[1]]$support>supportLevel) + (OmegaCor[[1]]$support<(1-supportLevel))>0)*OmegaCor[[1]]$mean 
+
+net_asso <- netConstruct(data = sigAssociations,
                          dataType = "correlation",
                          sparsMethod = "none",
                          verbose = 3)
@@ -2175,4 +2177,54 @@ legend(0.7, 1.1, cex = 2.2, title = "estimated association:",
 ## two very clear modules. Do we see this with the other models?
 ## same with the PA version. 
 
-## interesting. More next week, if time.
+## we also need an interactive way to explore these networks, probably 
+## bokeh with jupyter notebook
+
+## for the moment, how do we integrate environmental variables into this?
+
+## for example, is one of these clusters associated with forest land use?
+
+## should be as simple as adding the beta coefficient for forest, where is this?
+
+colnames(m$X)
+
+## should be row #4:
+
+colnames(m$X)[4]
+
+head(m_spatTemp_Env_PA$X)
+
+postBetaAbu = getPostEstimate(m, parName = "Beta") 
+
+str(postBetaAbu)
+
+supportLevel = 0.95 
+
+## same as before? anything with a support level over 0.95?
+envCoeff = ((postBetaAbu$support>supportLevel) + (postBetaAbu$support<(1-supportLevel))>0)*postBetaAbu$mean 
+
+
+## but these are not constrained to [-1,1]. This will mess with our 
+## ASV-ASV interaction matrix, which is constrained to [-1,1]. 
+## what is the correct way to standardize/center these cooefficients?
+
+## let's standardize by row by absolute value of the coefficient with absolute value, before filtering by support:
+
+scle = function(x){
+              x / max(abs(x))
+             }
+
+aa <- postBetaAbu$mean[4,]
+
+scle(aa) ## looks okay.
+
+## can transform the whole matrix:
+
+bb = t(apply(postBetaAbu$mean, MARGIN=1, FUN=scle))
+
+colnames(postBetaAbu$support) == colnames(bb)
+
+## filter by support
+envCoeff = ((postBetaAbu$support>supportLevel) + (postBetaAbu$support<(1-supportLevel))>0)*bb 
+
+## this should be compatible with our species interactions matrix.  

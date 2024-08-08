@@ -2227,4 +2227,103 @@ colnames(postBetaAbu$support) == colnames(bb)
 ## filter by support
 envCoeff = ((postBetaAbu$support>supportLevel) + (postBetaAbu$support<(1-supportLevel))>0)*bb 
 
+row.names(envCoeff) <- colnames(m$X)
+
+## the intercept isn't really interesting...
+
+envCoeff <- envCoeff[-1,]
+
+row.names(envCoeff)
+
+envCoeff
+
 ## this should be compatible with our species interactions matrix.  
+
+## to add one, say soil_respiration:
+
+## does this need to be symmetric? let's assume yes.
+## for the missing 8x8 corner of this matrix, we need the correlation matrix
+## of our environmental data...where to dig this up...
+
+## our environmental dataframe:
+repeatedPlots <- read.csv("repeatedPlotsEnv.csv", row.names=1)
+
+## I think we can do a crude correlation matrix from this, even 
+## though there are some problems here, autocorrelation in space, time
+
+## need to break up the land use variable into dummy vars
+repeatedPlots[,"Land_type",]
+aa <- factor(repeatedPlots[,"Land_type",drop=FALSE])
+aa$Land_type <- factor(aa$Land_type)
+## this generates the two we want, with exactly matching 
+## spelling, must be the same command used by Hmsc:
+dummyLandUse <- model.matrix(~Land_type, aa)[,-1]
+aa <- cbind(repeatedPlots,dummyLandUse)
+bb <- aa[,c("soil_respiration","co2flow","Land_typeForest","Land_typeGrassland","pH","N","C","Temperature")]
+####################
+## ## if we want all three landuses:
+## dummyLandUse <- model.matrix(~Land_type-1, aa)
+## ## for view full land use correlations:
+## aa <- cbind(repeatedPlots,dummyLandUse)
+## bb <- aa[,c("soil_respiration","co2flow","Land_typeArableland","Land_typeForest","Land_typeGrassland","pH","N","C","Temperature")]
+####################
+cc <- cor(bb, use="pairwise.complete.obs")
+
+## this is really interesting, summarizes a lot, but I guess for the sake of the network, since these correlations 
+## need a lot more examination before we can include them,  it makes more sense to simply fill with zeroes, except on the diagonal. What does 
+## this look like?
+
+
+
+sigAssociations[1:10,1:10]
+
+dim(sigAssociations )
+
+dim(envCoeff)
+
+dim(sigAssociations )
+
+## add on the scaled environmental coefficients
+aa <- rbind(sigAssociations,envCoeff)
+## also as columns, for symmetry
+## so have to add on a corner box where the env-env correlations
+## would be:
+bb <- matrix(0, nrow=nrow(envCoeff), ncol=nrow(envCoeff))
+rownames(bb) = row.names(envCoeff)
+colnames(bb) = row.names(envCoeff)
+diag(bb) = 1
+add4symmetry <- rbind(t(envCoeff), bb)
+speciesAssocEnvCoeff <- cbind(aa, add4symmetry)
+all(rownames(speciesAssocEnvCoeff) == colnames(speciesAssocEnvCoeff) )
+all(diag(speciesAssocEnvCoeff) == 1)
+
+
+
+aa[1:10,1:10]
+
+dim(aa)
+
+## this should slide into our network analysis pipeline pretty well:
+
+net_asso <- netConstruct(data = speciesAssocEnvCoeff,
+                         dataType = "correlation",
+                         sparsMethod = "none",
+                         verbose = 3)
+
+props_asso <- netAnalyze(net_asso, clustMethod = "hierarchical")
+
+summary(props_asso, numbNodes = 8L)
+
+dev.new()
+
+p <- plot(props_asso, 
+          nodeColor = "cluster", 
+          nodeSize = "eigenvector",
+          title1 = "m_spatTemp_Env_abu", 
+          showTitle = TRUE,
+          cexTitle = 2.3)
+
+legend(0.7, 1.1, cex = 2.2, title = "estimated association:",
+       legend = c("+","-"), lty = 1, lwd = 3, col = c("#009900","red"), 
+       bty = "n", horiz = TRUE)
+

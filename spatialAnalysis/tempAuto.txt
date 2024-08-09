@@ -1926,7 +1926,29 @@ par(mar=c(10,4,4,2))
 postBetaPA = getPostEstimate(m_spatTemp_Env_PA, parName = "Beta") 
 plotBeta(m_spatTemp_Env_PA, post = postBetaPA, param = "Support", supportLevel = 0.95, spNamesNumbers = c(T,F))
 
+postBeta = getPostEstimate(m, parName = "Beta")
+
 ## how can we identify these?  
+
+postBetaPA = getPostEstimate(m_spatTemp_Env_PA, parName = "Beta") 
+plotBeta(m_spatTemp_Env_PA, post = postBetaPA, param = "Support", supportLevel = 0.95, spNamesNumbers = c(T,F))
+
+
+postBetaAbu = getPostEstimate(m_spatTemp_Env_abu, parName = "Beta") 
+plotBeta(m_spatTemp_Env_abu, post = postBetaAbu, param = "Support", supportLevel = 0.95, spNamesNumbers = c(T,F))
+
+postBeta
+
+## these coefficients can range outside -1 to 1:
+postBetaPA$mean[which(postBetaPA$mean > 1 | postBetaPA$mean < -1)]
+
+postBetaAbu$mean[which(postBetaAbu$mean > 1 | postBetaAbu$mean < -1)]
+
+which(postBetaAbu$mean > 1 , arr.ind=TRUE)
+
+which(postBetaAbu$mean > 1 , arr.ind=TRUE)
+
+postBetaAbu$mean < -1
 
 postBetaPA
 
@@ -2274,7 +2296,6 @@ cc <- cor(bb, use="pairwise.complete.obs")
 ## this look like?
 
 
-
 sigAssociations[1:10,1:10]
 
 dim(sigAssociations )
@@ -2297,7 +2318,7 @@ speciesAssocEnvCoeff <- cbind(aa, add4symmetry)
 all(rownames(speciesAssocEnvCoeff) == colnames(speciesAssocEnvCoeff) )
 all(diag(speciesAssocEnvCoeff) == 1)
 
-
+speciesAssocEnvCoeff
 
 aa[1:10,1:10]
 
@@ -2327,3 +2348,62 @@ legend(0.7, 1.1, cex = 2.2, title = "estimated association:",
        legend = c("+","-"), lty = 1, lwd = 3, col = c("#009900","red"), 
        bty = "n", horiz = TRUE)
 
+## we need a more flexible graphical platfrom, to pull out the nodes we want 
+## also something that can work in a notebook. 
+
+write.csv(speciesAssocEnvCoeff, file="spatTemp_Env_PA_assocMat.csv")
+
+## this looks promising:
+
+https://github.com/medialab/ipysigma
+
+## works with networkx and igraph
+## I've worked with networkx, let's try this.
+
+## ugh, how does networkX work again???
+
+https://networkx.org/documentation/latest/tutorial.html
+
+python3
+
+import networkx as nx
+import pandas as pd
+import matplotlib.pyplot as plt; plt.ion()
+
+pd.options.display.max_columns = 20
+
+
+
+assocMat = pd.read_csv("spatTemp_Env_PA_assocMat.csv", index_col=0)
+
+G = nx.from_pandas_adjacency(assocMat)
+## imports without reporting errors. How does it look?
+
+nx.info(G)
+
+G = nx.petersen_graph()
+
+
+G.remove_edges_from( nx.selfloop_edges(G))
+
+fig,ax = plt.subplots()
+
+nx.draw(G, with_labels=True, font_weight='bold')
+
+layout = nx.spring_layout(G)
+
+nx.draw(G,
+        layout,
+        with_labels=True,
+        #node_color=colmap.colors,
+        ax=ax)
+
+## not an ideal graphic, but we are just trying to get a working 
+## networkx object. 
+
+## we'll try installing the ipysigma widget. let's make sure it is working 
+## on both the labcomp and local machines.
+
+pip install ipysigma
+
+pip install pelote

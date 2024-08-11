@@ -2152,12 +2152,56 @@ props_asso <- netAnalyze(net_asso, clustMethod = "hierarchical")
 
 ## start over. 
 
+## missing packages on laptop
+install.packages("corrplot")
+#install.packages("NetCoMi") ## fails. Try:
+install.packages("devtools")
+install.packages("BiocManager")
+
+BiocManager::install("limma")
+
+devtools::install_github("stefpeschel/NetCoMi",
+                         dependencies = c("Depends", "Imports", "LinkingTo"),
+                         repos = c("https://cloud.r-project.org/",
+                                   BiocManager::repositories()))
+
+"MatrixModels"
+"terra"
+"textshaping"
+"units"
+"bench"
+"ragg"
+"raster"
+"sf"
+"lwgeom"
+"purrr"
+"furrr"
+
+install.packages("MatrixModels") ## needs Matrix > 1.6.0
+
+## happening now
+install.packages("textshaping") 
+## needs harfbuzz, fribidi, probably use apt: libharfbuzz-dev libfribidi-dev
+
+install.packages("ragg") ## libfreetype6-dev libpng-dev libtiff5-dev libjpeg-dev, apt
+
+
+install.packages("sf") ## download timeout  
+
+install.packages("lwgeom") ## needs sf
+
+
+
+
 soil; conda activate spatialDirt; R
 
 library(Hmsc)
 library(phyloseq)
+
 library(corrplot)
+
 library(NetCoMi)
+## R version 4.1.2
 
 backupPath="/media/vol/fichtelberg/hmscBackups/spTemp/sampledSpatioTempMods"
 m_spatTemp_ReadAbundancesOnly <- readRDS(file.path(backupPath, "m_spatTemp_ReadAbundancesOnly_sampled.rds"))

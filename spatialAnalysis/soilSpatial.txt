@@ -9493,13 +9493,11 @@ nohup Rscript getCrossValFit.r "m_environmentalOnly_combo_sampled.rds"  &> m_env
 ## poor thing.
 
 ## some backups needed for new files:
-
 m_ReadAbundancesOnly_combo_crossValPreds.rds
 m_hurdle_PA_sampled.rda
 m_environmentalOnly_combo_crossValPreds.rds
 
 ## on local:
-
 newfiles=( \
 m_ReadAbundancesOnly_combo_crossValPreds.rds \
 m_hurdle_PA_sampled.rda \
@@ -9512,7 +9510,22 @@ for i in ${newfiles[@]}; do
   scp -P 30267 ubuntu@129.70.51.6:$getFile $putItHere &
 done
 
-## back on denbi
+## and repeat on Aug18:
+
+cd "/media/vol/fichtelberg/hmscBackups/spatial/"
+
+newfiles=( \
+m_ReadAbundancesSpatial_combo_crossValModelFit.rds
+m_ReadAbundancesSpatial_combo_crossValPreds.rds
+m_hurdle_PA_sampled2.rda
+)
+
+for i in ${newfiles[@]}; do
+  echo $i
+  getFile="/vol/data/fichtelgebirgeSoils/spatialAnalysis/"${i}
+  putItHere="/media/vol/fichtelberg/hmscBackups/spatial/"
+  scp -P 30267 ubuntu@129.70.51.6:$getFile $putItHere &
+done
 
 ## what is the way forward here? 
 

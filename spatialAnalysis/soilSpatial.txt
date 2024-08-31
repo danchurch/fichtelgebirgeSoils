@@ -9498,12 +9498,18 @@ m_ReadAbundancesOnly_combo_crossValPreds.rds
 m_hurdle_PA_sampled.rda
 m_environmentalOnly_combo_crossValPreds.rds
 
-## on local:
+## on local office pc:
+
+#newfiles=( \
+#m_ReadAbundancesOnly_combo_crossValPreds.rds \
+#m_hurdle_PA_sampled.rda \
+#m_environmentalOnly_combo_crossValPreds.rds \
+#)
+
+## and again, 31.8.24:
 
 newfiles=( \
-m_ReadAbundancesOnly_combo_crossValPreds.rds \
-m_hurdle_PA_sampled.rda \
-m_environmentalOnly_combo_crossValPreds.rds \
+m_hurdle_abu_sampled2.rda \
 )
 for i in ${newfiles[@]}; do
   echo $i
@@ -9512,7 +9518,16 @@ for i in ${newfiles[@]}; do
   scp -P 30267 ubuntu@129.70.51.6:$getFile $putItHere &
 done
 
+cd "/media/vol/fichtelberg/hmscBackups/spatial/"
+
+getFile="/vol/data/fichtelgebirgeSoils/spatialAnalysis/m_hurdle_abu_sampled2.rda"
+putItHere="/media/vol/fichtelberg/hmscBackups/spatial/"
+scp -vi /home/daniel/.ssh/ubuntu_e -P 30267 ubuntu@129.70.51.6:$getFile $putItHere 
+
 ## back on denbi
+
+## and the sampling of the log normal abundance failed
+## after a month. Jeezus
 
 ## what is the way forward here? 
 

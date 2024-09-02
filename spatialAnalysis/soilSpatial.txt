@@ -9497,7 +9497,6 @@ m_ReadAbundancesOnly_combo_crossValPreds.rds
 m_hurdle_PA_sampled.rda
 m_environmentalOnly_combo_crossValPreds.rds
 
-<<<<<<< HEAD
 ## on local office pc:
 
 #newfiles=( \
@@ -9508,20 +9507,6 @@ m_environmentalOnly_combo_crossValPreds.rds
 
 ## and again, 31.8.24:
 
-=======
-## on local:
->>>>>>> cb58f467e11e9ce7569ff28335c80d8e519fe2ab
-newfiles=( \
-m_hurdle_abu_sampled2.rda \
-)
-for i in ${newfiles[@]}; do
-  echo $i
-  getFile="/vol/data/fichtelgebirgeSoils/spatialAnalysis/"${i}
-  putItHere="/media/vol/fichtelberg/hmscBackups/spatial/"
-  scp -P 30267 ubuntu@129.70.51.6:$getFile $putItHere &
-done
-
-<<<<<<< HEAD
 cd "/media/vol/fichtelberg/hmscBackups/spatial/"
 
 getFile="/vol/data/fichtelgebirgeSoils/spatialAnalysis/m_hurdle_abu_sampled2.rda"
@@ -9529,27 +9514,61 @@ putItHere="/media/vol/fichtelberg/hmscBackups/spatial/"
 scp -vi /home/daniel/.ssh/ubuntu_e -P 30267 ubuntu@129.70.51.6:$getFile $putItHere 
 
 ## back on denbi
-=======
-## and repeat on Aug18:
-
-cd "/media/vol/fichtelberg/hmscBackups/spatial/"
-
-newfiles=( \
-m_ReadAbundancesSpatial_combo_crossValModelFit.rds
-m_ReadAbundancesSpatial_combo_crossValPreds.rds
-m_hurdle_PA_sampled2.rda
-)
-
-for i in ${newfiles[@]}; do
-  echo $i
-  getFile="/vol/data/fichtelgebirgeSoils/spatialAnalysis/"${i}
-  putItHere="/media/vol/fichtelberg/hmscBackups/spatial/"
-  scp -P 30267 ubuntu@129.70.51.6:$getFile $putItHere &
-done
->>>>>>> cb58f467e11e9ce7569ff28335c80d8e519fe2ab
 
 ## and the sampling of the log normal abundance failed
 ## after a month. Jeezus
+
+## can this be debugged?
+## it looks like from the logs that only one chain failed somehow.
+## so maybe let's run a lot of chains, individually?
+
+## so rerun the same script from line 8986, with some modifications.
+## let's switch over to the rds/user input model
+
+soil
+conda activate r_env
+
+#### m_fullModel_logNorm_sampling_1atatime.r ####
+
+library(Hmsc)
+chainName = commandArgs(trailingOnly=TRUE)[1]
+print("starting model:")
+print("m_fullModel_logNorm")
+print(paste("start time is", Sys.time()))
+load("m_fullModel_logNorm.rda")
+## fix this for real
+thin = 20
+## fix this for real
+samples = 1000
+nChains = 1
+nP = 2
+m_fullModel_logNorm = sampleMcmc(m_fullModel_logNorm,
+                     samples = samples, 
+                     thin=thin, 
+                     transient = ceiling(0.5*samples*thin), 
+                     nChains = nChains, 
+                     nParallel = nP
+                     )
+filename <- paste0("m_fullModel_logNorm_sampled_c", chainName, ".rds")
+saveRDS(m_fullModel_logNorm, file=filename)
+print(paste("finish time is", Sys.time()))
+
+#################################################
+
+for i in {1..8}; do
+  echo $i
+  nohup Rscript m_fullModel_logNorm_sampling_1atatime.r $i  &> m_fullModel_logNorm_sampled_c${i}.log &
+done
+
+## pids
+193997
+193998
+193999
+194000
+194001
+194002
+194003
+194004
 
 ## what is the way forward here? 
 

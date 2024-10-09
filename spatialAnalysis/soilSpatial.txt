@@ -9474,7 +9474,6 @@ rm(list=ls())
 
 ## now, can we run these through our script?
 
-
 m_ReadAbundancesOnly_combo_sampled.rds
 m_ReadAbundancesSpatial_combo_sampled.rds
 m_environmentalOnly_combo_sampled.rds
@@ -9483,7 +9482,7 @@ nohup Rscript getCrossValFit.r "m_ReadAbundancesOnly_combo_sampled.rds"  &> m_Re
 ## not sure how much to load the processors right now. 
 ## plenty of RAM, but processors are really busy. 
 ## looking at this, seems like the cross-validation is 
-## relatively RAM heavy but not using a lot of RAM. 
+## relatively processor heavy but not using a lot of RAM. 
 ## Let's go ahead and start the other two, see what happens:
 
 nohup Rscript getCrossValFit.r "m_ReadAbundancesSpatial_combo_sampled.rds"  &> m_ReadAbundancesSpatial_combo_crossval.log &  ## 92302
@@ -9538,17 +9537,39 @@ tar -czf m_fullModel_logNorm_sampled.tar.gz m_fullModel_logNorm_sampled
 ## and from office comp:
 
 cd "/media/vol/fichtelberg/hmscBackups/spatial/"
-
 getFile="/vol/data/fichtelgebirgeSoils/spatialAnalysis/m_fullModel_logNorm_sampled.tar.gz"
 putItHere="/media/vol/fichtelberg/hmscBackups/spatial/"
 
 scp -vi /home/daniel/.ssh/ubuntu_e -P 30267 ubuntu@129.70.51.6:$getFile $putItHere 
 
-## in general, we should probably back up all rds and rda files. Try to remember to do this tomorrow. 
+## somehow, looks like I forgot to back all this up onto the lab computer:
+## let's put them 
 
+getFile="/media/vol/fichtelberg/hmscBackups/"
+putItHere="/media/vol1/daniel/sulariArne/soilAnalysis/"
+scp  -r $getFile test@132.180.112.115:$putItHere 
 
+## in general, we should probably back up all rds and rda files. 
+getFile="/vol/data/fichtelgebirgeSoils/denbiHMSCbackup.tar.gz"
+putItHere="/media/vol/fichtelberg/hmscBackups/"
+scp -ri /home/daniel/.ssh/ubuntu_e -P 30267 ubuntu@129.70.51.6:$getFile $putItHere 
 
-## and make backups:
+## and put this big archive on the labcomp from the officecomp:
+putItHere="/media/vol1/daniel/sulariArne/soilAnalysis/hmscBackups/spatial/"
+getFile="/media/vol/fichtelberg/hmscBackups/denbiHMSCbackup.tar.gz"
+scp $getFile test@132.180.112.115:$putItHere 
+
+## this one was missing, get it on both towers:
+getFile="/vol/data/fichtelgebirgeSoils/spatialAnalysis/m_hurdle_PA_sampled.rda"
+putItHere="/media/vol/fichtelberg/hmscBackups/spatial/"
+scp -ri /home/daniel/.ssh/ubuntu_e -P 30267 ubuntu@129.70.51.6:$getFile $putItHere 
+
+## and put it on the labcomp from the officecomp:
+putItHere="/media/vol1/daniel/sulariArne/soilAnalysis/hmscBackups/spatial/"
+getFile="/media/vol/fichtelberg/hmscBackups/spatial/m_hurdle_PA_sampled.rda"
+scp $getFile test@132.180.112.115:$putItHere 
+
+## and can we catch up the laptop, for remote work?
 
 
 ## back on denbi
@@ -9617,5 +9638,157 @@ done
 
 ## but still don't, so I guess we keep building the analysis
 ## using the smaller spatiotemp model.
+
+## we have our results from the big models, hopefully. 
+## let's check them out, bring them up to speed with 
+## work that has been done with the spatiotemporal dataset,
+## if possible.
+
+## where are the results from this model?:
+
+## on the desktop pc:
+
+ls -lh /media/vol/fichtelberg/hmscBackups/spatial
+
+## the split up chains for the lognormal model spatial model:
+ls /media/vol/fichtelberg/hmscBackups/spatial/m_fullModel_logNorm_sampled
+
+## on the lab server:
+cd /media/vol1/daniel/sulariArne/soilAnalysis/hmscBackups
+
+## the hope is that these all sampled fully. 
+## we may take one that we trust most for predictions.
+## but how different are they?
+
+## so bring them through the same old pipelines:
+
+## also, we don't have cross validation for the logNorm full model...forgot about that.
+## maybe the lab computer can handle it??
+
+## check soon, get our ducks in rows first. 
+
+## for the large spatial sampling scheme, we have the following models:
+
+
+## 1
+#### m_ReadAbundancesOnly_sampling.r ####
+m_ReadAbundancesOnly_sampled.rda
+m_ReadAbundancesOnly_sampled2.rda
+m_ReadAbundancesOnly_combo_crossValPreds.rds
+
+## 2
+#### m_ReadAbundancesSpatial_sampling.r ####
+m_ReadAbundancesSpatial_sampled.rda
+m_ReadAbundancesSpatial_sampled2.rda
+m_ReadAbundancesSpatial_combo_crossValModelFit.rds
+m_ReadAbundancesSpatial_combo_crossValPreds.rds
+
+## 3
+#### m_environmentalOnly_sampling.r ####
+m_environmentalOnly_sampled.rda
+m_environmentalOnly_sampled2.rda
+m_environmentalOnly_combo_crossValPreds.rds
+
+## 4 
+#### m_fullModel_logNorm_sampling.r ####
+m_fullModel_logNorm_sampled/
+m_fullModel_logNorm_sampled.tar.gz
+
+## 5.1 m_hurdle_PA
+#### m_hurdle_PA_sampling.r ####
+m_hurdle_PA_sampled.rda
+m_hurdle_PA_sampled2.rda
+
+## 5.2 m_hurdle_abu
+#### m_hurdle_abu_sampling.r ####
+m_hurdle_abu_sampled.rda
+m_hurdle_abu_sampled2.rda
+
+## so we need the cross-validations for: 
+m_hurdle_PA_sampled
+m_hurdle_abu_sampled
+m_fullModel_logNorm_sampled
+
+## m_fullModel_logNorm_sampled results need to be concatenated for that,
+## and every thing else. 
+
+## First, let's try a cross-validation on the lab computer:
+## for example, with:
+m_hurdle_PA_sampled
+
+## on the desktop computer. Probably won't work, but let's try. 
+
+library(Hmsc)
+
+pathHMSCarchives <- "/media/vol/fichtelberg/hmscBackups/spatial/"
+load(paste0(pathHMSCarchives,"m_hurdle_PA_sampled.rda"))
+load(paste0(pathHMSCarchives,"m_hurdle_PA_sampled2.rda"))
+
+m_hurdle_PA_sampled <- c(m_hurdle_PA,m_hurdle_PA2)
+
+saveRDS(m_hurdle_PA_sampled, file="m_hurdle_PA_combo_sampled.rds")
+
+## back on bash
+nohup Rscript getCrossValFit.r "m_hurdle_PA_combo_sampled.rds"  &> m_hurdle_PA_combo_sampled_crossval.log &  
+
+## seems to work okay. not taking much RAM, set them up on the lab computer
+## so rerun, and set up the other two models, also
+
+
+## on nanocomp:
+
+## m_hurdle_PA_sampled
+## m_hurdle_abu_sampled
+## m_fullModel_logNorm_sampled
+
+
+library(Hmsc)
+
+pathHMSCarchives <- "/media/vol1/daniel/sulariArne/soilAnalysis/hmscBackups/spatial/"
+load(paste0(pathHMSCarchives,"m_hurdle_PA_sampled.rda"))
+load(paste0(pathHMSCarchives,"m_hurdle_PA_sampled2.rda"))
+m_hurdle_PA_sampled <- c(m_hurdle_PA,m_hurdle_PA2)
+saveRDS(m_hurdle_PA_sampled, file="m_hurdle_PA_combo_sampled.rds")
+
+rm(list=ls())
+
+pathHMSCarchives <- "/media/vol1/daniel/sulariArne/soilAnalysis/hmscBackups/spatial/"
+load(paste0(pathHMSCarchives,"m_hurdle_abu_sampled.rda"))
+load(paste0(pathHMSCarchives,"m_hurdle_abu_sampled2.rda"))
+m_hurdle_abu_sampled_combo <- c(m_hurdle_abu, m_hurdle_abu2)
+saveRDS(m_hurdle_abu_sampled_combo, file="m_hurdle_abu_combo_sampled.rds")
+
+rm(list=ls())
+
+## m_fullModel_logNorm_sampled is in eight pieces, needs to be combined:
+step=0
+m_fullModel_logNorm_sampled_chains <- list()
+pathlognorm <- "/media/vol1/daniel/sulariArne/soilAnalysis/hmscBackups/spatial/m_fullModel_logNorm_sampled/"
+for (i in list.files(pathlognorm, pattern="rds")){
+    step=step+1
+    print(i)
+    m_fullModel_logNorm_sampled_chains[[step]] <- readRDS(paste0(pathlognorm,i))
+}
+## okay, how can we concatenate these things?
+m_fullModel_logNorm_sampled_combo = c(m_fullModel_logNorm_sampled_chains[[1]],
+                                      m_fullModel_logNorm_sampled_chains[[2]],
+                                      m_fullModel_logNorm_sampled_chains[[3]],
+                                      m_fullModel_logNorm_sampled_chains[[4]],
+                                      m_fullModel_logNorm_sampled_chains[[5]],
+                                      m_fullModel_logNorm_sampled_chains[[6]],
+                                      m_fullModel_logNorm_sampled_chains[[7]],
+                                      m_fullModel_logNorm_sampled_chains[[8]])
+
+saveRDS(m_fullModel_logNorm_sampled_combo, file="m_fullModel_logNorm_combo_sampled.rds")
+
+## and now, try running these things, still on the nanoComp:
+m_hurdle_PA_combo_sampled.rds
+m_fullModel_logNorm_combo_sampled.rds
+m_hurdle_abu_combo_sampled.rds
+
+
+nohup Rscript getCrossValFit.r "m_hurdle_PA_combo_sampled.rds"  &> m_hurdle_PA_combo_sampled_crossval.log &  ## 85633
+nohup Rscript getCrossValFit.r "m_fullModel_logNorm_combo_sampled.rds"  &> m_fullModel_logNorm_combo_sampled_crossval.log & ## 86089
+nohup Rscript getCrossValFit.r "m_hurdle_abu_combo_sampled.rds"  &> m_hurdle_abu_combo_sampled_crossval.log & ## 86308  
 
 

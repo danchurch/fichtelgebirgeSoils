@@ -2503,3 +2503,7 @@ nt.from_nx(G)
 nt.show('nx.html')
 nt.show_buttons(filter_=['physics'])
 
+## this sort of works, but needs some help. Maybe before we get too invested, 
+## let's move over to our bigger dataset, with all sites. 
+
+

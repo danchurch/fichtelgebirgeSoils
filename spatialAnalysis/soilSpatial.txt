@@ -9741,7 +9741,6 @@ nohup Rscript getCrossValFit.r "m_hurdle_PA_combo_sampled.rds"  &> m_hurdle_PA_c
 ## m_hurdle_abu_sampled
 ## m_fullModel_logNorm_sampled
 
-
 library(Hmsc)
 
 pathHMSCarchives <- "/media/vol1/daniel/sulariArne/soilAnalysis/hmscBackups/spatial/"
@@ -9786,9 +9785,141 @@ m_hurdle_PA_combo_sampled.rds
 m_fullModel_logNorm_combo_sampled.rds
 m_hurdle_abu_combo_sampled.rds
 
-
 nohup Rscript getCrossValFit.r "m_hurdle_PA_combo_sampled.rds"  &> m_hurdle_PA_combo_sampled_crossval.log &  ## 85633
 nohup Rscript getCrossValFit.r "m_fullModel_logNorm_combo_sampled.rds"  &> m_fullModel_logNorm_combo_sampled_crossval.log & ## 86089
 nohup Rscript getCrossValFit.r "m_hurdle_abu_combo_sampled.rds"  &> m_hurdle_abu_combo_sampled_crossval.log & ## 86308  
 
+## those are running, will probably run for weeks. 
+## we have cross-validation for three of the models, check them as before.
+## try first on the desktop:
 
+## now bring up all the models:
+
+pathHMSCarchives <- "/media/vol/fichtelberg/hmscBackups/spatial/"
+
+load(paste0(pathHMSCarchives,"m_ReadAbundancesOnly_sampled.rda"))
+load(paste0(pathHMSCarchives,"m_ReadAbundancesOnly_sampled2.rda"))
+m_ReadAbundancesOnly_combo <- c(m_ReadAbundancesOnly,m_ReadAbundancesOnly2)
+rm(m_ReadAbundancesOnly, m_ReadAbundancesOnly2)
+m_ReadAbundancesOnly_combo
+
+load(paste0(pathHMSCarchives,"m_ReadAbundancesSpatial_sampled.rda"))
+load(paste0(pathHMSCarchives,"m_ReadAbundancesSpatial_sampled2.rda"))
+m_ReadAbundancesSpatial_combo <- c(m_ReadAbundancesSpatial,m_ReadAbundancesSpatial2)
+rm(m_ReadAbundancesSpatial,m_ReadAbundancesSpatial2)
+m_ReadAbundancesSpatial_combo
+
+load(paste0(pathHMSCarchives,"m_environmentalOnly_sampled.rda"))
+load(paste0(pathHMSCarchives,"m_environmentalOnly_sampled2.rda"))
+m_environmentalOnly_combo <- c(m_environmentalOnly,m_environmentalOnly2)
+rm(m_environmentalOnly,m_environmentalOnly2)
+m_environmentalOnly_combo
+
+## the lognorm model needs more, reuse above code 
+step=0
+m_fullModel_logNorm_sampled_chains <- list()
+pathlognorm <- "/media/vol/fichtelberg/hmscBackups/spatial/m_fullModel_logNorm_sampled/"
+for (i in list.files(pathlognorm, pattern="rds")){
+    step=step+1
+    print(i)
+    m_fullModel_logNorm_sampled_chains[[step]] <- readRDS(paste0(pathlognorm,i))
+}
+m_fullModel_logNorm_sampled_combo = c(m_fullModel_logNorm_sampled_chains[[1]],
+                                      m_fullModel_logNorm_sampled_chains[[2]],
+                                      m_fullModel_logNorm_sampled_chains[[3]],
+                                      m_fullModel_logNorm_sampled_chains[[4]],
+                                      m_fullModel_logNorm_sampled_chains[[5]],
+                                      m_fullModel_logNorm_sampled_chains[[6]],
+                                      m_fullModel_logNorm_sampled_chains[[7]],
+                                      m_fullModel_logNorm_sampled_chains[[8]])
+rm(step, pathlognorm, i, m_fullModel_logNorm_sampled_chains)
+
+m_fullModel_logNorm_sampled_combo
+
+
+## hurdle models
+load(paste0(pathHMSCarchives,"m_hurdle_PA_sampled.rda"))
+load(paste0(pathHMSCarchives,"m_hurdle_PA_sampled2.rda"))
+m_hurdle_PA_combo <- c(m_hurdle_PA, m_hurdle_PA2)
+rm(m_hurdle_PA, m_hurdle_PA2)
+m_hurdle_PA_combo
+
+load(paste0(pathHMSCarchives,"m_hurdle_abu_sampled.rda"))
+load(paste0(pathHMSCarchives,"m_hurdle_abu_sampled2.rda"))
+m_hurdle_abu_combo <- c(m_hurdle_abu, m_hurdle_abu2)
+rm(m_hurdle_abu, m_hurdle_abu2)
+m_hurdle_abu_combo
+
+paste0(pathHMSCarchives,"m_ReadAbundancesOnly_combo.rda")
+
+## save these out to our backup directory:
+save(m_ReadAbundancesOnly_combo, file=paste0(pathHMSCarchives,"m_ReadAbundancesOnly_combo.rda"))
+save(m_ReadAbundancesSpatial_combo, file=paste0(pathHMSCarchives,"m_ReadAbundancesSpatial_combo.rda"))
+save(m_environmentalOnly_combo, file=paste0(pathHMSCarchives,"m_environmentalOnly_combo.rda"))
+save(m_fullModel_logNorm_sampled_combo, file=paste0(pathHMSCarchives,"m_fullModel_logNorm_sampled_combo.rda"))
+save(m_hurdle_PA_combo, file=paste0(pathHMSCarchives,"m_hurdle_PA_combo.rda"))
+save(m_hurdle_abu_combo, file=paste0(pathHMSCarchives,"m_hurdle_abu_combo.rda"))
+
+## now let's see if our sampling was deep enough on these models:
+
+
+## to make the code a little less cumbersome:
+
+spatialModels = list(
+         m_ReadAbundancesOnly_combo,
+         m_ReadAbundancesSpatial_combo,
+         m_environmentalOnly_combo,
+         m_fullModel_logNorm_sampled_combo,
+         m_hurdle_PA_combo,
+         m_hurdle_abu_combo 
+         )
+
+spatialModelNames = c(
+         "m_ReadAbundancesOnly_combo",
+         "m_ReadAbundancesSpatial_combo",
+         "m_environmentalOnly_combo",
+         "m_fullModel_logNorm_sampled_combo",
+         "m_hurdle_PA_combo",
+         "m_hurdle_abu_combo"
+         )
+
+names(spatialModels) <- spatialModelNames
+
+
+
+
+## for comparison:
+aa <- convertToCodaObject(m_ReadAbundancesOnly_combo)
+
+spatialModelsCodas = lapply(spatialModels, convertToCodaObject)
+
+#lapply(spatialModelsCodas,'[[',1) ## could do it this way
+
+## but this seems better:
+
+betas = lapply(spatialModelsCodas,'[[','Beta')
+
+spatialModels.essBeta = lapply(betas, effectiveSize)
+
+names(spatialModels.essBeta) <- spatialModelNames
+spatialModelNames
+
+#pdf("effectiveSampleSizeBeta_spatial.pdf")
+par(mfrow=c(3,2))
+text(10,10,"First title",cex=2,font=3)
+for (i in 1:6){
+    tit=paste0(spatialModelNames[i])
+    hist(spatialModels.essBeta[[i]], main=tit, breaks=30)
+}
+
+dev.off()
+
+mean(m_spatTemp_Env_PA.essBeta)
+
+
+m_ReadAbundancesOnly_combo
+m_ReadAbundancesSpatial_combo
+m_environmentalOnly_combo
+m_fullModel_logNorm_sampled_combo
+m_hurdle_PA_combo
+m_hurdle_abu_combo

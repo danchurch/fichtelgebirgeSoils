@@ -9915,7 +9915,6 @@ for (i in 1:6){
 }
 dev.off()
 
-
 ## we can repeat for omega, subsetting a bit.
 
 ## old code, to adapt to our list:
@@ -9924,5 +9923,33 @@ for(i in 1:length(m_spatTemp_Env_PA_coda$temp)){
   m_spatTemp_Env_PA_coda$temp[[i]] = m_spatTemp_Env_PA_coda$temp[[i]][,1:1000]
 }
 
+
+##################################################
+##################################################
+##################################################
+str(spatialModelsCodas[[1]]$Omega)
+
+length(spatialModelsCodas[[1]]$Omega[[1]]) ## 8, so this the list of the chains
+
+str(spatialModelsCodas)
+
+
+omegas = lapply(spatialModelsCodas,'[[','Omega')
+
+m_spatTemp_Env_PA_coda$temp = m_spatTemp_Env_PA_coda$Omega[[1]]  ## get list of chains
+for(i in 1:length(m_spatTemp_Env_PA_coda$temp)){ ## for each chain...
+  m_spatTemp_Env_PA_coda$temp[[i]] = m_spatTemp_Env_PA_coda$temp[[i]][,1:1000] ### take the first 1000
+}
+
+
+length(spatialModelsCodas[[1]]$Omega[[1]][[i]])
+
+dim(spatialModelsCodas[[1]]$Omega[[1]][[1]]) ## 1000, 27566. What are we looking at?
+
+spatialModelsCodas[[1]]$Omega[[1]][[i]][1,1:10]
+
+spatialModelsCodas[[1]]$Omega[[1]][[i]][2,1:10]
+
+spatialModelsCodas[[1]]$Omega[[1]][[8]][2,1:10]
 
 

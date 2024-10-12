@@ -9862,7 +9862,11 @@ save(m_hurdle_abu_combo, file=paste0(pathHMSCarchives,"m_hurdle_abu_combo.rda"))
 
 ## to bring these back up:
 
-pathHMSCarchives <- "/media/vol/fichtelberg/hmscBackups/spatial/"
+## (start here when repeating stuff)
+
+library(Hmsc)
+#pathHMSCarchives <- "/media/vol/fichtelberg/hmscBackups/spatial/" ## office comp
+pathHMSCarchives <- "/media/vol1/daniel/sulariArne/soilAnalysis/hmscBackups/spatial/" ## lab comp
 load(paste0(pathHMSCarchives,"m_ReadAbundancesOnly_combo.rda"))
 load(paste0(pathHMSCarchives,"m_ReadAbundancesSpatial_combo.rda"))
 load(paste0(pathHMSCarchives,"m_environmentalOnly_combo.rda"))
@@ -9900,12 +9904,29 @@ names(spatialModelsCodas) <- spatialModelNames
 
 ## but this seems better:
 betas = lapply(spatialModelsCodas,'[[','Beta')
+
 spatialModels.essBeta = lapply(betas, effectiveSize)
 names(spatialModels.essBeta) <- spatialModelNames
 
-pdf("effectiveSampleSizeBeta_spatial.pdf")
+## get the convergence statistic
+
+betas.gelman <- sapply(betas, gelman.diag)
+
+print(betas.gelman) ## oof, don't look that great:
+
+      m_ReadAbundancesOnly_combo m_ReadAbundancesSpatial_combo
+psrf  numeric,664                numeric,664
+mpsrf 4.006359                   4.057335
+      m_environmentalOnly_combo m_fullModel_logNorm_sampled_combo
+psrf  numeric,2988              numeric,2988
+mpsrf 4.879085                  4.580374
+      m_hurdle_PA_combo m_hurdle_abu_combo
+psrf  numeric,2988      numeric,2988
+mpsrf 1.241411          2.930488
+
+
+#pdf("effectiveSampleSizeBeta_spatial.pdf")
 par(mfrow=c(3,2))
-text(10,10,"First title",cex=2,font=3)
 for (i in 1:6){
     tit=paste0(spatialModelNames[i])
     hist(spatialModels.essBeta[[i]], 
@@ -9913,16 +9934,23 @@ for (i in 1:6){
     breaks=30, 
     xlab=paste("Sampling depth, mean =", round(mean(spatialModels.essBeta[[i]]))))
 }
+#dev.off()
+## sample depth looks okay
+
+## let's look at the mixing diagrams:
+
+plot(m_spatTemp_Env_PA_coda$Beta)
+
+pdf("spatialModels_mixing_beta.pdf")
+  lapply(betas, plot)
 dev.off()
 
-## we can repeat for omega, subsetting a bit.
-
-## old code, to adapt to our list:
-m_spatTemp_Env_PA_coda$temp = m_spatTemp_Env_PA_coda$Omega[[1]]
-for(i in 1:length(m_spatTemp_Env_PA_coda$temp)){
-  m_spatTemp_Env_PA_coda$temp[[i]] = m_spatTemp_Env_PA_coda$temp[[i]][,1:1000]
-}
-
+## as predicted, for beta, they look bad for the 
+## the simpler models, and better for the hurdle 
+## models. The best is the hurdle PA, by far. 
+## hurdle abundance model isn't as well sampled
+## as I thought the 8 chains and thinning would
+## get us. 
 
 ##################################################
 ##################################################
@@ -9933,23 +9961,124 @@ length(spatialModelsCodas[[1]]$Omega[[1]]) ## 8, so this the list of the chains
 
 str(spatialModelsCodas)
 
-
 omegas = lapply(spatialModelsCodas,'[[','Omega')
 
-m_spatTemp_Env_PA_coda$temp = m_spatTemp_Env_PA_coda$Omega[[1]]  ## get list of chains
-for(i in 1:length(m_spatTemp_Env_PA_coda$temp)){ ## for each chain...
-  m_spatTemp_Env_PA_coda$temp[[i]] = m_spatTemp_Env_PA_coda$temp[[i]][,1:1000] ### take the first 1000
-}
-
-
-length(spatialModelsCodas[[1]]$Omega[[1]][[i]])
 
 dim(spatialModelsCodas[[1]]$Omega[[1]][[1]]) ## 1000, 27566. What are we looking at?
 
 spatialModelsCodas[[1]]$Omega[[1]][[i]][1,1:10]
+## so it looks like each column is an interaction between two species 
+## and the rows are steps by the sampler 
 
-spatialModelsCodas[[1]]$Omega[[1]][[i]][2,1:10]
+## so we keep all steps but subset the number of species interaction to 1000
 
-spatialModelsCodas[[1]]$Omega[[1]][[8]][2,1:10]
+## let's analyze the sample code for this:
+m_spatTemp_Env_PA_coda$temp = m_spatTemp_Env_PA_coda$Omega[[1]]  ## get list of chains
+for(i in 1:length(m_spatTemp_Env_PA_coda$temp)){ ## for each chain...
+  m_spatTemp_Env_PA_coda$temp[[i]] = m_spatTemp_Env_PA_coda$temp[[i]][,1:1000] ### take the first 1000 species interactions
+}
+
+## adapting this to our list setup, we need a function:
+subsetOmega <- function(modelListElement){
+    omegasAllChains = modelListElement$Omega[[1]]  ## get list of chains
+    for(i in 1:length(omegasAllChains)){ ## for each chain...
+      omegasAllChains[[i]] = omegasAllChains[[i]][,1:1000] ### take the first 1000 species interactions
+    }
+    return(omegasAllChains)
+}
+
+omegasSubsetted <- lapply(spatialModelsCodas, subsetOmega)
+
+ess.omegas <- lapply(omegasSubsetted, effectiveSize)
+
+pdf("effectiveSampleSizeOmega_spatial.pdf")
+par(mfrow=c(3,2))
+for (i in 1:6){
+    tit=paste0(spatialModelNames[i])
+    hist(ess.omegas[[i]], 
+    main=tit, 
+    breaks=30, 
+    xlab=paste("Sampling depth, mean =", round(mean(ess.omegas[[i]]))))
+}
+dev.off()
+
+## oof, not great, some of these models are undersampled.
+## I don't understand, it seems like the simpler models
+## have lower ess, and the hurdle models sampled well.
+## I would have predicted the opposite. 
+
+for (i in 1:6){
+  try(gelman.diag(omegasSubsetted[[i]]))
+} ## all fail, has this worked in the past? Or did the subsetting break things before also?
+
+#omegas.gelman <- gelman.diag(spatialModelsCodas[[1]]$Omega[[1]]) ## too big, can't test. And subsetting fails.
+
+## huh. well, we don't have a lot of room to choose. Let's look at the mixing diagrams
+
+pdf("spatialModels_mixing_omegas.pdf")
+  lapply(omegasSubsetted, plot)
+dev.off()
+
+## as above, the only models that look properly sampled are the hurdle model
+## I assume this has to do with massive number of zeroes in our community 
+## matrix, not sure. That is the only difference I can really see that could
+## explain this - the hurdle model is intended to handle this, the others aren't.
+
+## hmmm, what now?
+
+## we can use the spatiotemporal results to talk about null models, I suppose. 
+## not ideal. 
+
+## btw, think this is what we need for making predictions about forest loss
+## or warming
+predict.Hmsc: predict 
+
+## anyway, let's check explanatory power of the models:
+
+## old code:
+predlist <- list()
+modelFitList <- list()
+for (i in 1:length(models)) {
+  print(models[[i]])
+  preds = computePredictedValues(models[[i]])
+  MF = evaluateModelFit(hM=models[[i]], predY=preds)
+  predlist[[i]] <- preds
+  modelFitList[[i]] <- MF
+}
+
+## adapted a bit
+predvaluesSpatialModels <- lapply(spatialModels, computePredictedValues) ## lots of memory needed. Do this on the lab comp?
+
+save(predvaluesSpatialModels, file="predvaluesSpatialModels.rda")
+
+for (i in 1:length(spatialModels)) {
+     print(spatialModels[[i]]) 
+     predvaluesSpatialModels[[i]]
+     }
+
+modelFitList = list()
+for (i in 1:length(spatialModels)) {
+  MF = evaluateModelFit(hM=spatialModels[[i]], predY=predvaluesSpatialModels[[i]])
+  predlist[[i]] <- preds
+  modelFitList[[i]] <- MF
+}
 
 
+aa <- function(x1,x2){return(x1*x2)}
+
+evaluateModelFit(hM=models[[i]], predY=preds)
+
+## put the combo models on the lab comp
+
+putItHere="/media/vol1/daniel/sulariArne/soilAnalysis/hmscBackups/spatial/"
+getFile=/media/vol/fichtelberg/hmscBackups/spatial/*_combo.rda
+scp $getFile test@132.180.112.115:$putItHere 
+
+m_ReadAbundancesOnly_combo.rda
+m_ReadAbundancesSpatial_combo.rda
+m_environmentalOnly_combo.rda
+m_fullModel_logNorm_sampled_combo.rda
+m_hurdle_PA_combo.rda
+m_hurdle_abu_combo.rda
+
+## then work on the lab comp as above

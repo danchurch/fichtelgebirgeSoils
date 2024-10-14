@@ -10049,7 +10049,9 @@ for (i in 1:length(models)) {
 ## adapted a bit
 predvaluesSpatialModels <- lapply(spatialModels, computePredictedValues) ## lots of memory needed. Do this on the lab comp?
 
-save(predvaluesSpatialModels, file="predvaluesSpatialModels.rda")
+#save(predvaluesSpatialModels, file="predvaluesSpatialModels.rda") ## huge file, 6.2 gig
+
+load(predvaluesSpatialModels, file="predvaluesSpatialModels.rda") ## huge file, 6.2 gig
 
 for (i in 1:length(spatialModels)) {
      print(spatialModels[[i]]) 
@@ -10064,9 +10066,6 @@ for (i in 1:length(spatialModels)) {
 }
 
 
-aa <- function(x1,x2){return(x1*x2)}
-
-evaluateModelFit(hM=models[[i]], predY=preds)
 
 ## put the combo models on the lab comp
 
@@ -10082,3 +10081,5 @@ m_hurdle_PA_combo.rda
 m_hurdle_abu_combo.rda
 
 ## then work on the lab comp as above
+
+

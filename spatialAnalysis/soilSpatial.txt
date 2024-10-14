@@ -8786,7 +8786,6 @@ sum(bact.pa)
 dim(bactData) ## 166 OTUs remain, out of 
 dim(bact.pa) ## 3313 OTUs
 ################################################
-
 Y <- bactData
 ny <- dim(Y)[1]
 ns <- dim(Y)[2]
@@ -8884,12 +8883,15 @@ save(m_hurdle_abu, file="m_hurdle_abu.rda")
 ## uses little memory.
 
 ############ addendum 14.10.24 #############
-
 ## the log normal models fail entirely to 
 ## predict anything. Let's also now try a
 ## hurdle-model approach to the read-only control
 ## and if it works, also the spatial effects
-## etc. 
+## etc.  So...
+############################################
+
+
+## 6.1, hurdle of reads only:
 
 m_readsOnly_PA = Hmsc(Y=Ypa,
                       XData = XData0,  XFormula = XFormula0,
@@ -8900,6 +8902,7 @@ m_readsOnly_PA = Hmsc(Y=Ypa,
 )
 save(m_readsOnly_PA, file="m_readsOnly_PA.rda")
 
+## 6.2, hurdle of reads only:
 m_readsOnly_abu = Hmsc(Y=Yabu,
                       XData = XData0,  XFormula = XFormula0,
                       distr={"probit"} ,
@@ -9100,6 +9103,58 @@ print(paste("finish time is", Sys.time()))
 #################################################
 
 nohup Rscript m_hurdle_abu_sampling.r &> m_hurdle_abu_sampling2.log &
+
+## 6.1 m_hurdle_PA
+#### m_hurdle_readsOnly_PA_sampling.r ####
+
+library(Hmsc)
+print("starting model:")
+print("m_readsOnly_PA")
+print(paste("start time is", Sys.time()))
+load("m_readsOnly_PA.rda")
+thin = 20
+samples = 1000
+nChains = 8
+nP = 2
+m_readsOnly_PA = sampleMcmc(m_readsOnly_PA,
+                     samples = samples, 
+                     thin=thin, 
+                     transient = ceiling(0.5*samples*thin), 
+                     nChains = nChains, 
+                     nParallel = nP
+                     )
+save(m_readsOnly_PA, file="m_readsOnly_PA_sampled.rda")
+print(paste("finish time is", Sys.time()))
+
+#################################################
+
+nohup Rscript m_hurdle_readsOnly_PA_sampling.r &> m_hurdle_readsOnly_PA_sampling.log &
+
+## 6.2 m_hurdle_abu
+#### m_hurdle_readsOnly_abu_sampling.r ####
+
+library(Hmsc)
+print("starting model:")
+print("m_readsOnly_abu")
+print(paste("start time is", Sys.time()))
+load("m_readsOnly_abu.rda")
+thin = 20
+samples = 1000
+nChains = 8
+nP = 2
+m_readsOnly_abu = sampleMcmc(m_readsOnly_abu,
+                     samples = samples, 
+                     thin=thin, 
+                     transient = ceiling(0.5*samples*thin), 
+                     nChains = nChains, 
+                     nParallel = nP
+                     )
+save(m_readsOnly_abu, file="m_readsOnly_abu_sampled.rda")
+print(paste("finish time is", Sys.time()))
+
+#################################################
+
+nohup Rscript m_hurdle_readsOnly_abu_sampling.r &> m_hurdle_readsOnly_abu_sampling.log &
 
 
 ## some of these models are finishing up. 
@@ -10251,6 +10306,122 @@ lapply(PAmodelFitTjurR2df, mean, na.rm=TRUE)
 ## try setting up a hurdle model for read abundances, 
 ## above
 
+## those are running, let's see if it works
+## and maybe consider a spatial, no-environmental 
+## variable as another null hurdle model.
 
+## for now, I guess we march on with the cooccurrence 
+## pipelines.  Our effective sample sizes
+## are okay, even if the chains don't perfectly converge
+
+####### networks for spatial model #####
+
+
+library(Hmsc)
+library(corrplot)
+library(NetCoMi)
+
+#path2models <- "/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis/" ##nanocomp
+path2models <- "/media/vol/fichtelberg/hmscBackups/spatial/" ##officecomp
+## start with the hurdle presence/absence model
+load(file.path(path2models,"m_hurdle_PA_combo.rda"))
+
+OmegaCor = computeAssociations(m_hurdle_PA_combo)
+supportLevel = 0.95
+sigAssociations = ((OmegaCor[[1]]$support>supportLevel) + (OmegaCor[[1]]$support<(1-supportLevel))>0)*OmegaCor[[1]]$mean
+postBeta = getPostEstimate(m_hurdle_PA_combo, parName = "Beta")
+
+plotBeta(m_hurdle_PA_combo, post = postBeta, 
+         param = "Support",
+         supportLevel = 0.95,
+         spNamesNumbers = c(T,F), 
+         covNamesNumbers = c(T,F),
+         main="Environmental Predictors for all abundant ASVs")
+
+postBeta$mean
+
+specAssoc = ((OmegaCor[[1]]$support>supportLevel) + (OmegaCor[[1]]$support<(1-supportLevel))>0)*OmegaCor[[1]]$mean
+
+corrplot(specAssoc, method = "color",
+         col=colorRampPalette(c("blue","white","red"))(200),
+         tl.cex=.6, tl.col="black",
+         title=paste("random effect level:", m_hurdle_PA_combo$rLNames[3]), mar=c(0,0,1,0))
+
+## we don't really have an ability to get to a correlation plot, we have
+## only the full models from each species after conditioning on all 
+## the other information. 
+
+## so let's scale our 
+
+scle = function(x){x / max(abs(x))}
+
+## apply to environmental covariate matrix
+## scale across rows, because each row will have
+## different units (each row is a environmental 
+## variable).
+
+bb = t(apply(postBeta$mean, MARGIN=1, FUN=scle))
+all(colnames(postBeta$support) == colnames(bb))
+
+## filter by support
+envCoeff = ((postBeta$support>supportLevel) + (postBeta$support<(1-supportLevel))>0)*bb
+row.names(envCoeff) <- colnames(m_hurdle_PA_combo$X)
+## the intercept isn't really interesting...
+envCoeff <- envCoeff[-1,]
+
+envCoeff
+
+## To keep our species-interaction matrix symmetric, we'll add these environmental predictors 
+## as both rows and columns, and add an 8x8 zero matrix "corner" with a diagonal of 1's.
+
+## add on the scaled environmental coefficients
+aa <- rbind(sigAssociations,envCoeff)
+## also as columns, for symmetry
+## so have to add on a corner box where the env-env correlations
+## would be:
+
+bb <- matrix(0, nrow=nrow(envCoeff), ncol=nrow(envCoeff))
+rownames(bb) = row.names(envCoeff)
+colnames(bb) = row.names(envCoeff)
+diag(bb) = 1
+add4symmetry <- rbind(t(envCoeff), bb)
+speciesAssocEnvCoeff <- cbind(aa, add4symmetry)
+all(rownames(speciesAssocEnvCoeff) == colnames(speciesAssocEnvCoeff) ) ## true
+all(diag(speciesAssocEnvCoeff) == 1) ## true
+
+net_asso <- netConstruct(data = speciesAssocEnvCoeff,
+                         dataType = "correlation",
+                         sparsMethod = "none",
+                         verbose = 3)
+
+summary(props_asso, numbNodes = 8L)
+
+props_asso <- netAnalyze(net_asso, clustMethod = "hierarchical")
+
+summary(props_asso, numbNodes = 8L)
+
+svg(file="spatialNetwork_14.10.svg")
+p <- plot(props_asso,
+          nodeColor = "cluster",
+          nodeSize = "eigenvector",
+          title1 = "Species interactions in spatiotemporal model\nabundance-based",
+          repulsion = 0.8,
+          rmSingles = TRUE,
+          showTitle = TRUE,
+          cexTitle = 2.3)
+dev.off()
+
+## but the algorithms detect no clustering, despite pretty obvious
+## modules/clusters/something - there are two clear groups in the 
+## network. 
+
+## I am assuming this is due to land type, but how do we bring this
+## node to the top?
+
+str(props_asso)
+
+props_asso
+
+?NetCoMi::plot
 
 

@@ -8711,6 +8711,8 @@ envData.to_csv('/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils
 
 envData = pd.read_csv('/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis/sulariEnv.csv')
 
+envData = pd.read_csv('sulariEnv.csv')
+
 ## now, we can we include this in out new models? 
 
 
@@ -8738,12 +8740,10 @@ conda activate r_env
 soil
 
 R
-
 library(Hmsc)
 library(phyloseq)
 
 rm(list=ls()) ## merge the spatial and env data:
-
 xycoords = read.csv("sulariSpatial.csv", row.names=1)
 envData <- read.csv("sulariEnv.csv", row.names="SampleID")
 aa <- merge(x=envData, y=xycoords, by=0, )
@@ -8771,7 +8771,6 @@ rowsumsInv = 1/rowSums(bactRaw)
 nASVs <- dim(bactRaw)[2]
 scalarMat = matrix( rep(rowsumsInv, nASVs), ncol = nASVs)
 bact.rel <- bactRaw * scalarMat
-
 ##################### thresholds!! ###########
 ## larger, prev model had 1315 spp, x2 in hurdle model, threshold.prev=0.05, threshold.abu=0.002
 ## we'll do a much harsher subset for the moment. If sampling is cheap, soften it
@@ -8787,6 +8786,7 @@ sum(bact.pa)
 dim(bactData) ## 166 OTUs remain, out of 
 dim(bact.pa) ## 3313 OTUs
 ################################################
+
 Y <- bactData
 ny <- dim(Y)[1]
 ns <- dim(Y)[2]
@@ -8882,6 +8882,34 @@ save(m_hurdle_abu, file="m_hurdle_abu.rda")
 ## tomorrow try sampling these 
 ## we need to run them together, as each individually 
 ## uses little memory.
+
+############ addendum 14.10.24 #############
+
+## the log normal models fail entirely to 
+## predict anything. Let's also now try a
+## hurdle-model approach to the read-only control
+## and if it works, also the spatial effects
+## etc. 
+
+m_readsOnly_PA = Hmsc(Y=Ypa,
+                      XData = XData0,  XFormula = XFormula0,
+                      distr={"probit"} ,
+                      studyDesign=studyDesign, 
+                      ranLevels={list("sample"=rL.sample)},
+                      YScale=TRUE 
+)
+save(m_readsOnly_PA, file="m_readsOnly_PA.rda")
+
+m_readsOnly_abu = Hmsc(Y=Yabu,
+                      XData = XData0,  XFormula = XFormula0,
+                      distr={"probit"} ,
+                      studyDesign=studyDesign, 
+                      ranLevels={list("sample"=rL.sample)},
+                      YScale=TRUE 
+)
+save(m_readsOnly_abu, file="m_readsOnly_abu.rda")
+
+###############################################
 
 ## which means a script for each: 
 
@@ -9865,16 +9893,14 @@ save(m_hurdle_abu_combo, file=paste0(pathHMSCarchives,"m_hurdle_abu_combo.rda"))
 ## (start here when repeating stuff)
 
 library(Hmsc)
-#pathHMSCarchives <- "/media/vol/fichtelberg/hmscBackups/spatial/" ## office comp
-pathHMSCarchives <- "/media/vol1/daniel/sulariArne/soilAnalysis/hmscBackups/spatial/" ## lab comp
+pathHMSCarchives <- "/media/vol/fichtelberg/hmscBackups/spatial/" ## office comp
+#pathHMSCarchives <- "/media/vol1/daniel/sulariArne/soilAnalysis/hmscBackups/spatial/" ## lab comp
 load(paste0(pathHMSCarchives,"m_ReadAbundancesOnly_combo.rda"))
 load(paste0(pathHMSCarchives,"m_ReadAbundancesSpatial_combo.rda"))
 load(paste0(pathHMSCarchives,"m_environmentalOnly_combo.rda"))
 load(paste0(pathHMSCarchives,"m_fullModel_logNorm_sampled_combo.rda"))
 load(paste0(pathHMSCarchives,"m_hurdle_PA_combo.rda"))
 load(paste0(pathHMSCarchives,"m_hurdle_abu_combo.rda"))
-
-
 ## to make the code a little less cumbersome:
 spatialModels = list(
          m_ReadAbundancesOnly_combo,
@@ -9884,7 +9910,6 @@ spatialModels = list(
          m_hurdle_PA_combo,
          m_hurdle_abu_combo 
          )
-
 spatialModelNames = c(
          "m_ReadAbundancesOnly_combo",
          "m_ReadAbundancesSpatial_combo",
@@ -9893,7 +9918,6 @@ spatialModelNames = c(
          "m_hurdle_PA_combo",
          "m_hurdle_abu_combo"
          )
-
 names(spatialModels) <- spatialModelNames
 
 spatialModelsCodas = lapply(spatialModels, convertToCodaObject)
@@ -9952,9 +9976,6 @@ dev.off()
 ## as I thought the 8 chains and thinning would
 ## get us. 
 
-##################################################
-##################################################
-##################################################
 str(spatialModelsCodas[[1]]$Omega)
 
 length(spatialModelsCodas[[1]]$Omega[[1]]) ## 8, so this the list of the chains
@@ -10049,25 +10070,42 @@ for (i in 1:length(models)) {
 ## adapted a bit
 predvaluesSpatialModels <- lapply(spatialModels, computePredictedValues) ## lots of memory needed. Do this on the lab comp?
 
-#save(predvaluesSpatialModels, file="predvaluesSpatialModels.rda") ## huge file, 6.2 gig
+#save(predvaluesSpatialModels, file="predvaluesSpatialModels.rda")
 
-load(predvaluesSpatialModels, file="predvaluesSpatialModels.rda") ## huge file, 6.2 gig
+load("/media/vol/fichtelberg/hmscBackups/spatial/predvaluesSpatialModels.rda")
 
-for (i in 1:length(spatialModels)) {
-     print(spatialModels[[i]]) 
-     predvaluesSpatialModels[[i]]
-     }
 
 modelFitList = list()
 for (i in 1:length(spatialModels)) {
   MF = evaluateModelFit(hM=spatialModels[[i]], predY=predvaluesSpatialModels[[i]])
-  predlist[[i]] <- preds
   modelFitList[[i]] <- MF
 }
 
 
+aa <- function(x1,x2){return(x1*x2)}
+
+evaluateModelFit(hM=models[[i]], predY=preds)
 
 ## put the combo models on the lab comp
+
+###################################################
+
+## oops, need to halt some processes to make room for thomas:
+
+kill -19 166126
+kill -19 166125
+kill -19 165706
+kill -19 163010
+kill -19 165705
+kill -19 163011
+
+## not run, not sure if this works:
+kill -20 166126 166125 165706 163010 165705 163011
+
+## try to start those again when thomas is done. There is a good chance they 
+## got out of synch, but we'll try.
+
+###################################################
 
 putItHere="/media/vol1/daniel/sulariArne/soilAnalysis/hmscBackups/spatial/"
 getFile=/media/vol/fichtelberg/hmscBackups/spatial/*_combo.rda
@@ -10081,5 +10119,138 @@ m_hurdle_PA_combo.rda
 m_hurdle_abu_combo.rda
 
 ## then work on the lab comp as above
+
+## rerun. Thomas has the lab computer for a bit, 
+## try stuff locally, now that we have the model 
+## predictions, maybe the desktop can handle.
+
+## get the list of models onto the office computer, see if it can handle this
+getFile="/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis/predvaluesSpatialModels.rda"
+putItHere="/media/vol/fichtelberg/hmscBackups/spatial/"
+scp test@132.180.112.115:$getFile $putItHere 
+###############
+
+## can we use this in our desktop working env?
+load("/media/vol/fichtelberg/hmscBackups/spatial/spatialAnalysis/predvaluesSpatialModels.rda")
+
+## can we evaluate model fit with this?
+
+length(spatialModels)
+
+length(predvaluesSpatialModels)
+
+MF = evaluateModelFit(hM=spatialModels[[1]], predY=predvaluesSpatialModels[[1]]) ## seems to work
+
+modelFitList <- list()
+for (i in 1:length(spatialModels)) {
+  MF = evaluateModelFit(hM=spatialModels[[i]], predY=predvaluesSpatialModels[[i]])
+  modelFitList[[i]] <- MF
+}
+
+names(modelFitList) <- spatialModelNames
+
+## that seems to have worked. Now let's take a look at them:
+
+for (i in 1:6){
+print(names(modelFitList)[i])
+print(str(modelFitList[i]))
+}
+
+## each species has its own goodness-of-fit statistics,
+## so we take averages:
+
+
+nSpecies <- length(modelFitList[[1]][[1]])
+
+## first, we want to compare the relative performance of 
+## the 
+
+## my brain hurts again. We have lots of models.
+## models that contain zeroes can be simplified to 
+## presence absence and evaluated with TjurR2 and AUC
+## both should approach 1 under ideal conditions, I think
+
+## following the Abrego Ovaskainen 2023 paper, the TjurR2 is best for
+## judging the model's "positive" predictive power: how often does
+## the model properly predict when a species will be present.
+
+## on the other hand, the AUC is perhaps more useful for for
+## discovering when a species will not be present, more the
+## ability for discovering unsuitable sites.
+
+## models with abundance predictions can use R2-type statistics, 
+
+## the only pure PA that we have is the PA half of the hurdle model.
+## but our other zero-containing models can be compared to this,
+## because the poisson/log-poisson posteriors are evaluated both
+## ways: presence/absence ("O" metrics) and based on ability
+## to predict abundances ("C"). 
+
+## so start with the family of metrics for comparing PA models:
+
+str(predvaluesSpatialModels[[i]])
+
+## we'll ignore the Root mean square error, some of these
+## data were normalized/standardized/whatever, and some weren't
+## so the units aren't really comparable
+
+predvaluesSpatialModels[[i]][1:5,1:5,1]
+
+str(modelFitList)
+
+PAmodelFitmatAUC <- matrix(ncol=5, nrow=nSpecies)
+PAmodelFitmatAUC[,1] <- modelFitList$m_ReadAbundancesOnly_combo$O.AUC
+PAmodelFitmatAUC[,2] <- modelFitList$m_ReadAbundancesSpatial_combo$O.AUC
+PAmodelFitmatAUC[,3] <- modelFitList$m_environmentalOnly_combo$O.AUC
+PAmodelFitmatAUC[,4] <- modelFitList$m_fullModel_logNorm_sampled_combo$O.AUC
+PAmodelFitmatAUC[,5] <- modelFitList$m_hurdle_PA_combo$AUC
+head(PAmodelFitmatAUC)
+PAmodelFitAUCdf <- as.data.frame(PAmodelFitmatAUC)
+colnames(PAmodelFitAUCdf) <- c("readAbundanceOnly","ReadAbundancesSpatial","environmentalOnly","fullModel_logNorm","hurdle_PA")
+lapply(PAmodelFitAUCdf, mean, na.rm=TRUE)
+
+PAmodelFitmatTjurR2 <- matrix(ncol=5, nrow=nSpecies)
+PAmodelFitmatTjurR2[,1] <- modelFitList$m_ReadAbundancesOnly_combo$O.TjurR2
+PAmodelFitmatTjurR2[,2] <- modelFitList$m_ReadAbundancesSpatial_combo$O.TjurR2
+PAmodelFitmatTjurR2[,3] <- modelFitList$m_environmentalOnly_combo$O.TjurR2
+PAmodelFitmatTjurR2[,4] <- modelFitList$m_fullModel_logNorm_sampled_combo$O.TjurR2
+PAmodelFitmatTjurR2[,5] <- modelFitList$m_hurdle_PA_combo$TjurR2
+
+head(PAmodelFitmatTjurR2)
+
+PAmodelFitTjurR2df <- as.data.frame(PAmodelFitmatTjurR2)
+
+colnames(PAmodelFitTjurR2df) <- c("readAbundanceOnly","ReadAbundancesSpatial","environmentalOnly","fullModel_logNorm","hurdle_PA")
+
+lapply(PAmodelFitTjurR2df, mean, na.rm=TRUE)
+
+## all zero, except our PA has a TjurR2 of ~0.4
+## looks like most models fail badly, including the log norm, for modeling presence absence
+## this probably be because forcing the posterior to be log-normal poisson that
+## accounts for the all the zeros and all the abundances just results in a 
+## really bad model. This also happened with our one 
+## 
+
+## for the future, if using HMSC, use the hurdle approach,
+## for all comparisons.
+
+## you have to be careful, because we can confound the model
+## type with the differences of data included or not in the 
+## model. So I don't really have any null models here,
+## for comparison to my one hurdle model
+## the thing to do here would be to start a hurdle model
+## for the read-abundances only, at least. 
+
+## so maybe best to try running a read-abundances only
+## null model on the lab computer, starting right now,
+## so I can make some comparisons. 
+
+## the cross validation of these log-poisson models is 
+## probably kind of worthless now anyway. 
+
+## try setting up a hurdle model for read abundances, 
+## above
+
+
 
 

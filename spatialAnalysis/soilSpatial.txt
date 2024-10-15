@@ -10424,4 +10424,13 @@ props_asso
 
 ?NetCoMi::plot
 
+## need to shift over to laptop for a couple days.
+## the sampled models are the only objects that I think we really need 
+## and really only the hurdle models that worked:
+
+getFile="/media/vol/fichtelberg/hmscBackups/spatial/m_hurdle_PA_combo.rda"
+#getFile="/media/vol/fichtelberg/hmscBackups/spatial/m_hurdle_abu_combo.rda"
+putItHere=/home/daniel/Documents/projects/fichtelgebirge_project/sulariArneSoils/hmscBigFiles
+scp daniel@132.180.112.24:$getFile $putItHere 
+
 

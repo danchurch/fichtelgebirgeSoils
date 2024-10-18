@@ -8891,7 +8891,7 @@ save(m_hurdle_abu, file="m_hurdle_abu.rda")
 ############################################
 
 
-## 6.1, hurdle of reads only:
+## 6.1, hurdle of reads only, PA:
 
 m_readsOnly_PA = Hmsc(Y=Ypa,
                       XData = XData0,  XFormula = XFormula0,
@@ -8902,15 +8902,40 @@ m_readsOnly_PA = Hmsc(Y=Ypa,
 )
 save(m_readsOnly_PA, file="m_readsOnly_PA.rda")
 
-## 6.2, hurdle of reads only:
+## 6.2, hurdle of reads only, abundance:
 m_readsOnly_abu = Hmsc(Y=Yabu,
                       XData = XData0,  XFormula = XFormula0,
-                      distr={"probit"} ,
+                      distr={"normal"} ,
                       studyDesign=studyDesign, 
                       ranLevels={list("sample"=rL.sample)},
                       YScale=TRUE 
 )
 save(m_readsOnly_abu, file="m_readsOnly_abu.rda")
+
+## 7.1, hurdle of spatial only, no env, PA:
+m_spatialOne_hurdlePA = Hmsc(Y=Ypa,
+         XData = XData0,  XFormula = XFormula0,
+         distr={"probit"} ,
+         studyDesign=studyDesign, 
+         ranLevels={list("sample"=rL.sample, "site_spatial" = rL.site_spatial)},
+         YScale=TRUE 
+)
+save(m_spatialOne_hurdlePA, file="m_spatialOne_hurdlePA.rda")
+
+## 7.2, hurdle of spatial only, no env, abundance:
+m_spatialOne_hurdleAbu = Hmsc(Y=Yabu,
+         XData = XData0,  XFormula = XFormula0,
+         distr={"normal"} ,
+         studyDesign=studyDesign, 
+         ranLevels={list("sample"=rL.sample, "site_spatial" = rL.site_spatial)},
+         YScale=TRUE 
+)
+save(m_spatialOne_hurdleAbu, file="m_spatialOne_hurdleAbu.rda")
+
+### not run vv ###
+## 8.1, hurdle of env only, no spatial, PA:
+## 8.2, hurdle of env only, no spatial, abundance:
+### not run ^^ ###
 
 ###############################################
 
@@ -9157,6 +9182,60 @@ print(paste("finish time is", Sys.time()))
 nohup Rscript m_hurdle_readsOnly_abu_sampling.r &> m_hurdle_readsOnly_abu_sampling.log &
 
 
+## 7.1 m_spatialOne_hurdlePA
+#### m_spatialOne_hurdlePA_sampling.r ####
+
+library(Hmsc)
+print("starting model:")
+print("m_spatialOne_hurdlePA")
+print(paste("start time is", Sys.time()))
+load("m_spatialOne_hurdlePA.rda")
+thin = 20
+samples = 1000
+nChains = 8
+nP = 2
+m_spatialOne_hurdlePA = sampleMcmc(m_spatialOne_hurdlePA,
+                        samples = samples, 
+                        thin=thin, 
+                        transient = ceiling(0.5*samples*thin), 
+                        nChains = nChains, 
+                        nParallel = nP
+                        )
+save(m_spatialOne_hurdlePA, file="m_spatialOne_hurdlePA_sampled.rda")
+print(paste("finish time is", Sys.time()))
+
+#################################################
+
+nohup Rscript m_spatialOne_hurdlePA_sampling.r &> m_spatialOne_hurdlePA_sampling.log &
+
+
+## 7.2 m_spatialOne_hurdleAbu
+#### m_spatialOne_hurdleAbu_sampling.r ####
+
+library(Hmsc)
+print("starting model:")
+print("m_spatialOne_hurdleAbu")
+print(paste("start time is", Sys.time()))
+load("m_spatialOne_hurdleAbu.rda")
+thin = 20
+samples = 1000
+nChains = 8
+nP = 2
+m_spatialOne_hurdleAbu = sampleMcmc(m_spatialOne_hurdleAbu,
+                        samples = samples, 
+                        thin=thin, 
+                        transient = ceiling(0.5*samples*thin), 
+                        nChains = nChains, 
+                        nParallel = nP
+                        )
+save(m_spatialOne_hurdleAbu, file="m_spatialOne_hurdleAbu_sampled.rda")
+print(paste("finish time is", Sys.time()))
+
+#################################################
+
+nohup m_spatialOne_hurdleAbu_sampling.r &> m_spatialOne_hurdleAbu_sampling.log  &
+
+
 ## some of these models are finishing up. 
 
 ## it takes even longer to predictive R2 out of these,
@@ -9183,6 +9262,7 @@ m_ReadAbundancesOnly_coda = convertToCodaObject(m_ReadAbundancesOnly)
 m_ReadAbundancesOnly.beta = effectiveSize(m_ReadAbundancesOnly_coda$Beta)  
 
 hist(m_ReadAbundancesOnly.beta, main="effective sample size for beta", breaks=30) 
+
 ## not horrible, but mean is somewhere around 500
 ## might be good to run more sampling, but wait till the other models come in
 
@@ -9225,7 +9305,6 @@ tar -xzvf sampledSpatiolFirstRound.tgz
 
 ## we can play with the models we have, while we wait for the full sampling to come in.
 ## models are here, on denbi:
-
 
 
 ## a couple things we want to do  
@@ -10160,6 +10239,12 @@ kill -20 166126 166125 165706 163010 165705 163011
 ## try to start those again when thomas is done. There is a good chance they 
 ## got out of synch, but we'll try.
 
+## meh, let's just get rid of them and start again. Most of them are the
+## log normal models that will fail anyway:
+
+kill 166126 166125 165706 163010 165705 163011
+
+
 ###################################################
 
 putItHere="/media/vol1/daniel/sulariArne/soilAnalysis/hmscBackups/spatial/"
@@ -10331,6 +10416,7 @@ supportLevel = 0.95
 sigAssociations = ((OmegaCor[[1]]$support>supportLevel) + (OmegaCor[[1]]$support<(1-supportLevel))>0)*OmegaCor[[1]]$mean
 postBeta = getPostEstimate(m_hurdle_PA_combo, parName = "Beta")
 
+
 plotBeta(m_hurdle_PA_combo, post = postBeta, 
          param = "Support",
          supportLevel = 0.95,
@@ -10339,8 +10425,41 @@ plotBeta(m_hurdle_PA_combo, post = postBeta,
          main="Environmental Predictors for all abundant ASVs")
 
 postBeta$mean
-
 specAssoc = ((OmegaCor[[1]]$support>supportLevel) + (OmegaCor[[1]]$support<(1-supportLevel))>0)*OmegaCor[[1]]$mean
+
+## what if we want to isolate the sensitive species, for a given predictor...
+## for example, co2Flow:
+
+postBeta$mean
+
+supportLevel = 0.95
+sigBetas = ((postBeta$support>supportLevel) + (postBeta$support<(1-supportLevel))>0)*postBeta$mean
+rownames(sigBetas) = colnames(m_hurdle_PA_combo$X)
+
+sigBetas['soil_respiration',] > 0
+
+sigBetas['soil_respiration', sigBetas['soil_respiration',] > 0, drop=FALSE] ## ASV300 is associated with high soil resp
+
+## what is this again?
+
+
+library(phyloseq)
+load("psCleanedUp.rda")
+psCleanedUp = prune_samples(!(rownames(sample_data(psCleanedUp)) %in% c("C1.1","C1.2","C2.1","C2.2")), psCleanedUp)
+psCleanedUp = prune_taxa( colSums(otu_table(psCleanedUp)) > 0, psCleanedUp)
+
+tax_table(psCleanedUp)['ASV300',] ## an acidobacteriota. Hmm...
+
+#sink('m_hurdle_PA_combo_structure.txt')
+#cat(str(m_hurdle_PA_combo))
+#sink()
+
+str(postBeta)
+
+postBeta$mean
+
+
+dev.new()
 
 corrplot(specAssoc, method = "color",
          col=colorRampPalette(c("blue","white","red"))(200),
@@ -10379,7 +10498,6 @@ aa <- rbind(sigAssociations,envCoeff)
 ## also as columns, for symmetry
 ## so have to add on a corner box where the env-env correlations
 ## would be:
-
 bb <- matrix(0, nrow=nrow(envCoeff), ncol=nrow(envCoeff))
 rownames(bb) = row.names(envCoeff)
 colnames(bb) = row.names(envCoeff)
@@ -10394,13 +10512,14 @@ net_asso <- netConstruct(data = speciesAssocEnvCoeff,
                          sparsMethod = "none",
                          verbose = 3)
 
-summary(props_asso, numbNodes = 8L)
 
 props_asso <- netAnalyze(net_asso, clustMethod = "hierarchical")
 
 summary(props_asso, numbNodes = 8L)
 
-svg(file="spatialNetwork_14.10.svg")
+summary(props_asso, numbNodes = 8L)
+
+#svg(file="spatialNetwork_14.10.svg")
 p <- plot(props_asso,
           nodeColor = "cluster",
           nodeSize = "eigenvector",
@@ -10409,7 +10528,7 @@ p <- plot(props_asso,
           rmSingles = TRUE,
           showTitle = TRUE,
           cexTitle = 2.3)
-dev.off()
+#dev.off()
 
 ## but the algorithms detect no clustering, despite pretty obvious
 ## modules/clusters/something - there are two clear groups in the 
@@ -10418,10 +10537,19 @@ dev.off()
 ## I am assuming this is due to land type, but how do we bring this
 ## node to the top?
 
+## two things to happen here - assign colors by interesting attributes,
+## and 
 str(props_asso)
 
 props_asso
 
 ?NetCoMi::plot
 
+## so, now, what do we need to do:
+  ## 1. view the networks we have in gephi, try to understand the groupings
+    ## - maybe recreate without the environmental nodes, and color by 
+    ##   predictive variables 
+  ## 2. get the hurdle models goings for two more models: environmental variables only, and spatial effects only (no env vars)
+  ## 3. update cross validations - what do we have, what do we need?
 
+## step 1. add more models - code above line 9155

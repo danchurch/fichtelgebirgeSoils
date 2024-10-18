@@ -10545,11 +10545,13 @@ props_asso
 
 ?NetCoMi::plot
 
-## so, now, what do we need to do:
-  ## 1. view the networks we have in gephi, try to understand the groupings
-    ## - maybe recreate without the environmental nodes, and color by 
-    ##   predictive variables 
-  ## 2. get the hurdle models goings for two more models: environmental variables only, and spatial effects only (no env vars)
-  ## 3. update cross validations - what do we have, what do we need?
+## need to shift over to laptop for a couple days.
+## the sampled models are the only objects that I think we really need 
+## and really only the hurdle models that worked:
+
+getFile="/media/vol/fichtelberg/hmscBackups/spatial/m_hurdle_PA_combo.rda"
+#getFile="/media/vol/fichtelberg/hmscBackups/spatial/m_hurdle_abu_combo.rda"
+putItHere=/home/daniel/Documents/projects/fichtelgebirge_project/sulariArneSoils/hmscBigFiles
+scp daniel@132.180.112.24:$getFile $putItHere 
 
 ## step 1. add more models - code above line 9155

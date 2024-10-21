@@ -10405,12 +10405,17 @@ lapply(PAmodelFitTjurR2df, mean, na.rm=TRUE)
 library(Hmsc)
 library(corrplot)
 library(NetCoMi)
+library(phyloseq)
+
+## on office comp:
+setwd("/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis")
 
 #path2models <- "/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis/" ##nanocomp
 path2models <- "/media/vol/fichtelberg/hmscBackups/spatial/" ##officecomp
 ## start with the hurdle presence/absence model
 load(file.path(path2models,"m_hurdle_PA_combo.rda"))
 
+## get our environmental and species correlations:
 OmegaCor = computeAssociations(m_hurdle_PA_combo)
 supportLevel = 0.95
 sigAssociations = ((OmegaCor[[1]]$support>supportLevel) + (OmegaCor[[1]]$support<(1-supportLevel))>0)*OmegaCor[[1]]$mean
@@ -10425,7 +10430,7 @@ plotBeta(m_hurdle_PA_combo, post = postBeta,
          main="Environmental Predictors for all abundant ASVs")
 
 postBeta$mean
-specAssoc = ((OmegaCor[[1]]$support>supportLevel) + (OmegaCor[[1]]$support<(1-supportLevel))>0)*OmegaCor[[1]]$mean
+
 
 ## what if we want to isolate the sensitive species, for a given predictor...
 ## for example, co2Flow:
@@ -10436,14 +10441,10 @@ supportLevel = 0.95
 sigBetas = ((postBeta$support>supportLevel) + (postBeta$support<(1-supportLevel))>0)*postBeta$mean
 rownames(sigBetas) = colnames(m_hurdle_PA_combo$X)
 
-sigBetas['soil_respiration',] > 0
 
 sigBetas['soil_respiration', sigBetas['soil_respiration',] > 0, drop=FALSE] ## ASV300 is associated with high soil resp
 
 ## what is this again?
-
-
-library(phyloseq)
 load("psCleanedUp.rda")
 psCleanedUp = prune_samples(!(rownames(sample_data(psCleanedUp)) %in% c("C1.1","C1.2","C2.1","C2.2")), psCleanedUp)
 psCleanedUp = prune_taxa( colSums(otu_table(psCleanedUp)) > 0, psCleanedUp)
@@ -10464,7 +10465,7 @@ dev.new()
 corrplot(specAssoc, method = "color",
          col=colorRampPalette(c("blue","white","red"))(200),
          tl.cex=.6, tl.col="black",
-         title=paste("random effect level:", m_hurdle_PA_combo$rLNames[3]), mar=c(0,0,1,0))
+         mar=c(0,0,1,0))
 
 ## we don't really have an ability to get to a correlation plot, we have
 ## only the full models from each species after conditioning on all 
@@ -10473,12 +10474,10 @@ corrplot(specAssoc, method = "color",
 ## so let's scale our 
 
 scle = function(x){x / max(abs(x))}
-
 ## apply to environmental covariate matrix
 ## scale across rows, because each row will have
 ## different units (each row is a environmental 
 ## variable).
-
 bb = t(apply(postBeta$mean, MARGIN=1, FUN=scle))
 all(colnames(postBeta$support) == colnames(bb))
 
@@ -10554,4 +10553,228 @@ getFile="/media/vol/fichtelberg/hmscBackups/spatial/m_hurdle_PA_combo.rda"
 putItHere=/home/daniel/Documents/projects/fichtelgebirge_project/sulariArneSoils/hmscBigFiles
 scp daniel@132.180.112.24:$getFile $putItHere 
 
-## step 1. add more models - code above line 9155
+## so, now, what do we need to do:
+  ## 1. view the networks we have in gephi, try to understand the groupings
+    ## - maybe recreate without the environmental nodes, and color by
+    ##   predictive variables
+  ## 2. get the hurdle models goings for two more models: environmental variables only, and spatial effects only (no env vars)
+  ## 3. update cross validations - what do we have, what do we need?
+
+
+## step 2. add more models - code added above line 9155, and before 
+## step 3. cross validations - wait till the models are in
+
+## step 1. gephi:
+## installed gephi binaries here:
+ln -s /home/daniel/.gephi-0.10.1/bin/gephi /home/daniel/.local/bin/gephi
+
+# For Gephi, we have to generate an edge list with IDs.
+# The corresponding labels (and also further node features) are stored as node list.
+
+## for instance, with our hurdle PA full model:
+
+# Create edge object from the edge list exported by netConstruct()
+
+str(net_asso)
+
+net_asso$edgelist1$v1
+
+## are there repeated ASVs as vertices in these two 
+## lists v1 and v2?
+
+"ASV89" %in% net_asso$edgelist1$v1
+"ASV89" %in% net_asso$edgelist1$v2
+
+net_asso$edgelist1[net_asso$edgelist1$v1 == "ASV89",]
+
+net_asso$edgelist1[net_asso$edgelist1$v2 == "ASV89",]
+
+
+
+## lots of vertices are repeated repeated
+
+sapply(net_asso$edgelist1$v1, function(x){x %in% net_asso$edgelist1$v2})
+
+length(unique(net_asso$edgelist1$v1))
+length(net_asso$edgelist1$v1)
+
+length(unique(net_asso$edgelist1$v2))
+length(net_asso$edgelist1$v2)
+
+sapply(unique(net_asso$edgelist1$v1), function(x){x %in% unique(net_asso$edgelist1$v2)})
+
+all(sapply(net_asso$edgelist1$v1, function(x){x %in% net_asso$edgelist1$v2})) ## but not all
+
+sum(sapply(net_asso$edgelist1$v1, function(x){x %in% net_asso$edgelist1$v2})) ## 9845
+sum(!sapply(net_asso$edgelist1$v1, function(x){x %in% net_asso$edgelist1$v2})) ## 158
+
+sapply(net_asso$edgelist1$v2, function(x){x %in% net_asso$edgelist1$v1})
+
+sapply(list1, function(x){x %in% list2[[1]]})
+
+betas.gelman <- sapply(betas, gelman.diag)
+
+net_asso$edgelist1$v2
+
+######### suggest code adapted from netcomi github site ################
+Source <- as.numeric(factor(net_asso$edgelist1$v1))
+Target <- as.numeric(factor(net_asso$edgelist1$v2))
+Type <- "Undirected"
+Weight <- net_asso$edgelist1$adja
+edges = data.frame( v1 = net_asso$edgelist1$v1,
+                    v2 = net_asso$edgelist1$v2,
+                    Source = Source,
+                    Target = Target,
+                    Type   = Type  ,
+                    Weight = Weight)
+
+nodes <- unique(edges[,c('v1','Source')]) ## this drops the carbon and other environmental nodes.
+nodes2 <- unique(edges[,c('v2','Source')]) ## add this?
+
+colnames(nodes) <- c("Label", "Id")
+
+edges <- edges[, c("Source", "Target", "Type", "Weight")]
+
+?netConstruct
+
+write.csv(nodes, file = "networks/nodes.csv", row.names = FALSE)
+#write.csv(nodes2, file = "networks/nodes2.csv", row.names = FALSE) ## nope.
+write.csv(edges, file = "networks/edges.csv", row.names = FALSE)
+######### ^^^ suggest code adapted from netcomi github site ^^^ ################
+
+## but that is dropping a lot of our nodes. 
+## can gephi except non-numeric source and target info?
+## as in, use the names of nodes for these, directly?:
+## for this, we need a list of unique ASV and environmental
+## variables.
+
+## this should be all of our nodes:
+
+nodeNames <- unique(c(net_asso$edgelist1$v1, net_asso$edgelist1$v2))
+nodes <- as.data.frame(nodeNames)
+colnames(nodes) <- "id"
+
+## and our edges would use names instead of numbers:
+edges = data.frame( Source = net_asso$edgelist1$v1,
+                    Target = net_asso$edgelist1$v2,
+                    Weight = net_asso$edgelist1$adja)
+
+## gephi accept this?
+write.csv(nodes, file = "networks/nodes.csv", row.names = FALSE)
+## if you want to get rid of column names, btw:
+#write.table(nodeNames, file="networks/nodes.csv", sep=",", row.names = FALSE,  col.names=FALSE)
+write.csv(edges, file = "networks/edges.csv", row.names = FALSE)
+
+## that works, gephi likes it and it looks like the graphic 
+## generated by netcomi
+
+edges[edges[, "Weight"] < 0,] ## no negative interactions, not sure why
+## work on that in a minute...
+
+## using the environmental predictors as nodes in the graph
+## really doesn't tell us. I have a suspicion that the two
+## modules we detect are due to land use, how can we test this?
+
+## we should provide direct information for each ASV as to whether 
+## it was observed in a land-type, and/or % of its occurrences
+## were in a land type.
+
+## how to do this? 
+
+## how about a most-common (plurality) approach. 
+## for each ASV, extract the 
+## if there is a tie, give these a color, also
+
+## one ASV:
+
+ASV="ASV116"
+
+ASV116
+
+load("psCleanedUp.rda")
+psCleanedUp = prune_samples(!(rownames(sample_data(psCleanedUp)) %in% c("C1.1","C1.2","C2.1","C2.2")), psCleanedUp)
+psCleanedUp = prune_taxa( colSums(otu_table(psCleanedUp)) > 0, psCleanedUp)
+
+tax_table(psCleanedUp)[ASV,] ## an acidobacteriota. of course. lots of these
+
+otu_table(psCleanedUp)[,ASV]
+
+## but really, we want to use our community matrix for this, I think:
+comData <- read.csv("/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/comdat.csv", row.names=1)
+envData <- read.csv("/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/Envt_Matrix.csv", row.names=1)
+## remove controls
+notControls=!(row.names(comData) %in% c("C1.1", "C1.2", "C2.1", "C2.2"))
+comData = comData[notControls,]
+envData = envData[notControls,]
+## just checking
+all(rownames(comData) == rownames(envData))
+
+## just do it presence/absence for now:
+comDataPA <- comData
+comDataPA[comDataPA > 0] = 1
+
+## lump by site
+forestSites = row.names(envData[envData$Land.type == "Forest",])
+grassSites = row.names(envData[envData$Land.type == "Grassland",])
+cropSites = row.names(envData[envData$Land.type == "Arableland",])
+
+class(colSums(comDataPA[forestSites,]))
+
+
+ASVlandTotals = as.data.frame(
+                        rbind( colSums(comDataPA[forestSites,]),
+                               colSums(comDataPA[grassSites,]),
+                               colSums(comDataPA[cropSites,])),
+                               row.names=c("forest","grass","crop"))
+## subset to just the ASVs examined in the models:
+ASVlandTotals <- ASVlandTotals[, dimnames(m_hurdle_PA_combo$Y)[[2]]]
+
+## we need a set of categories for this. 
+## have the idea that the crop and grassland 
+## species are intermixing a lot,
+## so we need more than a simple "which type
+## of land were they observed at the most"
+## need category for 
+
+## sorting algorithm would be something like:
+## 1. if any single land-type accounts for >80% observations, this ASV is colored by that LT
+## 2. if no single land-type reaches this, and no to single LT accounts for less than 20%, called it 3-way mixed
+## 3. otherwise, call it a mix of the two LTs in which the ASV was most commonly observed. 
+
+## and if there is a tie between the two lower amounts??
+
+## how to code this....
+
+## 
+
+
+ASVlandTotals
+
+aa = ASVlandTotals[,"ASV83", drop=TRUE]
+
+ASVlandTotals[,"ASV493", drop=FALSE]
+aa = ASVlandTotals[,"ASV493", drop=TRUE]
+
+
+## function for lapply, takes the column vector as input:
+
+getLT <- function(column){
+    names(column) <- rownames(ASVlandTotals)
+    ## need sorted version for some things:
+    sortedaa = sort(column, decreasing=T)
+    ## all about proportions, so normalize it
+    bb = column/sum(column)
+    if (any(bb > .80)){
+      lt=names(bb)[which(bb > .80, useNames = TRUE )]
+          } else if (all(bb > 0.1) | sortedaa[2] == sortedaa[3]){
+               lt = "mixed" } else { lts <- names(sortedaa)[1:2]
+                                      lt <- paste(lts[1],lts[2], sep="/")}
+    #print(column)
+    #print(bb)
+    return(lt)
+    }
+
+
+apply(ASVlandTotals, MARGIN=2, FUN=getLT)
+
+## okay, this is what we need. Add this as information to our network?

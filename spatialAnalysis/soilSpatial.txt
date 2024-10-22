@@ -8743,6 +8743,7 @@ conda activate r_env
 soil
 
 R
+
 library(Hmsc)
 library(phyloseq)
 
@@ -8919,6 +8920,7 @@ m_environmentalOnly_hurdlePA = Hmsc(Y=Ypa,
 save(m_environmentalOnly_hurdlePA, file="m_environmentalOnly_hurdlePA.rda")
 
 ## 3.2, hurdle of env only, no spatial, abundance:
+
 m_environmentalOnly_hurdleAbu = Hmsc(Y=Yabu,
          XData = XData1,  XFormula = XFormula1,
          distr={"normal"} ,
@@ -9190,7 +9192,7 @@ print(paste("finish time is", Sys.time()))
 
 #################################################
 
-nohup Rscript m_spatialOne_hurdleAbu_sampling.r &> m_spatialOne_hurdleAbu_sampling.log  &
+nohup Rscript m_spatialOne_hurdleAbu_sampling.r &>> m_spatialOne_hurdleAbu_sampling.log  &
 
 ## models from here need to be rerun, because soil moisture was not included in the environmental models
 
@@ -9221,11 +9223,11 @@ print(paste("finish time is", Sys.time()))
 nohup Rscript m_environmentalOnly_hurdlePA_sampling.r &> m_environmentalOnly_hurdlePA_sampling.log &
 
 ## 3.2 m_environmentalOnly_hurdleAbu
-##### m_environmentalOnly_hurdlePA_sampling.r ####
+##### m_environmentalOnly_hurdleAbu_sampling.r ####
 
 library(Hmsc)
 print("starting model:")
-print("m_environmentalOnly_hurdlePA")
+print("m_environmentalOnly_hurdleAbu")
 print(paste("start time is", Sys.time()))
 load("m_environmentalOnly_hurdleAbu.rda")
 thin = 20
@@ -9258,23 +9260,22 @@ print(paste("start time is", Sys.time()))
 load("m_hurdle_PA.rda")
 thin = 20
 samples = 1000
-nChains = 4
+nChains = 8
 nP = 2
-#m_hurdle_PA = sampleMcmc(m_hurdle_PA,
-m_hurdle_PA2 = sampleMcmc(m_hurdle_PA,
+m_hurdle_PA = sampleMcmc(m_hurdle_PA,
                      samples = samples, 
                      thin=thin, 
                      transient = ceiling(0.5*samples*thin), 
                      nChains = nChains, 
                      nParallel = nP
                      )
-save(m_hurdle_PA2, file="m_hurdle_PA_sampled2.rda")
-#save(m_hurdle_PA, file="m_hurdle_PA_sampled.rda")
+save(m_hurdle_PA, file="m_hurdle_PA_withH2O_sampled.rda")
 print(paste("finish time is", Sys.time()))
 
 #################################################
 
-#nohup Rscript m_hurdle_PA_sampling.r &> m_hurdle_PA_sampling.log &
+nohup Rscript m_hurdle_PA_sampling.r &> m_hurdle_PA_sampling.log &
+
 ## 15900
 
 conda activate r_env
@@ -9286,29 +9287,26 @@ nohup Rscript m_hurdle_PA_sampling.r &> m_hurdle_PA_sampling.log &
 
 library(Hmsc)
 print("starting model:")
-print("m_hurdle_aba_2ndSample")
-#print("m_hurdle_aba")
+print("m_hurdle_abu")
 print(paste("start time is", Sys.time()))
 load("m_hurdle_abu.rda")
 thin = 20
 samples = 1000
-nChains = 4
+nChains = 8
 nP = 2
-#m_hurdle_abu = sampleMcmc(m_hurdle_abu,
-m_hurdle_abu2 = sampleMcmc(m_hurdle_abu,
+m_hurdle_abu = sampleMcmc(m_hurdle_abu,
                      samples = samples, 
                      thin=thin, 
                      transient = ceiling(0.5*samples*thin), 
                      nChains = nChains, 
                      nParallel = nP
                      )
-#save(m_hurdle_abu2, file="m_hurdle_abu_sampled.rda")
-save(m_hurdle_abu2, file="m_hurdle_abu_sampled2.rda")
+save(m_hurdle_abu, file="m_hurdle_abu_withH2O_sampled.rda")
 print(paste("finish time is", Sys.time()))
 
 #################################################
 
-nohup Rscript m_hurdle_abu_sampling.r &> m_hurdle_abu_sampling2.log &
+nohup Rscript m_hurdle_abu_sampling.r &> m_hurdle_abu_sampling.log &
 
 
 
@@ -10927,3 +10925,10 @@ net_asso$edgelist1$adja
 ## or do this now? 
 
 ## one thing at a time, get models running
+
+## 1 - spatial-only abu hurdle, abu,  ## done
+
+## environment-only hurdle, both
+## full spatial + environment hurdle, both
+
+## all are running. Let's see where they go.

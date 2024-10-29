@@ -9248,6 +9248,10 @@ print(paste("finish time is", Sys.time()))
 
 nohup Rscript m_environmentalOnly_hurdleAbu_sampling.r &> m_environmentalOnly_hurdleAbu_sampling.log &
 
+## oops, saved those last two over the unsampled model file:
+mv m_environmentalOnly_hurdlePA.rda m_environmentalOnly_hurdlePA_sampled.rda 
+mv m_environmentalOnly_hurdleAbu.rda m_environmentalOnly_hurdleAbu_sampled.rda 
+
 ## 4 was a lognormal model, now dead to me
 
 ## 5.1 m_hurdle_PA
@@ -10164,7 +10168,6 @@ save(m_hurdle_abu_combo, file=paste0(pathHMSCarchives,"m_hurdle_abu_combo.rda"))
 
 ## to bring these back up:
 
-## (start here when repeating stuff)
 
 library(Hmsc)
 pathHMSCarchives <- "/media/vol/fichtelberg/hmscBackups/spatial/" ## office comp
@@ -11120,6 +11123,7 @@ getFile="/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialA
 putItHere="/home/daniel/Documents/projects/fichtelgebirge_project/sulariArneSoils/hmscBigFiles"
 scp test@132.180.112.115:$getFile $putItHere 
 
+
 scp daniel@132.180.112.24:$getFile $putItHere 
 /home/daniel/Documents/projects/fichtelgebirge_project/sulariArneSoils/hmscBigFiles/
 
@@ -11136,17 +11140,104 @@ m_spatialOne_hurdlePA_sampled.rda
 ## 2.2, hurdle of spatial only, no env, abundance:
 m_spatialOnly_hurdleAbu_sampled.rds
 ## 3.1 hurdle of env only, no spatial, PA:
-## missing
+m_environmentalOnly_hurdlePA.rda
 ## 3.2, hurdle of env only, no spatial, abundance:
-## missing
+m_environmentalOnly_hurdleAbu.rda
 ## 5.1. hurdle probit/PA: 
 m_hurdle_PA_withH2O_sampled.rda
 ## 5.2. hurdle abundance 
 m_hurdle_abu_withH2O_sampled.rda
 
-## need to find those others. Did they fail?
-## for now no internet.  
-## check the others to see how they look
+## need to clean up the models a bit, things are getting confusing again.
+## is there any need to retain our earlier attempts on the sampled
+## models? or just the latest? 
+
+## there may be value in the spatio-temporal models, even though I 
+## think we forgot to include soil moisture in these. 
+## keep these, and the the 4 hurdle models
+
+## do we need to keep the lognormal models that basically failed?
+## if we still have it, the full one (#4), to show how much it sucks.
+
+## so remove everything but these, on all three computers. We have
+## the code to rebuild if we need. On all three computers, we should
+## have a folder for the large sampled models, with a sub folder
+## for the big, spatial-only data, and a sub-folder for the spatio-temporal
+## models. 
+
+## on the nanopore computer, this is:
+cd /media/vol1/daniel/sulariArne/soilAnalysis/hmscBackups/ 
+
+## cleaned this up, probably created quite some problems with git. 
+
+## not sure. Need to do the same on the office computer and laptop,
+## but would be good to actually keep all repo folders the same. 
+## to be done when I'm back at the office computer. 
+
+## so a plan:
+
+## we need to start predictive cross-validation checks, 
+## compare the explanatory powers
+## assuming the ones with spatial and environmental
+## are the ones that work best:
+##   generate network diagrams 
+##   find the interesting groups, correlated with high respiration and CO2, Udaeobacter, etc
+##     (color these and their adjacent nodes on the networks)
+##   make some predictions about shifts in microbial community with warmer, drier soils
+
+## what today 29.10.24?
+## check mixing and explanatory power
+## start cross-validations
+## update notebook, if time 
+
+## check sampling depths. We'll start again
+## as we were doing around line 10168 above
+
+conda activate spatialDirt
+
+soil
+R
+library(Hmsc)
 
 
+#pathHMSCarchives <- "/media/vol/fichtelberg/hmscBackups/spatial/" ## office comp
+pathHMSCarchives <- "/media/vol1/daniel/sulariArne/soilAnalysis/hmscBackups/spatial/" ## lab comp
 
+## these are the models we want:
+load(paste0(pathHMSCarchives,"m_readsOnly_PA_sampled.rda"))
+load(paste0(pathHMSCarchives,"m_readsOnly_abu_sampled.rda"))
+load(paste0(pathHMSCarchives,"m_spatialOne_hurdlePA_sampled.rda"))
+m_spatialOnly_hurdleAbu <- readRDS(paste0(pathHMSCarchives,"m_spatialOnly_hurdleAbu_sampled.rds"))
+load(paste0(pathHMSCarchives,"m_environmentalOnly_hurdlePA_sampled.rda"))
+load(paste0(pathHMSCarchives,"m_environmentalOnly_hurdleAbu_sampled.rda"))
+load(paste0(pathHMSCarchives,"m_hurdle_PA_withH2O_sampled.rda"))
+load(paste0(pathHMSCarchives,"m_hurdle_abu_withH2O_sampled.rda"))
+
+## rename our spatial-only PA, that typo is annoying:
+m_spatialOnly_hurdlePA <- m_spatialOne_hurdlePA
+rm(m_spatialOne_hurdlePA)
+
+## to make the code a little less cumbersome:
+spatialModels = list(
+                     m_readsOnly_abu,
+                     m_readsOnly_PA,
+                     m_spatialOnly_hurdlePA,
+                     m_spatialOnly_hurdleAbu,
+                     m_environmentalOnly_hurdleAbu,
+                     m_environmentalOnly_hurdlePA,
+                     m_hurdle_abu,
+                     m_hurdle_PA
+         )
+spatialModelNames = c(
+                      "m_readsOnly_abu",
+                      "m_readsOnly_PA",
+                      "m_spatialOnly_hurdlePA",
+                      "m_spatialOnly_hurdleAbu",
+                      "m_environmentalOnly_hurdleAbu",
+                      "m_environmentalOnly_hurdlePA",
+                      "m_hurdle_abu",
+                      "m_hurdle_PA"
+         )
+names(spatialModels) <- spatialModelNames
+
+spatialModelsCodas = lapply(spatialModels, convertToCodaObject) ## killed, too much memory.

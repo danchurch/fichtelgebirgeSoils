@@ -8936,7 +8936,7 @@ save(m_environmentalOnly_hurdleAbu, file="m_environmentalOnly_hurdleAbu.rda")
  
 
 ## 5. a hurdle model, full spatial model with environmental covariates which is actually 2 models:
-  ## 5.1. hurdle probit/PA: 
+## 5.1. hurdle probit/PA: 
 
 m_hurdle_PA = Hmsc(Y=Ypa,
          XData = XData1,  XFormula = XFormula1,
@@ -9869,6 +9869,68 @@ done
 1363
 1364
 1365
+
+## the abundance models for our spatial-only hurdle abundance
+## model is failing, let's try this approach with model also:
+
+## 2.2 m_spatialOnly_hurdleAbu
+#### m_spatialOnly_hurdleAbu_sampling_1atatime.r ####
+
+library(Hmsc)
+chainName = commandArgs(trailingOnly=TRUE)[1]
+print("starting model:")
+print("m_spatialOnly_hurdleAbu")
+print(paste("start time is", Sys.time()))
+load("m_spatialOne_hurdleAbu.rda")
+## fix this for real
+thin = 20
+## fix this for real
+samples = 1000
+nChains = 1
+nP = 2
+m_spatialOne_hurdleAbu = sampleMcmc(m_spatialOne_hurdleAbu,
+                         samples = samples, 
+                         thin=thin, 
+                         transient = ceiling(0.5*samples*thin), 
+                         nChains = nChains, 
+                         nParallel = nP
+                     )
+filename <- paste0("m_spatialOnly_hurdleAbu_sampled_c", chainName, ".rds")
+saveRDS(m_spatialOne_hurdleAbu, file=filename)
+print(paste("finish time is", Sys.time()))
+
+#################################################
+
+for i in {1..8}; do
+  echo $i
+  nohup Rscript m_spatialOnly_hurdleAbu_sampling_1atatime.r $i  &> m_spatialOnly_hurdleAbu_sampled_c${i}.log &
+done
+
+## now to combine these into a single model:
+
+step=0
+m_spatialOnly_hurdleAbu_sampled_chains <- list()
+path2model <- "/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis/"
+for (i in list.files(path2model, pattern="m_spatialOnly_hurdleAbu_sampled_c.*rds")){
+    step=step+1
+    print(i)
+    m_spatialOnly_hurdleAbu_sampled_chains[[step]] <- readRDS(paste0(path2model,i))
+}
+
+## okay, how can we concatenate these things?
+m_spatialOnly_hurdleAbu_sampled_combo = c(m_spatialOnly_hurdleAbu_sampled_chains[[1]],
+                                          m_spatialOnly_hurdleAbu_sampled_chains[[2]],
+                                          m_spatialOnly_hurdleAbu_sampled_chains[[3]],
+                                          m_spatialOnly_hurdleAbu_sampled_chains[[4]],
+                                          m_spatialOnly_hurdleAbu_sampled_chains[[5]],
+                                          m_spatialOnly_hurdleAbu_sampled_chains[[6]],
+                                          m_spatialOnly_hurdleAbu_sampled_chains[[7]],
+                                          m_spatialOnly_hurdleAbu_sampled_chains[[8]])
+
+
+m_spatialOnly_hurdleAbu_sampled_combo ## looks good.
+
+saveRDS(m_spatialOnly_hurdleAbu_sampled_combo, file="m_spatialOnly_hurdleAbu_sampled.rds")
 
 ## what is the way forward here? 
 
@@ -10894,7 +10956,6 @@ NetCoMi::plot
 
 net_asso$edgelist1$asso
 
-
 net_asso$edgelist1$adja
 
 ## run sampling for non-spatial, environmental models
@@ -10932,3 +10993,160 @@ net_asso$edgelist1$adja
 ## full spatial + environment hurdle, both
 
 ## all are running. Let's see where they go.
+
+## get them 
+
+## we set the following into sampling, what finished?:
+
+## spatial-only hurdle, abu -- failed, obscure error
+## environment-only hurdle, PA -- finished without error
+## environment-only hurdle, abu -- finished without error
+## full spatial + environment hurdle, PA -- finished without error
+## full spatial + environment hurdle, abu -- finished without error
+
+## can't confirm thesea are actually useful, first let's try to
+## debug the spatial-only abu model. 
+
+## Maybe try what we try breaking up into different chains, code above, line 9873
+
+## and let's try running our PA models through the above 
+## pipelines and see if meaningful results are obtained
+
+
+## check: 5.2 full spatial + environment hurdle, abu
+
+## this would start at 10545 above 
+
+conda activate spatialDirt
+
+R
+
+library(Hmsc)
+library(corrplot)
+library(NetCoMi)
+library(phyloseq)
+
+
+## office comp
+#setwd("/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis")
+## nanoComp
+
+#path2models <- "/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis/" ##nanocomp
+#path2models <- "/media/vol/fichtelberg/hmscBackups/spatial/" ##officecomp
+path2models <- "/home/daniel/Documents/projects/fichtelgebirge_project/sulariArneSoils/hmscBigFiles/models_28.10.24" ## laptop
+## start with the hurdle presence/absence model
+
+## which model shall we work with?
+#load(file.path(path2models,"m_hurdle_PA_withH2O_sampled.rda"))
+#mod <- m_hurdle_PA
+load(file.path(path2models,"m_hurdle_abu_withH2O_sampled.rda"))
+mod <- m_hurdle_abu
+
+## get our environmental and species correlations:
+OmegaCor = computeAssociations(mod)
+supportLevel = 0.95
+sigAssociations = ((OmegaCor[[1]]$support>supportLevel) + (OmegaCor[[1]]$support<(1-supportLevel))>0)*OmegaCor[[1]]$mean
+postBeta = getPostEstimate(mod, parName = "Beta")
+
+par(mar=c(8,4,4,2))
+plotBeta(mod, post = postBeta, 
+         param = "Support",
+         supportLevel = 0.95,
+         spNamesNumbers = c(T,F), 
+         covNamesNumbers = c(T,F),
+         main="Environmental Predictors for all abundant ASVs")
+
+postBeta$mean
+
+sigBetas = ((postBeta$support>supportLevel) + (postBeta$support<(1-supportLevel))>0)*postBeta$mean
+rownames(sigBetas) = colnames(mod$X)
+
+sigBetas['soil_respiration', sigBetas['soil_respiration',] > 0, drop=FALSE] 
+## ASV300 is associated with high soil resp in PA data
+## but ASV169 and ASV20 are associated with high soil resp in PA data
+## so works. But outcomes are confusing.
+
+## but to get our cooccurrences:
+net_asso <- netConstruct(data = sigAssociations,
+                         dataType = "correlation",
+                         sparsMethod = "none",
+                         verbose = 3)
+
+props_asso <- netAnalyze(net_asso, clustMethod = "hierarchical")
+
+p <- plot(props_asso,
+          nodeColor = "cluster",
+          nodeSize = "eigenvector",
+          title1 = "Species interactions in spatiotemporal model\nabundance-based",
+          repulsion = 0.8,
+          rmSingles = TRUE,
+          showTitle = TRUE,
+          cexTitle = 2.3)
+
+## get out a list of edges for gephi:
+
+nodeNames <- unique(c(net_asso$edgelist1$v1, net_asso$edgelist1$v2))
+nodes <- as.data.frame(nodeNames)
+colnames(nodes) <- "id"
+
+## and our edges would use names instead of numbers:
+edges = data.frame( Source = net_asso$edgelist1$v1,
+                    Target = net_asso$edgelist1$v2,
+                    Weight = net_asso$edgelist1$adja)
+
+## gephi accept this?
+write.csv(nodes, file = "networks/nodes.csv", row.names = FALSE)
+## if you want to get rid of column names, btw:
+#write.table(nodeNames, file="networks/nodes.csv", sep=",", row.names = FALSE,  col.names=FALSE)
+write.csv(edges, file = "networks/edges.csv", row.names = FALSE)
+
+##############################################
+## for working on the laptop on the train, we need the models from the nanopore computer
+## files we need are?:
+## on nanocomp
+
+mkdir models_28.10.24
+#rm -r models_28.10.24
+
+cp m_spatialOnly_hurdleAbu_sampled.rds models_28.10.24/
+find -name "*sampled.rda" -newermt "20 days ago"  -maxdepth 1 -exec cp {} ./models_28.10.24/ \;
+
+tar cvzf models_28.10.24.tar.gz ./models_28.10.24
+
+m_spatialOnly_hurdleAbu_sampled.rds
+
+## from laptop:
+getFile="/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis/models_28.10.24.tar.gz"
+putItHere="/home/daniel/Documents/projects/fichtelgebirge_project/sulariArneSoils/hmscBigFiles"
+scp test@132.180.112.115:$getFile $putItHere 
+
+scp daniel@132.180.112.24:$getFile $putItHere 
+/home/daniel/Documents/projects/fichtelgebirge_project/sulariArneSoils/hmscBigFiles/
+
+## is this enough, can we recreate our networks from this?
+
+## we should have the following models:
+
+## 1.1, hurdle of reads only, PA:
+m_readsOnly_PA_sampled.rda
+## 1.2, hurdle of reads only, abundance:
+m_readsOnly_abu_sampled.rda
+## 2.1, hurdle of spatial only, no env, PA:
+m_spatialOne_hurdlePA_sampled.rda
+## 2.2, hurdle of spatial only, no env, abundance:
+m_spatialOnly_hurdleAbu_sampled.rds
+## 3.1 hurdle of env only, no spatial, PA:
+## missing
+## 3.2, hurdle of env only, no spatial, abundance:
+## missing
+## 5.1. hurdle probit/PA: 
+m_hurdle_PA_withH2O_sampled.rda
+## 5.2. hurdle abundance 
+m_hurdle_abu_withH2O_sampled.rda
+
+## need to find those others. Did they fail?
+## for now no internet.  
+## check the others to see how they look
+
+
+

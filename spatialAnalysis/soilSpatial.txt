@@ -11140,7 +11140,6 @@ getFile="/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialA
 putItHere="/home/daniel/Documents/projects/fichtelgebirge_project/sulariArneSoils/hmscBigFiles"
 scp test@132.180.112.115:$getFile $putItHere 
 
-
 scp daniel@132.180.112.24:$getFile $putItHere 
 /home/daniel/Documents/projects/fichtelgebirge_project/sulariArneSoils/hmscBigFiles/
 
@@ -11186,6 +11185,14 @@ m_hurdle_abu_withH2O_sampled.rda
 cd /media/vol1/daniel/sulariArne/soilAnalysis/hmscBackups/ 
 
 ## cleaned this up, probably created quite some problems with git. 
+
+## to get this onto other compuers:
+
+## office comp:
+getFile="/media/vol1/daniel/sulariArne/soilAnalysis/hmscBackups.tar.gz"
+putItHere="/media/vol/fichtelberg/"
+scp test@132.180.112.115:$getFile $putItHere 
+
 
 ## not sure. Need to do the same on the office computer and laptop,
 ## but would be good to actually keep all repo folders the same. 
@@ -11257,4 +11264,191 @@ spatialModelNames = c(
          )
 names(spatialModels) <- spatialModelNames
 
-spatialModelsCodas = lapply(spatialModels, convertToCodaObject) ## killed, too much memory.
+spatialModelsCodas = lapply(spatialModels, convertToCodaObject) ## needs lots of RAM
+
+names(spatialModelsCodas) <- spatialModelNames
+
+betas = lapply(spatialModelsCodas,'[[','Beta')
+
+spatialModels.essBeta = lapply(betas, effectiveSize)
+names(spatialModels.essBeta) <- spatialModelNames
+
+betas.gelman <- sapply(betas, gelman.diag) ## uses a lot of ram, 28gig
+
+print(betas.gelman) ## oof, don't look that great:
+
+      m_readsOnly_abu m_readsOnly_PA m_spatialOnly_hurdlePA
+psrf  numeric,664     numeric,664    numeric,664
+mpsrf 2.55569         1.073115       1.077952
+      m_spatialOnly_hurdleAbu m_environmentalOnly_hurdleAbu
+psrf  numeric,664             numeric,3320
+mpsrf 1.738886                3.824886
+      m_environmentalOnly_hurdlePA m_hurdle_abu m_hurdle_PA
+psrf  numeric,3320                 numeric,3320 numeric,3320
+mpsrf 1.278314                     3.212662     1.314995
+
+
+## plot average effective sample size
+spatialModelNames
+
+par(mfrow=c(4,2))
+for (i in 1:8){
+    tit=paste0(spatialModelNames[i])
+    hist(spatialModels.essBeta[[i]], 
+    main=tit, 
+    breaks=30, 
+    xlab=paste("Sampling depth, mean =", round(mean(spatialModels.essBeta[[i]]))))
+}
+## effective sampling depth seems fine. 
+
+pdf("spatialModels_mixing_beta.pdf")
+  lapply(betas, plot)
+dev.off()
+
+
+## now omegas, which are vast and we need to subset:
+
+subsetOmega <- function(modelListElement){
+    omegasAllChains = modelListElement$Omega[[1]]  ## get list of chains
+    for(i in 1:length(omegasAllChains)){ ## for each chain...
+      omegasAllChains[[i]] = omegasAllChains[[i]][,1:1000] ### take the first 1000 species interactions
+    }
+    return(omegasAllChains)
+}
+
+omegasSubsetted <- lapply(spatialModelsCodas, subsetOmega)
+
+ess.omegas <- lapply(omegasSubsetted, effectiveSize)
+
+##
+
+#pdf("effectiveSampleSizeOmega_spatial.pdf")
+par(mfrow=c(4,2))
+for (i in 1:8){
+    tit=paste0(spatialModelNames[i])
+    hist(ess.omegas[[i]], 
+    main=tit, 
+    breaks=30, 
+    xlab=paste("Omega effective sampling depth, mean =", round(mean(ess.omegas[[i]]))))
+}
+#dev.off()
+
+## okay, everything is >1000m 
+
+## 
+
+for (i in 1:8){
+  try(gelman.diag(omegasSubsetted[[i]]))
+} ## fail as before, not sure why. The subsetting may be an issue.
+
+
+pdf("spatialModels_mixing_omegas.pdf")
+  lapply(omegasSubsetted, plot)
+dev.off()
+
+## start on the model validation:
+predvaluesSpatialModels <- lapply(spatialModels, computePredictedValues) ## lots of memory needed. Do this on the lab comp?
+
+## let's save this out, try to clear up some memory
+save(predvaluesSpatialModels, file="predvaluesSpatialModels_30.10.24.rda")
+
+load("predvaluesSpatialModels_30.10.24.rda")
+
+## check the explanatory power
+modelFitList = list()
+for (i in 1:length(spatialModels)) {
+  MF = evaluateModelFit(hM=spatialModels[[i]], predY=predvaluesSpatialModels[[i]])
+  modelFitList[[i]] <- MF
+}
+
+## '
+ 
+names(modelFitList) <- spatialModelNames
+
+for (i in 1:length(modelFitList)){
+print(names(modelFitList)[i])
+print(str(modelFitList[i]))
+}
+
+
+nSpecies <- length(modelFitList[[1]][[1]])
+
+str(modelFitList$m_readsOnly_PA)
+
+## let's collect the AUC for the PA models
+## and tjur
+
+PAmodelFitmatAUC <- matrix(ncol=4, nrow=nSpecies)
+PAmodelFitmatAUC[,1] <- modelFitList$m_readsOnly_PA$AUC              
+PAmodelFitmatAUC[,2] <- modelFitList$m_spatialOnly_hurdlePA$AUC       
+PAmodelFitmatAUC[,3] <- modelFitList$m_environmentalOnly_hurdlePA$AUC 
+PAmodelFitmatAUC[,4] <- modelFitList$m_hurdle_PA$AUC                  
+
+PAmodelFitmatTjurR2 <- matrix(ncol=4, nrow=nSpecies)
+PAmodelFitmatTjurR2[,1] <- modelFitList$m_readsOnly_PA$TjurR2              
+PAmodelFitmatTjurR2[,2] <- modelFitList$m_spatialOnly_hurdlePA$TjurR2       
+PAmodelFitmatTjurR2[,3] <- modelFitList$m_environmentalOnly_hurdlePA$TjurR2 
+PAmodelFitmatTjurR2[,4] <- modelFitList$m_hurdle_PA$TjurR2                  
+
+PAmodelFitAUCdf <- as.data.frame(PAmodelFitmatAUC)
+colnames(PAmodelFitAUCdf) <- c("readAbundanceOnly","spatialOnly","environmentalOnly","full")
+lapply(PAmodelFitAUCdf, mean, na.rm=TRUE)
+## why are raw read abundances so expanlatory?
+
+PAmodelFitTjurR2df <- as.data.frame(PAmodelFitmatTjurR2)
+colnames(PAmodelFitTjurR2df) <- c("readAbundanceOnly","spatialOnly","environmentalOnly","full")
+lapply(PAmodelFitTjurR2df, mean, na.rm=TRUE)
+## again, why are raw read abundances so expanlatory?
+
+## 
+modelFitList$m_readsOnly_abu
+modelFitList$m_spatialOnly_hurdleAbu
+modelFitList$m_environmentalOnly_hurdleAbu
+modelFitList$m_hurdle_abu
+
+## before we go farther, can we set up the cross-validation pipelines?
+
+## we need these sampled models as rds files:
+
+pathHMSCarchives <- "/media/vol1/daniel/sulariArne/soilAnalysis/hmscBackups/spatial/" ## lab comp
+load(paste0(pathHMSCarchives,"m_readsOnly_PA_sampled.rda"))
+load(paste0(pathHMSCarchives,"m_readsOnly_abu_sampled.rda"))
+load(paste0(pathHMSCarchives,"m_spatialOne_hurdlePA_sampled.rda"))
+m_spatialOnly_hurdleAbu <- readRDS(paste0(pathHMSCarchives,"m_spatialOnly_hurdleAbu_sampled.rds"))
+load(paste0(pathHMSCarchives,"m_environmentalOnly_hurdlePA_sampled.rda"))
+load(paste0(pathHMSCarchives,"m_environmentalOnly_hurdleAbu_sampled.rda"))
+load(paste0(pathHMSCarchives,"m_hurdle_PA_withH2O_sampled.rda"))
+load(paste0(pathHMSCarchives,"m_hurdle_abu_withH2O_sampled.rda"))
+## rename our spatial-only PA, that typo is annoying:
+m_spatialOnly_hurdlePA <- m_spatialOne_hurdlePA
+rm(m_spatialOne_hurdlePA)
+
+## except for one, these all need saved out as rds fileS:
+saveRDS(m_environmentalOnly_hurdleAbu, "m_environmentalOnly_hurdleAbu_sampled.rds")
+saveRDS(m_environmentalOnly_hurdlePA, "m_environmentalOnly_hurdlePA_sampled.rds")
+saveRDS(m_hurdle_abu, "m_hurdle_abu_sampled.rds")
+saveRDS(m_hurdle_PA, "m_hurdle_PA_sampled.rds")
+saveRDS(m_readsOnly_abu, "m_readsOnly_abu_sampled.rds")
+saveRDS(m_readsOnly_PA, "m_readsOnly_PA_sampled.rds")
+saveRDS(m_spatialOnly_hurdlePA, "m_spatialOnly_hurdlePA_sampled.rds")
+
+## then we should be able to use our script for doing cross validations
+## in terminal:
+
+mods=(
+"m_environmentalOnly_hurdleAbu_sampled.rds"
+"m_environmentalOnly_hurdlePA_sampled.rds"
+"m_hurdle_abu_sampled.rds"
+"m_hurdle_PA_sampled.rds"
+"m_readsOnly_abu_sampled.rds"
+"m_readsOnly_PA_sampled.rds"
+"m_spatialOnly_hurdlePA_sampled.rds"
+)
+
+for i in ${mods[@]}; do
+  echo $i
+  nohup Rscript getCrossValFit.r $i  &> ${i}_crossval.log &  ## 
+done
+
+
+

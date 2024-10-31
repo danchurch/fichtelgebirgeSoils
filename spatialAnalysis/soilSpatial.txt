@@ -8738,7 +8738,8 @@ envData = pd.read_csv('sulariEnv.csv')
 
 denbiDirt
 
-conda activate r_env
+#conda activate r_env ## denbi
+conda activate spatialDirt
 
 soil
 
@@ -8746,7 +8747,6 @@ R
 
 library(Hmsc)
 library(phyloseq)
-
 rm(list=ls()) ## merge the spatial and env data:
 xycoords = read.csv("sulariSpatial.csv", row.names=1)
 envData <- read.csv("sulariEnv.csv", row.names="SampleID")
@@ -8755,7 +8755,7 @@ row.names(aa) <- aa$Row.names
 aa[1] <- NULL
 aa <- aa[rownames(envData),]
 envData <- aa; rm(aa)
-## now with co2 flux:
+## now with co2 flux
 varsOfInterest = c("PlotID","soil_respiration","co2flow","Land_type","pH","N","C","Temperature","waterCont","xx","yy")
 ## side note: why do we have two types of temperature data?:
 #plot(envData$soil_T, envData$Temperature)
@@ -8805,9 +8805,9 @@ plot_coords <- XData[,c("PlotID","xx","yy")]
 plot_coords <- plot_coords[!duplicated(plot_coords),] ## remove duplicated plot rows
 rownames(plot_coords) <- plot_coords$PlotID 
 plot_coords$PlotID <- NULL
-varsOfmodel1 <- c("soil_respiration","co2flow","Land_type","pH","N","C","Temperature","waterCont")
+varsOfmodel1 <- c("BacteriaDepth","soil_respiration","co2flow","Land_type","pH","N","C","Temperature","waterCont")
 XData1 <- XData[,c(varsOfmodel1)]
-XFormula1 = ~ soil_respiration + co2flow + Land_type + pH + N + C + Temperature + waterCont
+XFormula1 = ~ BacteriaDepth + soil_respiration + co2flow + Land_type + pH + N + C + Temperature + waterCont
 XData0 <- XData[,"BacteriaDepth",drop=FALSE]
 XFormula0 = ~ BacteriaDepth
 rL.sample = HmscRandomLevel(units = sample.id)
@@ -8875,6 +8875,7 @@ m_readsOnly_PA = Hmsc(Y=Ypa,
                       YScale=TRUE 
 )
 save(m_readsOnly_PA, file="m_readsOnly_PA.rda")
+
 ## 1.2, hurdle of reads only, abundance:
 m_readsOnly_abu = Hmsc(Y=Yabu,
                       XData = XData0,  XFormula = XFormula0,
@@ -8886,28 +8887,24 @@ m_readsOnly_abu = Hmsc(Y=Yabu,
 save(m_readsOnly_abu, file="m_readsOnly_abu.rda")
 
 ## 2.1, hurdle of spatial only, no env, PA:
-m_spatialOne_hurdlePA = Hmsc(Y=Ypa,
+m_spatialOnly_PA = Hmsc(Y=Ypa,
          XData = XData0,  XFormula = XFormula0,
          distr={"probit"} ,
          studyDesign=studyDesign, 
          ranLevels={list("sample"=rL.sample, "site_spatial" = rL.site_spatial)},
          YScale=TRUE 
 )
-save(m_spatialOne_hurdlePA, file="m_spatialOne_hurdlePA.rda")
+save(m_spatialOnly_PA, file="m_spatialOnly_PA.rda")
 
 ## 2.2, hurdle of spatial only, no env, abundance:
-m_spatialOne_hurdleAbu = Hmsc(Y=Yabu,
+m_spatialOnly_abu = Hmsc(Y=Yabu,
          XData = XData0,  XFormula = XFormula0,
          distr={"normal"} ,
          studyDesign=studyDesign, 
          ranLevels={list("sample"=rL.sample, "site_spatial" = rL.site_spatial)},
          YScale=TRUE 
 )
-save(m_spatialOne_hurdleAbu, file="m_spatialOne_hurdleAbu.rda")
-
-## this needs to be rerun, from here, because we forgot to include 
-## soil moisture, which may be an important predictor when we 
-## try to forecast microbial communities 
+save(m_spatialOnly_abu, file="m_spatialOnly_abu.rda")
 
 ## 3.1 hurdle of env only, no spatial, PA:
 m_environmentalOnly_hurdlePA = Hmsc(Y=Ypa,
@@ -8920,7 +8917,6 @@ m_environmentalOnly_hurdlePA = Hmsc(Y=Ypa,
 save(m_environmentalOnly_hurdlePA, file="m_environmentalOnly_hurdlePA.rda")
 
 ## 3.2, hurdle of env only, no spatial, abundance:
-
 m_environmentalOnly_hurdleAbu = Hmsc(Y=Yabu,
          XData = XData1,  XFormula = XFormula1,
          distr={"normal"} ,
@@ -8936,8 +8932,8 @@ save(m_environmentalOnly_hurdleAbu, file="m_environmentalOnly_hurdleAbu.rda")
  
 
 ## 5. a hurdle model, full spatial model with environmental covariates which is actually 2 models:
-## 5.1. hurdle probit/PA: 
 
+## 5.1. hurdle probit/PA: 
 m_hurdle_PA = Hmsc(Y=Ypa,
          XData = XData1,  XFormula = XFormula1,
          distr={"probit"} ,
@@ -9142,59 +9138,56 @@ print(paste("finish time is", Sys.time()))
 nohup Rscript m_hurdle_readsOnly_abu_sampling.r &> m_hurdle_readsOnly_abu_sampling.log &
 
 ## 2.1, hurdle of spatial only, no env, PA:
-#### m_spatialOne_hurdlePA_sampling.r ####
+#### m_spatialOnly_hurdlePA_sampling.r ####
 
 library(Hmsc)
 print("starting model:")
-print("m_spatialOne_hurdlePA")
+print("m_spatialOnly_PA")
 print(paste("start time is", Sys.time()))
-load("m_spatialOne_hurdlePA.rda")
+load("m_spatialOnly_PA.rda")
 thin = 20
 samples = 1000
 nChains = 8
 nP = 2
-m_spatialOne_hurdlePA = sampleMcmc(m_spatialOne_hurdlePA,
+m_spatialOnly_PA = sampleMcmc(m_spatialOnly_PA,
                         samples = samples, 
                         thin=thin, 
                         transient = ceiling(0.5*samples*thin), 
                         nChains = nChains, 
                         nParallel = nP
                         )
-save(m_spatialOne_hurdlePA, file="m_spatialOne_hurdlePA_sampled.rda")
+save(m_spatialOnly_PA, file="m_spatialOnly_PA_sampled.rda")
 print(paste("finish time is", Sys.time()))
 
 #################################################
 
-nohup Rscript m_spatialOne_hurdlePA_sampling.r &> m_spatialOne_hurdlePA_sampling.log &
+nohup Rscript m_spatialOnly_hurdlePA_sampling.r &> m_spatialOnly_hurdlePA_sampling.log &
 
-
-## 2.2 m_spatialOne_hurdleAbu
-#### m_spatialOne_hurdleAbu_sampling.r ####
+## 2.2 m_spatialOnly_hurdleAbu
+#### m_spatialOnly_hurdleAbu_sampling.r ####
 
 library(Hmsc)
 print("starting model:")
-print("m_spatialOne_hurdleAbu")
+print("m_spatialOnly_abu")
 print(paste("start time is", Sys.time()))
-load("m_spatialOne_hurdleAbu.rda")
+load("m_spatialOnly_abu.rda")
 thin = 20
 samples = 1000
 nChains = 8
 nP = 2
-m_spatialOne_hurdleAbu = sampleMcmc(m_spatialOne_hurdleAbu,
+m_spatialOnly_abu = sampleMcmc(m_spatialOnly_abu,
                         samples = samples, 
                         thin=thin, 
                         transient = ceiling(0.5*samples*thin), 
                         nChains = nChains, 
                         nParallel = nP
                         )
-save(m_spatialOne_hurdleAbu, file="m_spatialOne_hurdleAbu_sampled.rda")
+save(m_spatialOnly_abu, file="m_spatialOnly_abu_sampled.rda")
 print(paste("finish time is", Sys.time()))
 
 #################################################
 
-nohup Rscript m_spatialOne_hurdleAbu_sampling.r &>> m_spatialOne_hurdleAbu_sampling.log  &
-
-## models from here need to be rerun, because soil moisture was not included in the environmental models
+nohup Rscript m_spatialOnly_hurdleAbu_sampling.r &> m_spatialOnly_hurdleAbu_sampling.log  &
 
 ## 3.1 m_environmentalOnly_hurdlePA
 ##### m_environmentalOnly_hurdlePA_sampling.r ####
@@ -9215,7 +9208,7 @@ m_environmentalOnly_hurdlePA = sampleMcmc(m_environmentalOnly_hurdlePA,
                      nChains = nChains, 
                      nParallel = nP
                      )
-save(m_environmentalOnly_hurdlePA, file="m_environmentalOnly_hurdlePA.rda")
+save(m_environmentalOnly_hurdlePA, file="m_environmentalOnly_hurdlePA_sampled.rda")
 print(paste("finish time is", Sys.time()))
 
 #################################################
@@ -9241,16 +9234,12 @@ m_environmentalOnly_hurdleAbu = sampleMcmc(m_environmentalOnly_hurdleAbu,
                      nChains = nChains, 
                      nParallel = nP
                      )
-save(m_environmentalOnly_hurdleAbu, file="m_environmentalOnly_hurdleAbu.rda")
+save(m_environmentalOnly_hurdleAbu, file="m_environmentalOnly_sampled.rda")
 print(paste("finish time is", Sys.time()))
 
 #################################################
 
 nohup Rscript m_environmentalOnly_hurdleAbu_sampling.r &> m_environmentalOnly_hurdleAbu_sampling.log &
-
-## oops, saved those last two over the unsampled model file:
-mv m_environmentalOnly_hurdlePA.rda m_environmentalOnly_hurdlePA_sampled.rda 
-mv m_environmentalOnly_hurdleAbu.rda m_environmentalOnly_hurdleAbu_sampled.rda 
 
 ## 4 was a lognormal model, now dead to me
 
@@ -9273,16 +9262,10 @@ m_hurdle_PA = sampleMcmc(m_hurdle_PA,
                      nChains = nChains, 
                      nParallel = nP
                      )
-save(m_hurdle_PA, file="m_hurdle_PA_withH2O_sampled.rda")
+save(m_hurdle_PA, file="m_hurdle_PA_sampled.rda")
 print(paste("finish time is", Sys.time()))
 
 #################################################
-
-nohup Rscript m_hurdle_PA_sampling.r &> m_hurdle_PA_sampling.log &
-
-## 15900
-
-conda activate r_env
 
 nohup Rscript m_hurdle_PA_sampling.r &> m_hurdle_PA_sampling.log &
 
@@ -9305,13 +9288,21 @@ m_hurdle_abu = sampleMcmc(m_hurdle_abu,
                      nChains = nChains, 
                      nParallel = nP
                      )
-save(m_hurdle_abu, file="m_hurdle_abu_withH2O_sampled.rda")
+save(m_hurdle_abu, file="m_hurdle_abu_sampled.rda")
 print(paste("finish time is", Sys.time()))
 
 #################################################
 
 nohup Rscript m_hurdle_abu_sampling.r &> m_hurdle_abu_sampling.log &
 
+25739 m_hurdle_readsOnly_PA_sampling.r
+25835 m_hurdle_readsOnly_abu_sampling.r
+25991 m_spatialOnly_hurdlePA_sampling.r
+26143 m_spatialOnly_hurdleAbu_sampling.r
+26485 m_environmentalOnly_hurdlePA_sampling.r
+26585 m_environmentalOnly_hurdleAbu_sampling.r
+26684 m_hurdle_abu_sampling.r
+26773 m_hurdle_PA_sampling.r
 
 
 
@@ -11226,7 +11217,6 @@ library(Hmsc)
 
 #pathHMSCarchives <- "/media/vol/fichtelberg/hmscBackups/spatial/" ## office comp
 pathHMSCarchives <- "/media/vol1/daniel/sulariArne/soilAnalysis/hmscBackups/spatial/" ## lab comp
-
 ## these are the models we want:
 load(paste0(pathHMSCarchives,"m_readsOnly_PA_sampled.rda"))
 load(paste0(pathHMSCarchives,"m_readsOnly_abu_sampled.rda"))
@@ -11236,11 +11226,9 @@ load(paste0(pathHMSCarchives,"m_environmentalOnly_hurdlePA_sampled.rda"))
 load(paste0(pathHMSCarchives,"m_environmentalOnly_hurdleAbu_sampled.rda"))
 load(paste0(pathHMSCarchives,"m_hurdle_PA_withH2O_sampled.rda"))
 load(paste0(pathHMSCarchives,"m_hurdle_abu_withH2O_sampled.rda"))
-
 ## rename our spatial-only PA, that typo is annoying:
 m_spatialOnly_hurdlePA <- m_spatialOne_hurdlePA
 rm(m_spatialOne_hurdlePA)
-
 ## to make the code a little less cumbersome:
 spatialModels = list(
                      m_readsOnly_abu,
@@ -11320,7 +11308,7 @@ omegasSubsetted <- lapply(spatialModelsCodas, subsetOmega)
 
 ess.omegas <- lapply(omegasSubsetted, effectiveSize)
 
-##
+## 
 
 #pdf("effectiveSampleSizeOmega_spatial.pdf")
 par(mfrow=c(4,2))
@@ -11333,7 +11321,7 @@ for (i in 1:8){
 }
 #dev.off()
 
-## okay, everything is >1000m 
+## okay, everything is >1000
 
 ## 
 
@@ -11360,52 +11348,84 @@ for (i in 1:length(spatialModels)) {
   MF = evaluateModelFit(hM=spatialModels[[i]], predY=predvaluesSpatialModels[[i]])
   modelFitList[[i]] <- MF
 }
-
-## '
- 
 names(modelFitList) <- spatialModelNames
+
+##
+ 
 
 for (i in 1:length(modelFitList)){
 print(names(modelFitList)[i])
 print(str(modelFitList[i]))
 }
 
-
-nSpecies <- length(modelFitList[[1]][[1]])
-
 str(modelFitList$m_readsOnly_PA)
 
+nSpecies <- length(modelFitList[[1]][[1]])
 ## let's collect the AUC for the PA models
-## and tjur
-
 PAmodelFitmatAUC <- matrix(ncol=4, nrow=nSpecies)
 PAmodelFitmatAUC[,1] <- modelFitList$m_readsOnly_PA$AUC              
 PAmodelFitmatAUC[,2] <- modelFitList$m_spatialOnly_hurdlePA$AUC       
 PAmodelFitmatAUC[,3] <- modelFitList$m_environmentalOnly_hurdlePA$AUC 
 PAmodelFitmatAUC[,4] <- modelFitList$m_hurdle_PA$AUC                  
+PAmodelFitAUCdf <- as.data.frame(PAmodelFitmatAUC)
+colnames(PAmodelFitAUCdf) <- c("readAbundanceOnly","spatialOnly","environmentalOnly","full")
+lapply(PAmodelFitAUCdf, mean, na.rm=TRUE)
+## why are raw read abundances so expanlatory?
+#$readAbundanceOnly
+#[1] 0.88163
+#$spatialOnly
+#[1] 0.903813
+#$environmentalOnly
+#[1] 0.9149398
+#$full
+#[1] 0.9274504
 
+
+## and tjur
 PAmodelFitmatTjurR2 <- matrix(ncol=4, nrow=nSpecies)
 PAmodelFitmatTjurR2[,1] <- modelFitList$m_readsOnly_PA$TjurR2              
 PAmodelFitmatTjurR2[,2] <- modelFitList$m_spatialOnly_hurdlePA$TjurR2       
 PAmodelFitmatTjurR2[,3] <- modelFitList$m_environmentalOnly_hurdlePA$TjurR2 
 PAmodelFitmatTjurR2[,4] <- modelFitList$m_hurdle_PA$TjurR2                  
-
-PAmodelFitAUCdf <- as.data.frame(PAmodelFitmatAUC)
-colnames(PAmodelFitAUCdf) <- c("readAbundanceOnly","spatialOnly","environmentalOnly","full")
-lapply(PAmodelFitAUCdf, mean, na.rm=TRUE)
-## why are raw read abundances so expanlatory?
-
 PAmodelFitTjurR2df <- as.data.frame(PAmodelFitmatTjurR2)
 colnames(PAmodelFitTjurR2df) <- c("readAbundanceOnly","spatialOnly","environmentalOnly","full")
 lapply(PAmodelFitTjurR2df, mean, na.rm=TRUE)
+#$readAbundanceOnly
+#[1] 0.3541683
+#$spatialOnly
+#[1] 0.3797357
+#$environmentalOnly
+#[1] 0.3922178
+#$full
+#[1] 0.4135907
+
 ## again, why are raw read abundances so expanlatory?
 
-## 
-modelFitList$m_readsOnly_abu
-modelFitList$m_spatialOnly_hurdleAbu
-modelFitList$m_environmentalOnly_hurdleAbu
-modelFitList$m_hurdle_abu
+## and the R2 for the models with abundances:
+AbuModelFitmatR2 <- matrix(ncol=4, nrow=nSpecies)
+AbuModelFitmatR2[,1] <- modelFitList$m_readsOnly_abu$R2
+AbuModelFitmatR2[,2] <- modelFitList$m_spatialOnly_hurdleAbu$R2
+AbuModelFitmatR2[,3] <- modelFitList$m_environmentalOnly_hurdleAbu$R2
+AbuModelFitmatR2[,4] <- modelFitList$m_hurdle_abu$R2
+AbuModelFitmatR2df <- as.data.frame(AbuModelFitmatR2)
+colnames(AbuModelFitmatR2df) <- c("readAbundanceOnly","spatialOnly","environmentalOnly","full")
+lapply(AbuModelFitmatR2df, mean, na.rm=TRUE)
+#$readAbundanceOnly
+#[1] 0.6640984
+#$spatialOnly
+#[1] 0.7291354
+#$environmentalOnly
+#[1] 0.6915154
+#$full
+#[1] 0.746394
 
+## ok, looking at the reference material, seems like
+## we should have included read abundances in all 
+## of our models. 
+
+## let's add read abundances back into our models...start again.
+
+############# get cross-validations #################
 ## before we go farther, can we set up the cross-validation pipelines?
 
 ## we need these sampled models as rds files:
@@ -11450,5 +11470,23 @@ for i in ${mods[@]}; do
   nohup Rscript getCrossValFit.r $i  &> ${i}_crossval.log &  ## 
 done
 
+############# ^^get cross-validations^^ #################
 
+## that seems to be running fine. 
+
+## back to the explanatory power, continuing line 11407 or so above:
+
+par(cex.axis = .75, mar=c(10,4,4,2))
+boxplot(paGFdf,
+main=("model fit measures of P/A component of Hurdles,\n without and with season"),
+names=c(
+  "ReadAbundances AUC",
+  "noSeason AUC",
+  "fullModel AUC",
+  "ReadAbundances TjurR2",
+  "noSeason TjurR2",
+  "fullModel TjurR2"
+),
+las=2
+)
 

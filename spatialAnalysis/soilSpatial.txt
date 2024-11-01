@@ -10552,6 +10552,9 @@ lapply(PAmodelFitTjurR2df, mean, na.rm=TRUE)
 
 ####### networks for spatial model #####
 
+soil
+conda activate spatialDirt
+R
 
 library(Hmsc)
 library(corrplot)
@@ -10559,26 +10562,51 @@ library(NetCoMi)
 library(phyloseq)
 
 ## on office comp:
-setwd("/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis")
+#setwd("/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis")
 
-#path2models <- "/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis/" ##nanocomp
-path2models <- "/media/vol/fichtelberg/hmscBackups/spatial/" ##officecomp
+path2models <- "/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis" ##nanocomp
+#path2models <- "/media/vol/fichtelberg/hmscBackups/spatial/" ##officecomp
 ## start with the hurdle presence/absence model
-load(file.path(path2models,"m_hurdle_PA_combo.rda"))
+load(file.path(path2models,"m_hurdle_PA_sampled.rda"))
 
 ## get our environmental and species correlations:
-OmegaCor = computeAssociations(m_hurdle_PA_combo)
+OmegaCor = computeAssociations(m_hurdle_PA)
+
 supportLevel = 0.95
 sigAssociations = ((OmegaCor[[1]]$support>supportLevel) + (OmegaCor[[1]]$support<(1-supportLevel))>0)*OmegaCor[[1]]$mean
-postBeta = getPostEstimate(m_hurdle_PA_combo, parName = "Beta")
+postBeta = getPostEstimate(m_hurdle_PA, parName = "Beta")
 
 
-plotBeta(m_hurdle_PA_combo, post = postBeta, 
+par(cex.lab = 4, 
+
+par(oma=c(3,3,3,3)) # all sides have 3 lines of space
+
+par(mar=c(8,4,4,2), 
+    oma=c(3,3,3,3),
+    cex.lab = 4,
+    axes = F,
+)
+
+?plotBeta
+
+par(oma=c(3,3,3,3))
+
+svg("exampleBetaForLabtalk.svg")
+plotBeta(m_hurdle_PA, post = postBeta, 
          param = "Support",
          supportLevel = 0.95,
-         spNamesNumbers = c(T,F), 
+         spNamesNumbers = c(F,F), 
          covNamesNumbers = c(T,F),
-         main="Environmental Predictors for all abundant ASVs")
+         cex = c(1.5, 0.5, 0.8),
+         mar=c(5,4,2,2),
+         newplot=TRUE,
+         main="Environmental Predictors for all abundant ASVs, P/A")
+dev.off()
+
+getFile="/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis/exampleBetaForLabtalk.svg"
+putItHere="/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis"
+scp test@132.180.112.115:$getFile $putItHere 
+
 
 postBeta$mean
 
@@ -10851,34 +10879,33 @@ tax_table(psCleanedUp)[ASV,] ## an acidobacteriota. of course. lots of these
 otu_table(psCleanedUp)[,ASV]
 
 ## but really, we want to use our community matrix for this, I think:
-comData <- read.csv("/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/comdat.csv", row.names=1)
-envData <- read.csv("/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/Envt_Matrix.csv", row.names=1)
+comData <- read.csv("/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/sulariData/comdat.csv", row.names=1)
+envData <- read.csv("/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/sulariData/Envt_Matrix.csv", row.names=1)
+
+#comData <- read.csv("/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/comdat.csv", row.names=1)
+#envData <- read.csv("/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/Envt_Matrix.csv", row.names=1)
+
 ## remove controls
 notControls=!(row.names(comData) %in% c("C1.1", "C1.2", "C2.1", "C2.2"))
 comData = comData[notControls,]
 envData = envData[notControls,]
 ## just checking
 all(rownames(comData) == rownames(envData))
-
 ## just do it presence/absence for now:
 comDataPA <- comData
 comDataPA[comDataPA > 0] = 1
-
 ## lump by site
 forestSites = row.names(envData[envData$Land.type == "Forest",])
 grassSites = row.names(envData[envData$Land.type == "Grassland",])
 cropSites = row.names(envData[envData$Land.type == "Arableland",])
-
 class(colSums(comDataPA[forestSites,]))
-
-
 ASVlandTotals = as.data.frame(
                         rbind( colSums(comDataPA[forestSites,]),
                                colSums(comDataPA[grassSites,]),
                                colSums(comDataPA[cropSites,])),
                                row.names=c("forest","grass","crop"))
 ## subset to just the ASVs examined in the models:
-ASVlandTotals <- ASVlandTotals[, dimnames(m_hurdle_PA_combo$Y)[[2]]]
+ASVlandTotals <- ASVlandTotals[, dimnames(m_hurdle_PA$Y)[[2]]]
 
 ## we need a set of categories for this. 
 ## have the idea that the crop and grassland 
@@ -10927,22 +10954,27 @@ landtypesASVs <- apply(ASVlandTotals, MARGIN=2, FUN=getLT)
 
 dim(specAssoc)
 
-net_asso <- netConstruct(data = specAssoc,
+net_asso <- netConstruct(data = sigAssociations,
                          dataType = "correlation",
                          sparsMethod = "none",
                          verbose = 3)
 
 props_asso <- netAnalyze(net_asso, clustMethod = "hierarchical")
 
+png("networkFullModelPA_rplotter_forLabtalk.png")
 p <- plot(props_asso,
           nodeColor = "cluster",
           nodeSize = "eigenvector",
-          title1 = "Species interactions in spatiotemporal model\nabundance-based",
+          title1 = "Species interactions in full model, P/A",
           repulsion = 0.8,
           rmSingles = TRUE,
           showTitle = TRUE,
           cexTitle = 2.3)
+dev.off()
 
+getFile="/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis/networkFullModelPA_rplotter_forLabtalk.png"
+putItHere="/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis"
+scp test@132.180.112.115:$getFile $putItHere 
 
 grep(0.929, props_asso)
 
@@ -10962,6 +10994,11 @@ write.csv(nodes, file = "networks/nodes.csv", row.names = FALSE)
 #write.table(nodeNames, file="networks/nodes.csv", sep=",", row.names = FALSE,  col.names=FALSE)
 write.csv(edges, file = "networks/edges.csv", row.names = FALSE)
 
+getFile="/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis/networks"
+putItHere="/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis"
+scp -r test@132.180.112.115:$getFile $putItHere 
+
+## move over to local, check it with gephi
 
 NetCoMi::plot
 
@@ -11490,3 +11527,5 @@ names=c(
 las=2
 )
 
+## back on network diagrams:
+10999

@@ -10949,10 +10949,33 @@ getLT <- function(column){
 
 landtypesASVs <- apply(ASVlandTotals, MARGIN=2, FUN=getLT)
 
+## we have some redundancies ("crop/grass","forest/crop", etc). 
+levels(as.factor(landtypesASVs))
+barplot(table(as.factor(landtypesASVs)), las=2)
+
+## make a function to clean these up:
+
+removeRedunds <- function(landtype){
+  if (landtype == "crop/forest") { newLandtype = "forest/crop" 
+  } else if (landtype == "crop/grass") { newLandtype = "grass/crop" 
+  } else if (landtype == "forest/grass") { newLandtype = "grass/forest" 
+  } else { newLandtype = landtype }
+  return(newLandtype)
+}
+
+## clean our vector with this:
+landtypesASVs <- sapply(landtypesASVs, FUN=removeRedunds)
+
+levels(as.factor(landtypesASVs))
+
+barplot(table(as.factor(landtypesASVs)), las=2)
+
+## looks right
+
 ## okay, this is what we need. Add this as information to our network?
 ## for the moment, let's drop our environmental variables as nodes.
 
-dim(specAssoc)
+dim(sigAssociations)
 
 net_asso <- netConstruct(data = sigAssociations,
                          dataType = "correlation",
@@ -10976,7 +10999,6 @@ getFile="/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialA
 putItHere="/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis"
 scp test@132.180.112.115:$getFile $putItHere 
 
-grep(0.929, props_asso)
 
 nodeNames <- unique(c(net_asso$edgelist1$v1, net_asso$edgelist1$v2))
 nodes <- as.data.frame(nodeNames)
@@ -10984,15 +11006,22 @@ colnames(nodes) <- "id"
 ## now, how do we add in the information about land type?:
 nodes$landtype <- as.data.frame(landtypesASVs)[nodes$id,]
 ## and our edges would use names instead of numbers:
-edges = data.frame( Source = net_asso$edgelist1$v1,
+edges <- data.frame( Source = net_asso$edgelist1$v1,
                     Target = net_asso$edgelist1$v2,
                     Weight = net_asso$edgelist1$asso)
+
+## this makes edges in a semi-random order, so the positive associations are hard to see,
+## can this be fixed by reordering?
+edges <- edges[order(edges$Weight, decreasing = TRUE),]
+rownames(edges) <- NULL
+
 
 ## gephi accept this?
 write.csv(nodes, file = "networks/nodes.csv", row.names = FALSE)
 ## if you want to get rid of column names, btw:
 #write.table(nodeNames, file="networks/nodes.csv", sep=",", row.names = FALSE,  col.names=FALSE)
 write.csv(edges, file = "networks/edges.csv", row.names = FALSE)
+
 
 getFile="/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis/networks"
 putItHere="/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis"
@@ -11161,15 +11190,19 @@ find -name "*sampled.rda" -newermt "20 days ago"  -maxdepth 1 -exec cp {} ./mode
 
 tar cvzf models_28.10.24.tar.gz ./models_28.10.24
 
-m_spatialOnly_hurdleAbu_sampled.rds
+tar cvzf models_03.11.24.tar.gz ./latestModels
+
 
 ## from laptop:
 getFile="/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis/models_28.10.24.tar.gz"
 putItHere="/home/daniel/Documents/projects/fichtelgebirge_project/sulariArneSoils/hmscBigFiles"
 scp test@132.180.112.115:$getFile $putItHere 
 
-scp daniel@132.180.112.24:$getFile $putItHere 
-/home/daniel/Documents/projects/fichtelgebirge_project/sulariArneSoils/hmscBigFiles/
+
+getFile="/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis/models_03.11.24.tar.gz"
+putItHere="/media/vol/fichtelberg/hmscBackups/spatial/"
+scp test@132.180.112.115:$getFile $putItHere 
+
 
 ## is this enough, can we recreate our networks from this?
 
@@ -11529,3 +11562,16 @@ las=2
 
 ## back on network diagrams:
 10999
+
+getFile="/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis/models_03.11.24.tar.gz"
+putItHere="/media/vol/fichtelberg/hmscBackups/spatial/"
+scp test@132.180.112.115:$getFile $putItHere 
+
+nohup Rscript m_hurdle_readsOnly_PA_sampling.r &>> justmessing.log &
+nohup Rscript m_hurdle_readsOnly_abu_sampling.r &>> justmessing.log &
+nohup Rscript m_spatialOnly_hurdlePA_sampling.r &>> justmessing.log &
+nohup Rscript m_spatialOnly_hurdleAbu_sampling.r &>> justmessing.log &
+nohup Rscript m_environmentalOnly_hurdlePA_sampling.r &>> justmessing.log &
+nohup Rscript m_environmentalOnly_hurdleAbu_sampling.r &>> justmessing.log &
+nohup Rscript m_hurdle_PA_sampling.r &>> justmessing.log &
+nohup Rscript m_hurdle_abu_sampling.r &>> justmessing.log &

@@ -11575,3 +11575,13 @@ nohup Rscript m_environmentalOnly_hurdlePA_sampling.r &>> justmessing.log &
 nohup Rscript m_environmentalOnly_hurdleAbu_sampling.r &>> justmessing.log &
 nohup Rscript m_hurdle_PA_sampling.r &>> justmessing.log &
 nohup Rscript m_hurdle_abu_sampling.r &>> justmessing.log &
+
+
+## plan:
+
+## check to make hmsc hasn't updated radically
+## we have a pretty good pipeline worked out up to this point. 
+## push ahead to predictions
+## then back up, rerun entire pipeline to publishable results
+
+

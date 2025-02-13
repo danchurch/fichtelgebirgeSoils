@@ -2655,6 +2655,7 @@ for (i in 1:2){
 rownames(traits) = spnames
 colnames(traits) = c("habitat.use","thermal.optimum")
 traits = as.data.frame(traits)
+
 par(fig = c(0,0.6,0,0.8), mar=c(6,0,2,0))
 plot(phy, show.tip.label = FALSE)
 par(fig = c(0.6,0.9,0.025,0.775), mar=c(6,0,2,0), new=T)
@@ -2668,7 +2669,6 @@ text(x=1.4, y=0.72, srt = 90, "T", cex=0.9, pos = 4)
 ## neat. maybe do something similar with respiration and forest/grassland
 
 ## make some environmental and community data:
-
 n = 200
 habitat = factor(sample(x = c("forest","open"), size = n, replace=TRUE))
 climate = rnorm(n)
@@ -2717,7 +2717,6 @@ m = Hmsc(
       studyDesign = studyDesign, 
         ranLevels = list(sample = rL))
 
-
 ## not run - apparently this will take 2 hours.
 ## lets set up the labcomputer for this.
 
@@ -2754,7 +2753,6 @@ m = sampleMcmc(m, thin = thin, samples = samples, transient = transient,
 ## check convergences
 
 mpost = convertToCodaObject(m)
-
 par(mfrow=c(3,2))
 ess.beta = effectiveSize(mpost$Beta)
 psrf.beta = gelman.diag(mpost$Beta, multivariate=FALSE)$psrf
@@ -2771,6 +2769,7 @@ for (chain in 1:length(tmp)){
 tmp[[chain]] = tmp[[chain]][,sppairs]
 }
 
+par(mfrow=c(1,2))
 ess.omega = effectiveSize(tmp)
 psrf.omega = gelman.diag(tmp, multivariate=FALSE)$psrf
 hist(ess.omega)
@@ -2799,6 +2798,8 @@ m$X
 
 head(m$X)
 
+tail(m$X)
+
 
 ## we can use our model to do Variance Partitioning:
 
@@ -2806,6 +2807,7 @@ VP = computeVariancePartitioning(m, group = c(1,1,2,2), groupnames = c("habitat"
 
 ?computeVariancePartitioning
 
+par(mfrow=c(1,1))
 plotVariancePartitioning(m, VP = VP)
 
 kable(VP$R2T$Beta)
@@ -2857,9 +2859,9 @@ predY = predict(m, XData=Gradient$XDataNew, studyDesign=Gradient$studyDesignNew,
 
 plotGradient(m, Gradient, pred=predY, measure="S", showData = TRUE)
 
-
 ## individual species response can be modeled:
 
+## mycomallace monkeyia, 
 par(mfrow=c(1,2))
 plotGradient(m, Gradient, pred=predY, measure="S", index = 1, showData = TRUE)
 plotGradient(m, Gradient, pred=predY, measure="Y", index = 2, showData = TRUE)
@@ -2867,9 +2869,7 @@ plotGradient(m, Gradient, pred=predY, measure="Y", index = 2, showData = TRUE)
 ## trait values of the group changing with a gradient:
 plotGradient(m, Gradient, pred=predY, measure="T", index = 3, showData = TRUE)
 
-
 ## "gradients" can be constructed for categorical variables?:
-
 Gradient = constructGradient(m,focalVariable = "habitat",
                              non.focalVariables = list("climate"=list(1)))
 
@@ -2888,7 +2888,6 @@ plotGradient(m, Gradient, pred=predY, measure="Y", index=which.max(m$TrData$habi
              showData = TRUE, jigger = 0.2)
 
 ## predicted to drop, make sense.
-
 ## and we can see how the community mean for this trait will drop with a habitat-change:
 
 plotGradient(m, Gradient, pred=predY, measure="T", index=2, showData = TRUE, jigger = 0.2)
@@ -11576,7 +11575,6 @@ nohup Rscript m_environmentalOnly_hurdleAbu_sampling.r &>> justmessing.log &
 nohup Rscript m_hurdle_PA_sampling.r &>> justmessing.log &
 nohup Rscript m_hurdle_abu_sampling.r &>> justmessing.log &
 
-
 ## plan:
 
 ## check to make hmsc hasn't updated radically
@@ -11584,4 +11582,61 @@ nohup Rscript m_hurdle_abu_sampling.r &>> justmessing.log &
 ## push ahead to predictions
 ## then back up, rerun entire pipeline to publishable results
 
+########## 
 
+## is there a tutorial on predictions? 
+## a bit here: 
+https://cran.r-project.org/web/packages/Hmsc/vignettes/vignette_3_multivariate_high.pdf
+
+## we ran through this tutorial around line 2848
+## really started 2625
+
+## this person trying to do the same thing
+https://github.com/hmsc-r/HMSC/issues/192
+
+## how to apply to our data?
+## resurrect our models. Where were they again?
+
+# on the nanocomp, sampled models here
+/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis/latestModels
+
+## get them back into memory:
+
+conda update conda
+
+conda activate spatialDirt
+
+soil
+R
+library(Hmsc)
+
+## let's try predictions with our PA models
+pathHMSCarchives <- "/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis/latestModels/" ## lab comp
+
+load(paste0(pathHMSCarchives,"m_hurdle_PA_sampled.rda"))
+
+m_hurdle_PA$XFormula
+
+## for instance, can we do a gradient of pH?
+?constructGradient
+
+Gradient = constructGradient(m_hurdle_PA,focalVariable = "pH", 
+                             non.focalVariables = list(
+                                      BacteriaDepth=list(1),
+                                      soil_respiration=list(1),
+                                      co2flow=list(1),
+                                      Land_type=list(1),
+                                      N=list(1),
+                                      C=list(1),
+                                      Temperature=list(1),
+                                      waterCont=list(1)))
+
+
+predY = predict(m, XData=Gradient$XDataNew, studyDesign=Gradient$studyDesignNew,
+                   ranLevels=Gradient$rLNew, expected=TRUE)
+
+Gradient = constructGradient(m_hurdle_PA,focalVariable = "pH",
+                         non.focalVariables = list("habitat"=list(3,"open")))
+
+
+## 

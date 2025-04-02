@@ -21,11 +21,53 @@ git config --global user.email "danchurchthomas@gmail.com"
 git config --global user.name "danchurch"
 
 git remote add origin https://github.com/danchurch/fichtelgebirgeSoils.git
+
 git branch -M main
+
 git remote set-url origin git@github.com:danchurch/fichtelgebirgeSoils.git
+
 git push -u origin main
 
 ## and we're in business with github
+
+## but not on the optiplex. following: 
+://docs.github.com/en/authentication/troubleshooting-ssh/error-permission-denied-publickey
+
+ssh-add -l -E sha256 
+
+## ssh agent not started
+
+eval $(ssh-agent -s)
+ssh-add ~/.ssh/optiplex2git
+
+## do I have to do this every time? test with a restart:
+
+## yup. Let's try putting in on the bashrc file
+
+## and...let's get the nanopore and optiplex talking to each other.
+## a set of reciprocal keys:
+
+## on nanoComp
+ssh-keygen -f nanopore2optiplex -N ""
+ssh-copy-id -i nanopore2optiplex daniel@132.180.113.114
+
+ssh daniel@132.180.113.114
+
+## on optiplex
+ssh-keygen -f optiplex2nanopore -N ""
+
+ssh-copy-id -i optiplex2nanopore test@132.180.112.115
+
+## ugh the ssh-agent issue continue. Can't seem to login with 
+## keys, because the agent on hand doesn't recognize the 
+## keys
+
+
+
+
+
+##############
+
 
 ## maybe let's get a conda environment going for this.
 
@@ -87,7 +129,11 @@ conda deactivate
 sudo R 
 
 install.packages("BiocManager")
+
 BiocManager::install("phyloseq")
+
+## needed:
+$sudo apt install liblapack-dev libopenblas-dev
 
 
 ## I think that took care of most of the complex installs
@@ -108,8 +154,105 @@ which jupyter ## looks like that work. Gets easier every year.
 
 ## to get a bash kernel on there? https://github.com/takluyver/bash_kernel
 
+
 pip install bash_kernel
+
 python -m bash_kernel.install
+
+
+
+
+## we have a new computer that can handle these models, maybe (124 gig RAM)
+
+## so get our yaml and see if we can set it up right for this. 
+
+## get the yaml file:
+
+conda env export 
+
+
+conda env export > spatialDirt.yaml
+
+conda env create -f environment.yml
+
+## seems to have worked pretty well.
+## how about jupyter notebooks
+## how do we do this again? Need tcp forwarding in the ssh command:
+
+## dial into optiplex or nanopore computer, 
+
+## optiplex
+ssh -L 8080:localhost:8080 daniel@132.180.113.114
+
+## make sure the repo is up-to-date: 
+
+conda activate spatialDirt
+
+soil
+
+jupyter notebook --no-browser --port=8080
+
+
+## then open browser to:
+http://localhost:8080/notebooks/spatialAnalysisSulariData.ipynb
+
+## looks good, but I think we are missing the R kernels on the optiplex
+
+
+## using R 4.4.2 for system, but changed below for conda env
+
+sudo R
+
+install.packages('IRkernel')
+
+IRkernel::installspec(user = FALSE)
+
+## this is failing, I think the R install is having 
+## trouble with the conda setup
+
+## try installing R inside our conda env (on optiplex):
+
+conda activate spatialDirt
+
+conda install conda-forge::r-base
+
+## only R 4.2.3
+## weird. They advertise 4.4.5
+## maybe this is the conda solver working, probably for the better
+
+## try  this R:
+
+install.packages('IRkernel')
+
+IRkernel::installspec()
+
+## seems to work. 
+
+## can we get all the packages we need inside conda?
+
+install.packages('vegan')
+install.packages('phyloseq')
+install.packages('ape')
+install.packages('ade4')
+install.packages('adespatial')
+install.packages('sp')
+install.packages('spdep')
+install.packages('Hmsc')
+install.packages('corrplot')
+install.packages('NetCoMi')
+## doing things this way fails, because of the old R version
+
+## use conda instead?
+conda install r-vegan -c conda-forge
+conda install bioconda::bioconductor-phyloseq
+conda install conda-forge::r-ape ## already in there
+conda install conda-forge::r-ade4 ## already in there
+conda install conda-forge::r-adespatial 
+conda install conda-forge::r-sp ## already in there
+conda install conda-forge::r-spdep ## already in there
+conda install conda-forge::r-hmsc 
+conda install conda-forge::r-corrplot
+conda install bioconda::r-netcomi 
 
 ##### bayesian setup #####
 
@@ -141,7 +284,6 @@ git clone https://github.com/aloctavodia/BAP3.git
 ## seems like that worked in our spatialDirt environment
 
 ## try everything out for a bit, then update yaml backup for the repo
-
 
 conda activate spatialDirt 
 
@@ -1882,6 +2024,7 @@ library(devtools)
 ## and the following are not there:
 ld -llapack --verbose
 ld -lblas --verbose
+
 sudo apt install liblapack-dev libopenblas-dev
 
 install.packages("mixedCCA")
@@ -11597,8 +11740,11 @@ https://github.com/hmsc-r/HMSC/issues/192
 ## how to apply to our data?
 ## resurrect our models. Where were they again?
 
+
 # on the nanocomp, sampled models here
-/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis/latestModels
+getFile=/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis/latestModels
+putFile=/home/daniel/Documents/projects/carbon4d
+rsync -av test@132.180.112.115:$getFile $putFile
 
 ## get them back into memory:
 
@@ -11607,11 +11753,17 @@ conda update conda
 conda activate spatialDirt
 
 soil
+
 R
+
 library(Hmsc)
 
 ## let's try predictions with our PA models
-pathHMSCarchives <- "/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis/latestModels/" ## lab comp
+
+## I think we need the models we were using...
+
+#pathHMSCarchives <- "/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis/latestModels/" ## lab comp
+pathHMSCarchives <- "/home/daniel/Documents/projects/carbon4d/latestModels/" ## optiplex
 
 load(paste0(pathHMSCarchives,"m_hurdle_PA_sampled.rda"))
 
@@ -11632,11 +11784,26 @@ Gradient = constructGradient(m_hurdle_PA,focalVariable = "pH",
                                       waterCont=list(1)))
 
 
-predY = predict(m, XData=Gradient$XDataNew, studyDesign=Gradient$studyDesignNew,
+Gradient$XDataNew
+
+predY = predict(m_hurdle_PA, XData=Gradient$XDataNew, studyDesign=Gradient$studyDesignNew,
                    ranLevels=Gradient$rLNew, expected=TRUE)
 
-Gradient = constructGradient(m_hurdle_PA,focalVariable = "pH",
-                         non.focalVariables = list("habitat"=list(3,"open")))
+plotGradient(m_hurdle_PA, Gradient, pred=predY, measure="S", showData = TRUE)
+
+## cool. 
+## we are primarily interested in deforestation/reforestation, temperature, and moisture
+## get the predictions right, then write this fucking thing up
+
+## it would be good to find those species associated with high and low 
+## respiration, then model their reaction to a hotter, drier climate
+
+## maybe update the notebook soon, to show folks.
+
+## what kind of predict
+
+### 28.Mar.25
+
+## back again
 
 
-## 

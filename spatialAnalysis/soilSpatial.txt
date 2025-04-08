@@ -192,7 +192,6 @@ soil
 
 jupyter notebook --no-browser --port=8080
 
-
 ## then open browser to:
 http://localhost:8080/notebooks/spatialAnalysisSulariData.ipynb
 
@@ -2765,8 +2764,12 @@ plotBeta(m, post=postBeta, param="Support", supportLevel = 0.95)
 ## all of the thousand species we're going to examine...
 ## maybe in the next tutorial:
 
+conda activate spatialDirt
+soil
+R
 ## HSCMC tutorial #3:
 ## https://cran.r-project.org/web/packages/Hmsc/vignettes/vignette_3_multivariate_high.pdf
+
 
 library(Hmsc)
 library(corrplot)
@@ -2780,14 +2783,11 @@ ns = 50
 ## this will incorporate phylogeny, which we will randomly make up:
 phy = ape::rcoal(n=ns, tip.label = sprintf('species_%.3d',1:ns), br = "coalescent")
 plot(phy, show.tip.label = FALSE, no.margin = TRUE)
-
 ## model two traits - forest preference and thermal optimum
 ## assume there is a phylogenetic effect - more closely related 
 ## species are more likely to have the same preference for forest
 ## or more similar thermal optimum:
-
 ## make up the data so, this hurts my poor little brain:
-
 C = vcv(phy, model = "Brownian", corr = TRUE) ## ape function for traits that are evolving
 spnames = colnames(C)
 traits = matrix(NA,ncol =2,nrow = ns)
@@ -2798,7 +2798,6 @@ for (i in 1:2){
 rownames(traits) = spnames
 colnames(traits) = c("habitat.use","thermal.optimum")
 traits = as.data.frame(traits)
-
 par(fig = c(0,0.6,0,0.8), mar=c(6,0,2,0))
 plot(phy, show.tip.label = FALSE)
 par(fig = c(0.6,0.9,0.025,0.775), mar=c(6,0,2,0), new=T)
@@ -2833,11 +2832,12 @@ Y = L + mvrnorm(n=n, mu=rep(0,ns), Sigma=diag(ns))
 colnames(Y) = spnames
 
 
-## didn't really understand all of the code, but the goal 
+## didn't totally understand all of the code, but the goal 
 ## is to create a community matrix of species that 
 ## affected by the two traits. 
+## 
 
-Y[1:5,1:5] ## species are columns
+Y[1:5,1:5] ## species are columns, sites are rows
 
 ## build a model that includes:
 ## the climate and habitat data, 
@@ -2863,6 +2863,7 @@ m = Hmsc(
 ## not run - apparently this will take 2 hours.
 ## lets set up the labcomputer for this.
 
+
 m = Hmsc(Y = Y, XData = XData, XFormula = XFormula,
          TrData = traits, TrFormula = TrFormula,
          phyloTree = phy,
@@ -2874,8 +2875,13 @@ samples = 1000
 transient = 500
 verbose = 0
 
-m = sampleMcmc(m, thin = thin, samples = samples, transient = transient,
-               nChains = nChains, nParallel = nChains, verbose = verbose)
+## skip this sampling, load model below:
+#m = sampleMcmc(m, thin = thin, samples = samples, transient = transient,
+#               nChains = nChains, nParallel = nChains, verbose = verbose)
+
+#save(m, file="multivarTutorialModelSampled.rda")
+
+load("multivarTutorialModelSampled.rda")
 
 ## that actually ran for like ten minutes
 
@@ -2896,6 +2902,7 @@ m = sampleMcmc(m, thin = thin, samples = samples, transient = transient,
 ## check convergences
 
 mpost = convertToCodaObject(m)
+
 par(mfrow=c(3,2))
 ess.beta = effectiveSize(mpost$Beta)
 psrf.beta = gelman.diag(mpost$Beta, multivariate=FALSE)$psrf
@@ -2907,11 +2914,9 @@ hist(ess.gamma)
 hist(psrf.gamma)
 sppairs = matrix(sample(x = 1:ns^2, size = 100))
 tmp = mpost$Omega[[1]]
-
 for (chain in 1:length(tmp)){
 tmp[[chain]] = tmp[[chain]][,sppairs]
 }
-
 par(mfrow=c(1,2))
 ess.omega = effectiveSize(tmp)
 psrf.omega = gelman.diag(tmp, multivariate=FALSE)$psrf
@@ -8881,6 +8886,7 @@ envData = pd.read_csv('sulariEnv.csv')
 denbiDirt
 
 #conda activate r_env ## denbi
+
 conda activate spatialDirt
 
 soil
@@ -8889,6 +8895,7 @@ R
 
 library(Hmsc)
 library(phyloseq)
+
 rm(list=ls()) ## merge the spatial and env data:
 xycoords = read.csv("sulariSpatial.csv", row.names=1)
 envData <- read.csv("sulariEnv.csv", row.names="SampleID")
@@ -8897,10 +8904,13 @@ row.names(aa) <- aa$Row.names
 aa[1] <- NULL
 aa <- aa[rownames(envData),]
 envData <- aa; rm(aa)
-## now with co2 flux
-varsOfInterest = c("PlotID","soil_respiration","co2flow","Land_type","pH","N","C","Temperature","waterCont","xx","yy")
-## side note: why do we have two types of temperature data?:
+## side note: why do we have two types of temperature data? 
+## Temperature is in the auger_co2 sheet, it is the "sensor_temp" value for depth 0 from this core
+## they are highly correlated:
 #plot(envData$soil_T, envData$Temperature)
+## anyway use "Temperature" for now
+varsOfInterest = c("PlotID","soil_respiration","co2flow","Land_type","pH","N","C","Temperature","waterCont","xx","yy")
+
 XData<-data.frame(envData[,varsOfInterest])
 XData$Land_type <- as.factor(XData$Land_type)
 ## we can only use complete cases
@@ -8917,11 +8927,12 @@ rowsumsInv = 1/rowSums(bactRaw)
 nASVs <- dim(bactRaw)[2]
 scalarMat = matrix( rep(rowsumsInv, nASVs), ncol = nASVs)
 bact.rel <- bactRaw * scalarMat
+
 ##################### thresholds!! ###########
 ## larger, prev model had 1315 spp, x2 in hurdle model, threshold.prev=0.05, threshold.abu=0.002
 ## we'll do a much harsher subset for the moment. If sampling is cheap, soften it
 ## need to reduce to at least half, maybe more
-threshold.prev = 5/112 ## present in at least 5 samples, out of 112 samples 
+threshold.prev = 5/109 ## present in at least 5 samples, out of 112 samples 
 threshold.abu = 0.01 ## only OTU that reaches at least 1% abundance of one sample
 ny = dim(bactRaw)[1]
 cond1=!(colSums(bact.pa)<=threshold.prev*ny) 
@@ -8932,6 +8943,7 @@ sum(bact.pa)
 dim(bactData) ## 166 OTUs remain, out of 
 dim(bact.pa) ## 3313 OTUs
 ################################################
+
 Y <- bactData
 ny <- dim(Y)[1]
 ns <- dim(Y)[2]
@@ -9016,7 +9028,9 @@ m_readsOnly_PA = Hmsc(Y=Ypa,
                       ranLevels={list("sample"=rL.sample)},
                       YScale=TRUE 
 )
-save(m_readsOnly_PA, file="m_readsOnly_PA.rda")
+
+saveRDS(m_readsOnly_PA, file="m_readsOnly_PA.rds")
+#save(m_readsOnly_PA, file="m_readsOnly_PA.rda")
 
 ## 1.2, hurdle of reads only, abundance:
 m_readsOnly_abu = Hmsc(Y=Yabu,
@@ -9225,7 +9239,6 @@ save(m_hurdle_abu, file="m_hurdle_abu.rda")
 #
 #nohup Rscript m_fullModel_logNorm_sampling.r &> m_fullModel_logNorm_sampling.log &
 
-## from here, 
 
 ## 1.1, hurdle of reads only, PA:
 #### m_hurdle_readsOnly_PA_sampling.r ####
@@ -11748,7 +11761,7 @@ rsync -av test@132.180.112.115:$getFile $putFile
 
 ## get them back into memory:
 
-conda update conda
+#conda update conda
 
 conda activate spatialDirt
 
@@ -11767,12 +11780,16 @@ pathHMSCarchives <- "/home/daniel/Documents/projects/carbon4d/latestModels/" ## 
 
 load(paste0(pathHMSCarchives,"m_hurdle_PA_sampled.rda"))
 
+load(paste0(pathHMSCarchives,"m_hurdle_abu_sampled.rda"))
+
 m_hurdle_PA$XFormula
+
+m_hurdle_abu$XFormula
 
 ## for instance, can we do a gradient of pH?
 ?constructGradient
 
-Gradient = constructGradient(m_hurdle_PA,focalVariable = "pH", 
+Gradient = constructGradient(m_hurdle_abu,focalVariable = "pH", 
                              non.focalVariables = list(
                                       BacteriaDepth=list(1),
                                       soil_respiration=list(1),
@@ -11786,10 +11803,20 @@ Gradient = constructGradient(m_hurdle_PA,focalVariable = "pH",
 
 Gradient$XDataNew
 
-predY = predict(m_hurdle_PA, XData=Gradient$XDataNew, studyDesign=Gradient$studyDesignNew,
+predY = predict(m_hurdle_abu, XData=Gradient$XDataNew, studyDesign=Gradient$studyDesignNew,
                    ranLevels=Gradient$rLNew, expected=TRUE)
 
-plotGradient(m_hurdle_PA, Gradient, pred=predY, measure="S", showData = TRUE)
+sink("predY_abu.txt")
+print(str(predY))
+sink()
+
+## to get the predicted community species richness
+plotGradient(m_hurdle_abu, Gradient, pred=predY, measure="S", showData = TRUE)
+
+## that doesn't really work at all. 
+
+## to plot a single species response:
+plotGradient(m_hurdle_abu, Gradient, pred=predY, measure="Y", index = 1, showData = TRUE)
 
 ## cool. 
 ## we are primarily interested in deforestation/reforestation, temperature, and moisture
@@ -11800,10 +11827,95 @@ plotGradient(m_hurdle_PA, Gradient, pred=predY, measure="S", showData = TRUE)
 
 ## maybe update the notebook soon, to show folks.
 
-## what kind of predict
 
 ### 28.Mar.25
 
 ## back again
 
+## code above is running, but not sure I understand everything. 
+## Also, have to think about what models to use for predictions. 
 
+## repeating: HSCMC tutorial #3 above, to do some re-learning
+
+## generally makes sense, but our models are way more complex, of course. 
+## what would be the plan here? 
+
+## learn about using the hurdle model. I think we are supposed to 
+## use it as a filter. As in, we can only trust abundances from 
+## our abundance model if they clear the hurdle of being predicted as
+## present at a site by our presence/absence model.
+  
+## so, how to apply this to our data? I think it means we cannot 
+## trust the model evaluations of the abundance model, there is 
+## going to be a lot of noise there. 
+
+## but according to the Hmsc book the Y matrix of the abundance 
+## model should show NAs rather than zeros. 
+
+## we ran the spatiotemporal models as a check for the effect 
+## of seasonality, this is all on the notebook. 
+## We don't find an effect by season on all the plots that 
+## were sampled multiple times. So we ignore for the moment. 
+## But now I think it is even more important to document the larger
+## model building.  
+
+## rebuild the big spatial model using the jupyter notebook
+## get the model sampling going soon, it takes a while...
+
+## gotta start somewhere...fire up the notebook again!
+
+
+## where does the model-building process start again...
+## line 8880ish above... examine and rerun, in the notebook
+
+
+## let's write a script that can handle different models, for sampling:
+
+########### sampleModels.R #############
+
+library(Hmsc)
+
+args = commandArgs(trailingOnly=TRUE)
+
+print("starting model:")
+print(args[1])
+print(paste("start time is", Sys.time()))
+model2samp <- readRDS(args[1])
+thin = as.numeric(args[2])
+samples = as.numeric(args[3])
+nChains = as.numeric(args[4])
+nP = as.numeric(args[5])
+
+print(model2samp)
+print(paste("thin =", thin))
+print(paste("samples =", samples))
+print(paste("nChains =", nChains))
+print(paste("nP =", nP))
+
+modelSampled = sampleMcmc(model2samp,
+                     samples = samples,
+                     thin = thin,
+                     transient = ceiling(0.5*samples*thin),
+                     nChains = nChains,
+                     nParallel = nP
+                     )
+
+sampledFileName=paste0(args[1],"_sampled.rds")
+save(modelSampled, file=sampledFileName)
+print(sampledFileName)
+print(paste("Finish time is", Sys.time()))
+
+#########################################
+
+## so should run like this:
+Rscript sampleModels.R m_readsOnly_PA.rds 20 1000 8 2
+
+## in notebook, run it like this:
+nohup Rscript sampleModels.R m_readsOnly_PA.rds 20 1000 8 2 | tee samplingPosterior_hurdle.log
+
+thin = 20
+samples = 1000
+nChains = 8
+nP = 2
+
+## on line 9032 or so above, concerning models saved.

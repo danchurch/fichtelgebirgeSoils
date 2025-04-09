@@ -1,4 +1,5 @@
 library(Hmsc)
+library(tools)
 
 args = commandArgs(trailingOnly=TRUE)
 
@@ -25,7 +26,8 @@ modelSampled = sampleMcmc(model2samp,
                      nParallel = nP
                      )
 
-sampledFileName=paste0(args[1],"_sampled.rds")
+
+sampledFileName=paste0(file_path_sans_ext(args[1]),"_sampled.rds")
 save(modelSampled, file=sampledFileName)
 print(sampledFileName)
 print(paste("Finish time is", Sys.time()))

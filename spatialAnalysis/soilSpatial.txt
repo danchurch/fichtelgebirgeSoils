@@ -9029,7 +9029,7 @@ m_readsOnly_PA = Hmsc(Y=Ypa,
                       YScale=TRUE 
 )
 
-saveRDS(m_readsOnly_PA, file="m_readsOnly_PA.rds")
+#saveRDS(m_readsOnly_PA, file="m_readsOnly_PA.rds")
 #save(m_readsOnly_PA, file="m_readsOnly_PA.rda")
 
 ## 1.2, hurdle of reads only, abundance:
@@ -9040,7 +9040,9 @@ m_readsOnly_abu = Hmsc(Y=Yabu,
                       ranLevels={list("sample"=rL.sample)},
                       YScale=TRUE 
 )
-save(m_readsOnly_abu, file="m_readsOnly_abu.rda")
+
+#saveRDS(m_readsOnly_abu, file="m_readsOnly_abu.rds")
+#save(m_readsOnly_abu, file="m_readsOnly_abu.rda")
 
 ## 2.1, hurdle of spatial only, no env, PA:
 m_spatialOnly_PA = Hmsc(Y=Ypa,
@@ -9050,7 +9052,9 @@ m_spatialOnly_PA = Hmsc(Y=Ypa,
          ranLevels={list("sample"=rL.sample, "site_spatial" = rL.site_spatial)},
          YScale=TRUE 
 )
-save(m_spatialOnly_PA, file="m_spatialOnly_PA.rda")
+
+#save(m_spatialOnly_PA, file="m_spatialOnly_PA.rda")
+#saveRDS(m_spatialOnly_PA, file="m_spatialOnly_PA.rds")
 
 ## 2.2, hurdle of spatial only, no env, abundance:
 m_spatialOnly_abu = Hmsc(Y=Yabu,
@@ -9060,27 +9064,34 @@ m_spatialOnly_abu = Hmsc(Y=Yabu,
          ranLevels={list("sample"=rL.sample, "site_spatial" = rL.site_spatial)},
          YScale=TRUE 
 )
-save(m_spatialOnly_abu, file="m_spatialOnly_abu.rda")
+#save(m_spatialOnly_abu, file="m_spatialOnly_abu.rda")
+
+saveRDS(m_spatialOnly_abu, file="m_spatialOnly_abu.rds")
 
 ## 3.1 hurdle of env only, no spatial, PA:
-m_environmentalOnly_hurdlePA = Hmsc(Y=Ypa,
+m_environmentalOnly_PA = Hmsc(Y=Ypa,
          XData = XData1,  XFormula = XFormula1,
          distr={"probit"} ,
          studyDesign=studyDesign, 
          ranLevels={list("sample"=rL.sample)},
          YScale=TRUE 
 )
-save(m_environmentalOnly_hurdlePA, file="m_environmentalOnly_hurdlePA.rda")
+
+#save(m_environmentalOnly_PA, file="m_environmentalOnly_PA.rda")
+
+saveRDS(m_environmentalOnly_PA, file="m_environmentalOnly_PA.rds")
 
 ## 3.2, hurdle of env only, no spatial, abundance:
-m_environmentalOnly_hurdleAbu = Hmsc(Y=Yabu,
+m_environmentalOnly_Abu = Hmsc(Y=Yabu,
          XData = XData1,  XFormula = XFormula1,
          distr={"normal"} ,
          studyDesign=studyDesign, 
          ranLevels={list("sample"=rL.sample)},
          YScale=TRUE 
 )
-save(m_environmentalOnly_hurdleAbu, file="m_environmentalOnly_hurdleAbu.rda")
+#save(m_environmentalOnly_hurdleAbu, file="m_environmentalOnly_hurdleAbu.rda")
+
+saveRDS(m_environmentalOnly_Abu, file="m_environmentalOnly_Abu.rds")
 
 ## 4. model was a full model, spatial+env, but using the log-normal posterior with all zeros.
 ##    turned out to be uninformative in any way ( = impossible to sample to convergence with
@@ -9090,25 +9101,29 @@ save(m_environmentalOnly_hurdleAbu, file="m_environmentalOnly_hurdleAbu.rda")
 ## 5. a hurdle model, full spatial model with environmental covariates which is actually 2 models:
 
 ## 5.1. hurdle probit/PA: 
-m_hurdle_PA = Hmsc(Y=Ypa,
+m_full_PA = Hmsc(Y=Ypa,
          XData = XData1,  XFormula = XFormula1,
          distr={"probit"} ,
          studyDesign=studyDesign, 
          ranLevels={list("sample"=rL.sample, "site_spatial" = rL.site_spatial)},
          YScale=TRUE 
 )
-save(m_hurdle_PA, file="m_hurdle_PA.rda")
+
+save(m_full_PA, file="m_full_PA.rda")
+
+saveRDS(m_full_PA, file="m_full_PA.rds")
 
 ## 5.2. hurdle abundance 
-m_hurdle_abu = Hmsc(Y=Yabu,
+m_full_abu = Hmsc(Y=Yabu,
          XData = XData1,  XFormula = XFormula1,
          distr={"normal"} ,
          studyDesign=studyDesign, 
          ranLevels={list("sample"=rL.sample, "site_spatial" = rL.site_spatial)},
          YScale=TRUE 
 )
-save(m_hurdle_abu, file="m_hurdle_abu.rda")
+#save(m_full_abu, file="m_full_abu.rda")
 
+saveRDS(m_full_abu, file="m_full_abu.rds")
 
 
 ###############################################
@@ -11869,11 +11884,12 @@ plotGradient(m_hurdle_abu, Gradient, pred=predY, measure="Y", index = 1, showDat
 ## line 8880ish above... examine and rerun, in the notebook
 
 
-## let's write a script that can handle different models, for sampling:
+## let's write a script that can handle 
 
-########### sampleModels.R #############
+################ sampleModels.R ##############################
 
 library(Hmsc)
+library(tools)
 
 args = commandArgs(trailingOnly=TRUE)
 
@@ -11900,10 +11916,13 @@ modelSampled = sampleMcmc(model2samp,
                      nParallel = nP
                      )
 
-sampledFileName=paste0(args[1],"_sampled.rds")
+
+sampledFileName=paste0(file_path_sans_ext(args[1]),"_sampled.rds")
 save(modelSampled, file=sampledFileName)
 print(sampledFileName)
 print(paste("Finish time is", Sys.time()))
+
+
 
 #########################################
 
@@ -11911,11 +11930,36 @@ print(paste("Finish time is", Sys.time()))
 Rscript sampleModels.R m_readsOnly_PA.rds 20 1000 8 2
 
 ## in notebook, run it like this:
-nohup Rscript sampleModels.R m_readsOnly_PA.rds 20 1000 8 2 | tee samplingPosterior_hurdle.log
 
-thin = 20
-samples = 1000
-nChains = 8
-nP = 2
+cd unsampledHMSCmodels
+
+nohup Rscript sampleModels.R m_readsOnly_PA.rds 20 1000 8 2 | tee sampling_m_readsOnly_PA.log
+
+nohup Rscript ../sampleModels.R m_readsOnly_PA.rds           20 1000 8 2 &> sampling_m_readsOnly_PA.log &
+
+nohup Rscript ../sampleModels.R m_readsOnly_abu.rds          20 1000 8 2 &> sampling_m_readsOnly_abu.log &
+
+nohup Rscript ../sampleModels.R m_spatialOnly_PA.rds         20 1000 8 2 &> sampling_m_spatialOnly_PA.log &
+nohup Rscript ../sampleModels.R m_spatialOnly_abu.rds        20 1000 8 2 &> sampling_m_spatialOnly_abu.log &
+nohup Rscript ../sampleModels.R m_environmentalOnly_PA.rds   20 1000 8 2 &> sampling_m_environmentalOnly_PA.log &
+nohup Rscript ../sampleModels.R m_environmentalOnly_abu.rds  20 1000 8 2 &> sampling_m_environmentalOnly_abu.log &
+nohup Rscript ../sampleModels.R m_full_PA.rds                20 1000 8 2 &> sampling_m_full_PA.log &
+nohup Rscript ../sampleModels.R m_full_abu.rds               20 1000 8 2 &> sampling_m_full_abu.log &
+
+
+unsampModFolder="/home/daniel/Documents/projects/carbon4d/fichtelgebirgeSoils/spatialAnalysis/unsampledHMSCmodels"
+modelFileName=paste(unsampModFolder, "m_readsOnly_PA.rds", sep="/")
+modelFileName
 
 ## on line 9032 or so above, concerning models saved.
+
+
+## here is a batteries-included way to get rid of extensions:
+tools::file_path_sans_ext("m_readsOnly_PA.rds")
+
+
+/home/daniel/Documents/projects/carbon4d/latestModels
+
+## checking file sizes for git:
+find . -size +10M -exec ls -lh {} +
+

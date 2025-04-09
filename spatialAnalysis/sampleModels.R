@@ -23,7 +23,8 @@ modelSampled = sampleMcmc(model2samp,
                      thin = thin,
                      transient = ceiling(0.5*samples*thin),
                      nChains = nChains,
-                     nParallel = nP
+                     nParallel = nP,
+		     #verbose = 500*thin ## doesn't work?
                      )
 
 

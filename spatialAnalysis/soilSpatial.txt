@@ -904,10 +904,13 @@ t_test(weight ~ group)
 library(vegan)
 
 spatDir <- "/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis"
+
 setwd(spatDir)
 
 comData=read.csv("/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/comdat.csv", row.names=1)
+
 envData=read.csv("/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis/sulariEnv.csv", row.names=1)
+
 ## get rid of controls
 notControls=!(row.names(comData) %in% c("C1.1", "C1.2", "C2.1", "C2.2"))
 comData <- comData[notControls,]
@@ -944,8 +947,11 @@ envData = pd.read_csv(sulariEnvCSV, index_col='SampleID')
 comData = pd.read_csv("/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/comdat.csv", 
                       index_col=0) 
 controls=[ 'C1.1', 'C1.2', 'C2.1', 'C2.2']
-envData.drop(controls, axis='rows', inplace=True)
+
+#envData.drop(controls, axis='rows', inplace=True)
 comData.drop(controls, axis='rows', inplace=True)
+nmsPts.drop(controls, axis='rows', inplace=True)
+
 
 ## need some colors for land type
 colorDict = {
@@ -953,13 +959,16 @@ colorDict = {
 'Forest'    :'#006600',
 'Grassland' :'#FF7F00'
 }
+
 landCols = [ colorDict[i] for i in envData['Land_type'] ]
 plt.close('all')
 fig, ax = plt.subplots()
+
 ax.scatter(x=nmsPts["MDS1"],
            y=nmsPts["MDS2"], 
            c=landCols,
           )
+
 Arableland_patch = Patch(color='#862d2d', label='Arableland')
 Forest_patch = Patch(color='#006600', label='Forest')
 Grassland_patch = Patch(color='#FF7F00', label='Grassland')
@@ -996,8 +1005,35 @@ for i in envData.season.unique():
         marker=seasonDict[i],
             )
 
-## I don't see any evidence of seasonality affecting these
-## community structures
+ax.grid()
+
+## how can we add a label, to just those who are repeated?
+
+## if we want just those that are duplicated:
+repFilt = envData['PlotID'].duplicated(keep=False)
+repeatedPlots = envData[repFilt].sort_values(by="PlotID")
+
+
+A = -0.75, -0.25, 0, 0.25, 0.5, 0.75, 1.0
+B = 0.73, 0.97, 1.0, 0.97, 0.88, 0.73, 0.54
+
+
+for xy in zip(A, B):                                       # <--
+    ax.annotate('(%s, %s)' % xy, xy=xy, textcoords='data') # <--
+
+ax.annotate("zoop", (0,0), textcoords='data')
+
+for i in 
+
+## btw, drop the P0228, not actually repeated:
+repeatedPlots.drop(['S89','S102'], axis='rows', inplace=True)
+
+## use natsort to clean up sample name order
+repeatedPlots = repeatedPlots.loc[ ns.natsorted(repeatedPlots.index)]
+repeatedPlots['Date'] = pd.to_datetime(repeatedPlots['Date'], yearfirst=True, errors='coerce')
+## how many different sampling times do each have?
+repeatedPlots[["PlotID","Date"]].groupby("PlotID").nunique()
+
 
 ## ph ordinations
 
@@ -11963,3 +11999,26 @@ tools::file_path_sans_ext("m_readsOnly_PA.rds")
 ## checking file sizes for git:
 find . -size +10M -exec ls -lh {} +
 
+## there are two weird processes on the optiplex with an older time stamp:
+
+ps 139605
+
+ps -p 139605 -o pid,lstart,cmd
+
+ps -p 139605,139606 -o pid,lstart,cmd
+
+ps -p 139605 -o pid,lstart,cmd
+
+ps 139606
+
+## seems fine. Not sure why the time stamp is formatted differently.
+
+## todo: drop S89 and S90 from analysis. Make sure these aren't in the Hmsc models.
+## they shouldn't be, they are not complete in their env info
+## as per sulari's email on 23.5.24
+
+## or at least, change to forest? They are theoretically forest. 
+## check the NMS, if they fit as forests, leave them. If they are still
+## weird, justifiable to drop them given the uncertainty.
+
+## at line 1026, revising NMS. Gotta go... 

@@ -1013,17 +1013,24 @@ ax.grid()
 repFilt = envData['PlotID'].duplicated(keep=False)
 repeatedPlots = envData[repFilt].sort_values(by="PlotID")
 
+## to get NMS coordinates of just repeated plots:
+repeatedNMSpts = nmsPts[nmsPts.index.isin(repeatedPlots.index)]
 
-A = -0.75, -0.25, 0, 0.25, 0.5, 0.75, 1.0
-B = 0.73, 0.97, 1.0, 0.97, 0.88, 0.73, 0.54
+for i,xy in enumerate(zip(repeatedNMSpts["MDS1"], repeatedNMSpts["MDS2"])):
+    ax.annotate(envData.loc[repeatedNMSpts.index[i],"PlotID"], xy=xy, textcoords='data')
 
 
-for xy in zip(A, B):                                       # <--
-    ax.annotate('(%s, %s)' % xy, xy=xy, textcoords='data') # <--
+repeatedNMSpts.iloc[0].name
 
-ax.annotate("zoop", (0,0), textcoords='data')
+repeatedNMSpts.index[0]
 
-for i in 
+envData.loc[repeatedNMSpts.index[i],"PlotID"]
+
+
+
+for i,j in enumerate(range(1,3)):
+    print(i)
+    print(j)
 
 ## btw, drop the P0228, not actually repeated:
 repeatedPlots.drop(['S89','S102'], axis='rows', inplace=True)

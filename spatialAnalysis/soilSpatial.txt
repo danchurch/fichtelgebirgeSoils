@@ -992,6 +992,7 @@ seasonShapes = [ seasonDict[i] for i in envData['season'] ]
 ## if we want to change markers for each season:
 
 plt.close('all')
+
 fig, ax = plt.subplots()
 for i in envData.season.unique():
   print(i)
@@ -1012,25 +1013,15 @@ ax.grid()
 ## if we want just those that are duplicated:
 repFilt = envData['PlotID'].duplicated(keep=False)
 repeatedPlots = envData[repFilt].sort_values(by="PlotID")
-
-## to get NMS coordinates of just repeated plots:
+## to label NMS coordinates of just repeated plots:
 repeatedNMSpts = nmsPts[nmsPts.index.isin(repeatedPlots.index)]
-
 for i,xy in enumerate(zip(repeatedNMSpts["MDS1"], repeatedNMSpts["MDS2"])):
     ax.annotate(envData.loc[repeatedNMSpts.index[i],"PlotID"], xy=xy, textcoords='data')
 
+## or to label all points with there plot name:
+for i,xy in enumerate(zip(nmsPts["MDS1"], nmsPts["MDS2"])):
+    ax.annotate(envData.loc[nmsPts.index[i],"PlotID"], xy=xy, textcoords='data')
 
-repeatedNMSpts.iloc[0].name
-
-repeatedNMSpts.index[0]
-
-envData.loc[repeatedNMSpts.index[i],"PlotID"]
-
-
-
-for i,j in enumerate(range(1,3)):
-    print(i)
-    print(j)
 
 ## btw, drop the P0228, not actually repeated:
 repeatedPlots.drop(['S89','S102'], axis='rows', inplace=True)
@@ -1040,6 +1031,44 @@ repeatedPlots = repeatedPlots.loc[ ns.natsorted(repeatedPlots.index)]
 repeatedPlots['Date'] = pd.to_datetime(repeatedPlots['Date'], yearfirst=True, errors='coerce')
 ## how many different sampling times do each have?
 repeatedPlots[["PlotID","Date"]].groupby("PlotID").nunique()
+
+
+## these are a little funny, 
+## two are likely mislabeled as far as landtype (S89 and S90 should be forest, currently labeled as Arable land)
+## the others don't fit, don't know if mislabeled or real:
+
+envData.query('PlotID == "P0131" & season == "W2"')
+envData.query('PlotID == "P0153" & season == "W1"')
+envData.query('PlotID == "P0155" & season == "W1"')
+envData.query('PlotID == "P0204" & season == "SP"')
+envData.query('PlotID == "P0205" & season == "W1"')
+envData.query('PlotID == "P0220" & season == "S"')
+envData.query('PlotID == "P0223" & season == "A"')
+envData.query('PlotID == "P0105" & season == "SP"')
+
+S118 (P0105), SP
+S33  (P0131), W2
+S45  (P0153), W1
+S41  (P0155), W1
+S119 (P0204), SP
+S40  (P0205), W1
+S90  (P0207),
+S86  (P0220), S
+S44  (P0223), A
+S89  (P0228), "Arable land",A
+
+## to label these on the above ordination:
+funnyPoints=["S118","S33","S45","S41","S119","S40","S90","S86","S44","S89"]
+funnyPointsNMS = nmsPts.loc[funnyPoints]
+for i,xy in enumerate(zip(funnyPointsNMS["MDS1"], funnyPointsNMS["MDS2"])):
+    ax.annotate(funnyPoints[i], xy=xy, textcoords='data') ## label with Sample number
+    ax.annotate(envData.loc[funnyPoints[i],"PlotID"], 
+                xy=xy, 
+                xycoords='data',
+                xytext=(0,-10),
+                textcoords='offset points',
+                                 ) ## label with plotID
+
 
 
 ## ph ordinations
@@ -12028,4 +12057,41 @@ ps 139606
 ## check the NMS, if they fit as forests, leave them. If they are still
 ## weird, justifiable to drop them given the uncertainty.
 
-## at line 1026, revising NMS. Gotta go... 
+## at line 1026, revising NMS.
+
+## on that note, here is the list of funny samples:
+
+
+S118 (P0105), SP
+S33  (P0131), W2
+S45  (P0153), W1
+S41  (P0155), W1
+S119 (P0204), SP
+S40  (P0205), W1
+S90  (P0207),
+S86  (P0220), S
+S44  (P0223), A
+S89  (P0228), "Arable land",A
+
+## to label these on the above ordination:
+funnyPoints=["S118","S33","S45","S41","S119","S40","S90","S86","S44","S89"]
+
+envData.loc[funnyPoints].shape
+
+envData.loc[funnyPoints]
+
+ 100-140 Arableland, 150-190 Grassland, and 200-240 Forest.
+
+## the only obvious cases of mistaken land type are S89 and S90
+## go through them in order:
+
+## S33 - P0131, Winter2, Arable land in the middle of grasslands. Probably no real explanation.
+## S40 - P0205, Winter1, Forest in the middel of grasslands, far away from other P0205s. Mixed up with S41/P0155?
+## S41 - P0155, Winter1, Grassland in the middle of forest, far away for P0155s. Mixed up with S40/P0205?
+## S44 - P0223, Autumn, forest in the middle of grasslands. Mixed up with S45/P0153?
+## S45 - P0153, Winter1, grassland in the middle of forests. Mixed up with S44/P0223?
+## S86 - P0220, Summer, forest in the middle of arable land.  Mixed up with S118/P0105?
+## S89 
+## S90 
+## S118 - P0105, 
+## S119

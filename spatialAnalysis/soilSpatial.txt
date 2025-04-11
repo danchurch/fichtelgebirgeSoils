@@ -12049,19 +12049,18 @@ ps 139606
 
 ## seems fine. Not sure why the time stamp is formatted differently.
 
-## todo: drop S89 and S90 from analysis. Make sure these aren't in the Hmsc models.
-## they shouldn't be, they are not complete in their env info
-## as per sulari's email on 23.5.24
+##### fixing metadata mistakes ##########
 
-## or at least, change to forest? They are theoretically forest. 
-## check the NMS, if they fit as forests, leave them. If they are still
-## weird, justifiable to drop them given the uncertainty.
+## there are several samples that do not fit our expectations in the 
+## general NMS. They may just be weird samples, on the edge of the
+## transitions zones between farm, field, etc. 
 
-## at line 1026, revising NMS.
+## but several of them look suspiciously like switched labels
+## let's go through them:
 
-## on that note, here is the list of funny samples:
+## see line 1026, revising NMS. Added coded for annotating the nms
 
-
+## here is the list of funny samples:
 S118 (P0105), SP
 S33  (P0131), W2
 S45  (P0153), W1
@@ -12080,18 +12079,30 @@ envData.loc[funnyPoints].shape
 
 envData.loc[funnyPoints]
 
- 100-140 Arableland, 150-190 Grassland, and 200-240 Forest.
+## remember, numbering scheme for plotIDs: 100-140 Arableland, 150-190 Grassland, and 200-240 Forest.
 
 ## the only obvious cases of mistaken land type are S89 and S90
 ## go through them in order:
 
-## S33 - P0131, Winter2, Arable land in the middle of grasslands. Probably no real explanation.
-## S40 - P0205, Winter1, Forest in the middel of grasslands, far away from other P0205s. Mixed up with S41/P0155?
-## S41 - P0155, Winter1, Grassland in the middle of forest, far away for P0155s. Mixed up with S40/P0205?
-## S44 - P0223, Autumn, forest in the middle of grasslands. Mixed up with S45/P0153?
-## S45 - P0153, Winter1, grassland in the middle of forests. Mixed up with S44/P0223?
-## S86 - P0220, Summer, forest in the middle of arable land.  Mixed up with S118/P0105?
-## S89 
-## S90 
-## S118 - P0105, 
-## S119
+## S33 - P0131, Winter2, Arable land in the middle of grassland cluster. Probably no real explanation.
+## S40 - P0205, Winter1, Forest in the middel of grassland cluster, far away from other P0205s, in the area of most P0155 points. Mixed up with S41/P0155?
+## S41 - P0155, Winter1, Grassland in the middle of forest cluster, far away for P0155s, in the area of most P0205 points. Mixed up with S40/P0205?
+## S44 - P0223, Autumn, forest in the middle of grassland cluster. Mixed up with S45/P0153?
+## S45 - P0153, Winter1, grassland in the middle of forest cluster. Mixed up with S44/P0223?
+## S86 - P0220, Summer, forest in the middle of arable land cluster, in the area of most P0105 points. Probably no real explanation.
+## S89 - P0228, Autumn, Arable land in the middle of forest cluster. Plot number corresponds to forest. Mislabeled land type, should be forest? 
+## S90 - P0207, Autumn, Arable land in the middle of forest cluster. Plot number corresponds to forest. Mislabeled land type, should be forest? 
+## S118 - P0105, Spring, Arable land in the middle of forest cluster. Mixed up S86/P0220 or S119/P0204?
+## S119 - P0204, Spring, Forest in the middle of arable land cluster.  Mixed up with S118/P0105?
+
+## seems like we can fix S89 and S90, accept S33 and S86 
+## and what about the rest, as sulari confirms there may have been a labeling mixup between these pairs:
+## = (S40/S41, S44/S45, and S118/S119)
+
+## in each case they are right next to each other in order, and in each case they were prepared on the  
+
+## in one paper, Knights et al 2011, they use classification algorithms to support their argument 
+## that data were mislabeled. We can try the same. 
+
+## interested in using a bayesian classifier, maybe bernoulli on presence/absence of OTUs:
+https://www.geeksforgeeks.org/bernoulli-naive-bayes/

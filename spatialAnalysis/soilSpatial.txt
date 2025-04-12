@@ -5,7 +5,8 @@
 ## we need RSA with SHA-2 signature algorithm
 
 man ssh-keygen
-ssh-keygen -t rsa -f fuj2git
+
+ssh-keygen -t rsa -f optiplex2git
 
 ## now, what do we need to get the push functionality...
 
@@ -21,20 +22,27 @@ git config --global user.email "danchurchthomas@gmail.com"
 git config --global user.name "danchurch"
 
 git remote add origin https://github.com/danchurch/fichtelgebirgeSoils.git
+
 git branch -M main
+
 git remote set-url origin git@github.com:danchurch/fichtelgebirgeSoils.git
+
 git push -u origin main
 
 ## and we're in business with github
 
 ## maybe let's get a conda environment going for this.
 
-wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+#wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
 
 mkdir -p ~/miniconda3
+
 wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda3/miniconda.sh
+
 bash ~/miniconda3/miniconda.sh -b -u -p ~/miniconda3
+
 rm -rf ~/miniconda3/miniconda.sh
+
 ~/miniconda3/bin/conda init bash
 
 conda config --set auto_activate_base false
@@ -51,10 +59,30 @@ conda config --add channels conda-forge
 
 ## this new conda env comes with python3.12
 
+## we'll need to clone the environment for optiplex
+
+## also need R for optiplex.
+
+## we want 4.4.2, this should still be the current version:
+
+# update indices
+sudo apt update -qq
+# install two helper packages we need
+sudo apt install --no-install-recommends software-properties-common dirmngr
+# add the signing key (by Michael Rutter) for these repos
+# To verify key, run gpg --show-keys /etc/apt/trusted.gpg.d/cran_ubuntu_key.asc 
+# Fingerprint: E298A3A825C0D65DFD57CBB651716619E084DAB9
+wget -qO- https://cloud.r-project.org/bin/linux/ubuntu/marutter_pubkey.asc | sudo tee -a /etc/apt/trusted.gpg.d/cran_ubuntu_key.asc
+# add the repo from CRAN -- lsb_release adjusts to 'noble' or 'jammy' or ... as needed
+sudo add-apt-repository "deb https://cloud.r-project.org/bin/linux/ubuntu $(lsb_release -cs)-cran40/"
+# install R itself
+sudo apt install --no-install-recommends r-base
+
 ## let's see if this works for our spatial analysis
 
 
 conda activate
+
 conda create -n "spatialDirt" 
  
 ## let's think about spatial turnover in Sulari's community data
@@ -90,6 +118,7 @@ install.packages("BiocManager")
 BiocManager::install("phyloseq")
 
 
+
 ## I think that took care of most of the complex installs
 
 ## oh wait, let's get the jupyter notebook setup going...
@@ -110,6 +139,52 @@ which jupyter ## looks like that work. Gets easier every year.
 
 pip install bash_kernel
 python -m bash_kernel.install
+
+
+
+##### repeat for optiplex #####
+
+## we just got a new computer with a lot of ram. Let's repeat the above 
+## installs to run the models on this new machine.
+
+alias optiplex="ssh daniel@132.180.113.114"
+
+## get the yaml files from the other computers:
+
+conda activate  spatialDirt
+
+conda env export > officeCompSpatialDirt.yaml
+
+conda env export > nanoCompSpatialDirt.yaml
+
+scp daniel@132.180.112.24:/home/daniel/officeCompSpatialDirt.yaml .
+
+scp test@132.180.112.115:/home/test/nanoCompSpatialDirt.yaml .
+
+## which one should we try? first, nanocomp, it is closer in age, OS, and resources
+
+conda env create --name spatialDirt --file=nanoCompSpatialDirt.yaml
+
+## seems ok, test it more later
+
+## make sure R has the tough packages installed:
+
+sudo R
+
+install.packages("BiocManager")
+
+BiocManager::install("phyloseq")
+
+BiocManager::install("dada2") # while we're at it, this might be handy for later
+
+## of course fails. lots libraries, etc installed with apt, the usual
+
+
+## not run
+BiocManager::install("dada2")
+
+
+
 
 ##### bayesian setup #####
 

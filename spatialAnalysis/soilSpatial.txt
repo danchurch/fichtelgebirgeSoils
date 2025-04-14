@@ -966,12 +966,15 @@ import preliz as pz
 import arviz as az
 import rasterio.plot
 
+## on optiplex
+os.chdir("/home/daniel/Documents/projects/carbon4d/fichtelgebirgeSoils/spatialAnalysis")
+
 ## data
 nmsPts = pd.read_csv("comNMS.csv", index_col=0)
-sulariEnvCSV="/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/spatialAnalysis/sulariEnv.csv"
-envData = pd.read_csv(sulariEnvCSV, index_col='SampleID')
-comData = pd.read_csv("/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/comdat.csv", 
+envData = pd.read_csv("sulariEnv.csv", index_col='SampleID')
+comData = pd.read_csv("../sulariData/comdat.csv", 
                       index_col=0) 
+
 controls=[ 'C1.1', 'C1.2', 'C2.1', 'C2.2']
 
 #envData.drop(controls, axis='rows', inplace=True)
@@ -1044,14 +1047,13 @@ repeatedNMSpts = nmsPts[nmsPts.index.isin(repeatedPlots.index)]
 for i,xy in enumerate(zip(repeatedNMSpts["MDS1"], repeatedNMSpts["MDS2"])):
     ax.annotate(envData.loc[repeatedNMSpts.index[i],"PlotID"], xy=xy, textcoords='data')
 
-## or to label all points with there plot name:
+## or to label all points with their plot name:
 for i,xy in enumerate(zip(nmsPts["MDS1"], nmsPts["MDS2"])):
     ax.annotate(envData.loc[nmsPts.index[i],"PlotID"], xy=xy, textcoords='data')
 
 
 ## btw, drop the P0228, not actually repeated:
 repeatedPlots.drop(['S89','S102'], axis='rows', inplace=True)
-
 ## use natsort to clean up sample name order
 repeatedPlots = repeatedPlots.loc[ ns.natsorted(repeatedPlots.index)]
 repeatedPlots['Date'] = pd.to_datetime(repeatedPlots['Date'], yearfirst=True, errors='coerce')
@@ -5934,7 +5936,6 @@ s.label(xyJit00, nb = nbgab, pnb.edge.col = "red", main = "Gabriel")
 ssh -L 8080:localhost:8080 ubuntu@129.70.51.6 -p 30267
 
 ## catch that environment up a little:
-
 jupyter notebook --no-browser --port=8080
 
 ## for adespatial:
@@ -7933,26 +7934,31 @@ multLT = envData[["PlotID",'Land_type']].groupby("PlotID").nunique()
 
 library(vegan)
 
-comData = read.csv("/home/daniel/Documents/projects/fichtelgebirge_project/sulariArneSoils/fichtelgebirgeSoils/sulariData/comdat.csv", row.names=1)
+## desktop:
+#comData = read.csv("/home/daniel/Documents/projects/fichtelgebirge_project/sulariArneSoils/fichtelgebirgeSoils/sulariData/comdat.csv", row.names=1)
+
+## optiplex
+comData = read.csv("/home/daniel/Documents/projects/carbon4d/fichtelgebirgeSoils/sulariData/comdat.csv", row.names=1)
 envData = read.csv("sulariEnv.csv", row.names=1)
+
 ## get rid of controls
 notControls=!(row.names(comData) %in% c("C1.1", "C1.2", "C2.1", "C2.2"))
 comData <- comData[notControls,]
-## get rid of S89, think it is an error
-comData <- comData[!(rownames(comData) == "S89"),]
 comNMS <- metaMDS(comData, try=40)
-
 write.csv(comNMS$points, file='comNMS.csv')
 
 ## and python for plotting as before:
 
 python3
-import matplotlib.pyplot as plt
-plt.ion()
+import matplotlib.pyplot as plt;plt.ion()
 import pandas as pd
+from matplotlib.patches import Patch
+
+from matplotlib_scalebar.scalebar import ScaleBar
+
 envData = pd.read_csv('sulariEnv.csv', index_col='SampleID')
 nmsPts = pd.read_csv("comNMS.csv", index_col=0)
-envData.drop('S89', inplace=True)
+
 colorDict = {
 'Arableland':'#862d2d',
 'Forest'    :'#006600',
@@ -12132,5 +12138,119 @@ envData.loc[funnyPoints]
 
 ## interested in using a bayesian classifier, maybe bernoulli on presence/absence of OTUs:
 https://www.geeksforgeeks.org/bernoulli-naive-bayes/
+
+## the best example I can find is:
+https://towardsdatascience.com/bernoulli-naive-bayes-explained-a-visual-guide-with-code-examples-for-beginners-aec39771ddd6/
+
+## we need an OTU table:
+
+R 
+library(phyloseq)
+load("psCleanedUp.rda")
+OTU1 = as(otu_table(psCleanedUp), "matrix")
+OTUdf = as.data.frame(OTU1)
+write.csv(OTUdf, file="psCleanedUpOTUtable.csv")
+
+## then onto python for the classifier:
+
+
+python3
+import pandas as pd
+from sklearn.naive_bayes import BernoulliNB
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import accuracy_score
+from sklearn.model_selection import train_test_split
+
+## apply the above tutorial to my data:
+dirtDF = pd.read_csv('psCleanedUpOTUtable.csv', index_col=0)
+dirtDF.drop([ "C1.1", "C1.2", "C2.1", "C2.2"], inplace=True)
+envData = pd.read_csv('sulariEnv.csv', index_col=0)
+## as per above, we need to correct the land types of S89 and S90:
+#envData.loc[["S89","S90"],"Land_type"] = "Forest"
+#envData.to_csv('sulariEnv.csv')
+#envData = pd.read_csv('sulariEnv.csv', index_col=0)
+
+## quick check:
+
+(dirtDF.index == envData.index).all() ## ok
+
+## our response var is Land_type:
+#dirt_y = pd.Categorical(envData['Land_type'], 
+#                        ordered=False, 
+#                        categories=envData['Land_type'].unique())
+dirt_y = envData['Land_type']
+
+## convert OTU abundances to PA:
+dirtDF_pa = dirtDF.copy()
+dirtDF_pa[dirtDF_pa > 0] = 1
+
+## we need to make sure that our problem samples are in the test dataset, not the training set. Take them out before 
+## splitting the dataset:
+
+funnyPairs = ["S40", "S41", "S44", "S45", "S118", "S119"]
+envData.loc[funnyPairs]
+
+dirtDF_pa_forNBCmodel = dirtDF_pa.drop(funnyPairs)
+dirt_yForNBCmodel = dirt_y.drop(labels=funnyPairs)
+
+## set these aside for prediction:
+funnyDirt = dirtDF_pa.loc[funnyPairs].copy()
+
+dirtX_train, dirtX_test, dirty_train, dirty_test = train_test_split(dirtDF_pa_forNBCmodel, dirt_yForNBCmodel, train_size=0.8, shuffle=True)
+
+nb_clf_dirt = BernoulliNB(binarize=None)
+nb_clf_dirt.fit(dirtX_train, dirty_train)
+
+
+dirty_pred = nb_clf_dirt.predict(dirtX_test)
+print(f"Accuracy: {accuracy_score(dirty_test, dirty_pred)}") ## 95% accurate. Huh. Seems good.
+
+
+
+
+pd.DataFrame({"oldLabel":envData.loc[dirtX_test.index,"Land_type"], 
+             "predicted":dirty_pred})
+
+## now, apply these to our funny samples?
+
+funnyDirt_pred = nb_clf_dirt.predict(funnyDirt)
+
+predictionsFunny = pd.Series(funnyDirt_pred, funnyDirt.index.to_list())
+
+predictionsFunny
+
+envData.loc[funnyPairs,"Land_type"]
+
+pd.DataFrame({"oldLabel":envData.loc[funnyPairs,"Land_type"], 
+             "predicted":funnyDirt_pred})
+
+##  need to update notebook with:
+## - change name of S89 and S90
+## - this modeling approach to detecting metadata error
+
+## then rerun model sampling with updated environmental matrix
+
+## so to correct our data, we would change the names of the community
+## matrix:
+
+sulariEnvCSV="../sulariData/Envt_Matrix.csv"
+
+## where do we change these?
+
+## all ps objects, the community matrix in the sulari folder... 
+
+comData = pd.read_csv("/home/daniel/Documents/projects/carbon4d/fichtelgebirgeSoils/sulariData/comdat.csv", index_col=0)
+
+## better in R, I think:
+
+library(phyloseq)
+
+load("psCleanedUp.rda")
+
+comData = read.csv("/home/daniel/Documents/projects/carbon4d/fichtelgebirgeSoils/sulariData/comdat.csv", row.names=1)
+
+envData <- read.csv("/home/daniel/Documents/projects/carbon4d/fichtelgebirgeSoils/spatialAnalysis/sulariEnv.csv", row.names=1)
+
+head(comData)
 
 

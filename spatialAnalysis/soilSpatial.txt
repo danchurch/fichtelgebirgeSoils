@@ -12106,3 +12106,5 @@ envData.loc[funnyPoints]
 
 ## interested in using a bayesian classifier, maybe bernoulli on presence/absence of OTUs:
 https://www.geeksforgeeks.org/bernoulli-naive-bayes/
+
+

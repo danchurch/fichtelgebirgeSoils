@@ -12156,7 +12156,9 @@ write.csv(OTUdf, file="psCleanedUpOTUtable.csv")
 
 python3
 import pandas as pd
+
 from sklearn.naive_bayes import BernoulliNB
+
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import train_test_split
@@ -12179,7 +12181,6 @@ envData = pd.read_csv('sulariEnv.csv', index_col=0)
 #                        ordered=False, 
 #                        categories=envData['Land_type'].unique())
 dirt_y = envData['Land_type']
-
 ## convert OTU abundances to PA:
 dirtDF_pa = dirtDF.copy()
 dirtDF_pa[dirtDF_pa > 0] = 1
@@ -12224,7 +12225,19 @@ envData.loc[funnyPairs,"Land_type"]
 pd.DataFrame({"oldLabel":envData.loc[funnyPairs,"Land_type"], 
              "predicted":funnyDirt_pred})
 
-##  need to update notebook with:
+## can we assign probabilities?:
+
+nb_clf_dirt.predict_proba(funnyDirt) ## very high probabilities predicted behind predictions. 
+
+aa = nb_clf_dirt.predict_proba(funnyDirt) ## very high probabilities predicted behind predictions. 
+
+
+pd.DataFrame(aa, index=funnyPairs, columns=nb_clf_dirt.classes_)
+
+pd.DataFrame({"oldLabel":envData.loc[funnyPairs,"Land_type"], 
+             "predicted":funnyDirt_pred})
+
+##  need to update notebook with probabilities and:
 ## - change name of S89 and S90
 ## - this modeling approach to detecting metadata error
 

@@ -12250,9 +12250,7 @@ sulariEnvCSV="../sulariData/Envt_Matrix.csv"
 
 ## where do we change these?
 
-## all ps objects, the community matrix in the sulari folder... 
-
-comData = pd.read_csv("/home/daniel/Documents/projects/carbon4d/fichtelgebirgeSoils/sulariData/comdat.csv", index_col=0)
+## all the "cleanedup" ps object, the community matrix in the sulari folder...anything else?...
 
 ## better in R, I think:
 
@@ -12260,10 +12258,71 @@ library(phyloseq)
 
 load("psCleanedUp.rda")
 
-comData = read.csv("/home/daniel/Documents/projects/carbon4d/fichtelgebirgeSoils/sulariData/comdat.csv", row.names=1)
 
-envData <- read.csv("/home/daniel/Documents/projects/carbon4d/fichtelgebirgeSoils/spatialAnalysis/sulariEnv.csv", row.names=1)
+OTU1 = as(otu_table(psCleanedUp), "matrix")
+
+otu_table(psCleanedUp) <- OTU1
+
+load("psCleanedUp.rda")
+
+funnyPairs = c("S40", "S41", "S44", "S45", "S118", "S119")
+
+correctedRownames <- rownames(OTU1)
+
+## just checking 
+correctedRownames[40] ## S40
+correctedRownames[41] ## S41
+correctedRownames[44] ## S44
+correctedRownames[45] ## S45
+correctedRownames[118] ## S118
+correctedRownames[119] ## S119
+
+## make the corrections
+correctedRownames[40] <- "S41"
+correctedRownames[41] <- "S40"
+correctedRownames[44] <- "S45"
+correctedRownames[45] <- "S44"
+correctedRownames[118] <- "S119"
+correctedRownames[119] <- "S118"
+
+## if we use these as new row names, how do we restore the original order
+## make a clean, sortable row number value from our row names:
+
+as.numeric(c(gsub("S","",correctedRownames)[1:120], 121:124))
+
+OTU1['correctedRowNu'] <- as.numeric(c(gsub("S","",correctedRownames)[1:120], 121:124))
+
+order(as.numeric(gsub("S","",correctedRownames)[1:120], 121:124))
+
+sort(as.numeric(gsub("S","",correctedRownames)[1:120], 121:124))
+
+
+OTU1[1:5,1:5]
+
+
+rownames(OTU1) <- correctedRownames
+rownames(OTU1) ## looks right
+otu_table(psCleanedUp) <- OTU1
+
+## and to correct the community matrix:
+comData = read.csv("/home/daniel/Documents/projects/carbon4d/fichtelgebirgeSoils/sulariData/comdat.csv", row.names=1)
 
 head(comData)
 
+correctedRownames <- rownames(comData)
 
+correctedRownames
+
+correctedRownames[40] ## S40
+correctedRownames[41] ## S41
+correctedRownames[44] ## S44
+correctedRownames[45] ## S45
+correctedRownames[118] ## S118
+correctedRownames[119] ## S119
+
+## in case we didn't really want to do this, we are on commit: bfb875a7b961fea762d15533bb06373a7d069a8f
+
+##
+
+
+## check, did that work? Repeat the NMS as before:

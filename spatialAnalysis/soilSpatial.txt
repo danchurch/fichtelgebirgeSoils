@@ -12255,19 +12255,10 @@ sulariEnvCSV="../sulariData/Envt_Matrix.csv"
 ## better in R, I think:
 
 library(phyloseq)
-
+library(vegan)
 load("psCleanedUp.rda")
 
-
-OTU1 = as(otu_table(psCleanedUp), "matrix")
-
-otu_table(psCleanedUp) <- OTU1
-
-load("psCleanedUp.rda")
-
-funnyPairs = c("S40", "S41", "S44", "S45", "S118", "S119")
-
-correctedRownames <- rownames(OTU1)
+correctedRownames <- sample_names(psCleanedUp)
 
 ## just checking 
 correctedRownames[40] ## S40
@@ -12285,27 +12276,15 @@ correctedRownames[45] <- "S44"
 correctedRownames[118] <- "S119"
 correctedRownames[119] <- "S118"
 
-## if we use these as new row names, how do we restore the original order
-## make a clean, sortable row number value from our row names:
 
-as.numeric(c(gsub("S","",correctedRownames)[1:120], 121:124))
+sample_names(psCleanedUp) <- correctedRownames
 
-OTU1['correctedRowNu'] <- as.numeric(c(gsub("S","",correctedRownames)[1:120], 121:124))
-
-order(as.numeric(gsub("S","",correctedRownames)[1:120], 121:124))
-
-sort(as.numeric(gsub("S","",correctedRownames)[1:120], 121:124))
-
-
-OTU1[1:5,1:5]
-
-
-rownames(OTU1) <- correctedRownames
-rownames(OTU1) ## looks right
-otu_table(psCleanedUp) <- OTU1
+sample_names(psCleanedUp) ## seems right.
 
 ## and to correct the community matrix:
+
 comData = read.csv("/home/daniel/Documents/projects/carbon4d/fichtelgebirgeSoils/sulariData/comdat.csv", row.names=1)
+
 
 head(comData)
 
@@ -12313,6 +12292,7 @@ correctedRownames <- rownames(comData)
 
 correctedRownames
 
+## sanity check
 correctedRownames[40] ## S40
 correctedRownames[41] ## S41
 correctedRownames[44] ## S44
@@ -12320,9 +12300,74 @@ correctedRownames[45] ## S45
 correctedRownames[118] ## S118
 correctedRownames[119] ## S119
 
+## make the corrections
+correctedRownames[40] <- "S41"
+correctedRownames[41] <- "S40"
+correctedRownames[44] <- "S45"
+correctedRownames[45] <- "S44"
+correctedRownames[118] <- "S119"
+correctedRownames[119] <- "S118"
+
+rownames(comData) <- correctedRownames
+
+## check - how does the nms look now?
+
+envData = read.csv("sulariEnv.csv", row.names=1)
+
+## get rid of controls
+notControls=!(row.names(comData) %in% c("C1.1", "C1.2", "C2.1", "C2.2"))
+
+comData <- comData[notControls,]
+
+comNMS <- metaMDS(comData, try=40)
+
+write.csv(comNMS$points, file='comNMS.csv')
+
+## python:
+import pandas as pd
+import matplotlib.pyplot as plt; plt.ion()
+from matplotlib.patches import Patch
+
+nmsPts = pd.read_csv("comNMS.csv", index_col=0)
+
+envData = pd.read_csv("sulariEnv.csv", index_col='SampleID')
+comData = pd.read_csv("../sulariData/comdat.csv",
+                      index_col=0)
+
+## reorder samples
+
+
+nmsPts.loc[envData.index.to_list()]
+
+nmsPts.index.to_list()
+
+nmsPts = nmsPts.loc[envData.index.to_list()]
+
+
+colorDict = {
+'Arableland':'#862d2d',
+'Forest'    :'#006600',
+'Grassland' :'#FF7F00'
+}
+landCols = [ colorDict[i] for i in envData['Land_type'] ]
+fig, ax = plt.subplots()
+ax.scatter(x=nmsPts["MDS1"],
+           y=nmsPts["MDS2"],
+           c=landCols,
+          )
+
+Arableland_patch = Patch(color='#862d2d', label='Arableland')
+Forest_patch = Patch(color='#006600', label='Forest')
+Grassland_patch = Patch(color='#FF7F00', label='Grassland')
+ax.legend(handles=[Forest_patch, Arableland_patch, Grassland_patch])
+
+## okay, looks better. save the community matrix and ps object out, commit and synch up all machines.
+
+.to_csv("../sulariData/comdat.csv",
+                      index_col=0)
+
 ## in case we didn't really want to do this, we are on commit: bfb875a7b961fea762d15533bb06373a7d069a8f
 
-##
 
 
 ## check, did that work? Repeat the NMS as before:

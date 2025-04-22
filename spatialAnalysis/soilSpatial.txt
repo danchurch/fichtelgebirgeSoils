@@ -12354,11 +12354,11 @@ nmsPts = pd.read_csv("comNMS.csv", index_col=0)
 
 envData = pd.read_csv("sulariEnv.csv", index_col='SampleID')
 
-comData = pd.read_csv("../sulariData/comdat.csv",
-                      index_col=0)
+#comData = pd.read_csv("../sulariData/comdat.csv", index_col=0)
+
+comData = pd.read_csv("comdat_corrected.csv", index_col=0)
 
 ## reorder samples
-
 
 nmsPts.loc[envData.index.to_list()]
 

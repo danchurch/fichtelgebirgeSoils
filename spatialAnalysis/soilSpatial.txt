@@ -12237,6 +12237,9 @@ pd.DataFrame(aa, index=funnyPairs, columns=nb_clf_dirt.classes_)
 pd.DataFrame({"oldLabel":envData.loc[funnyPairs,"Land_type"], 
              "predicted":funnyDirt_pred})
 
+## just curious, do the pH values also line up?
+## for instance, we have 
+
 ##  need to update notebook with probabilities and:
 ## - change name of S89 and S90
 ## - this modeling approach to detecting metadata error
@@ -12283,6 +12286,7 @@ sample_names(psCleanedUp) ## seems right.
 
 ## and to correct the community matrix:
 
+## on optiplex
 comData = read.csv("/home/daniel/Documents/projects/carbon4d/fichtelgebirgeSoils/sulariData/comdat.csv", row.names=1)
 
 
@@ -12310,27 +12314,46 @@ correctedRownames[119] <- "S118"
 
 rownames(comData) <- correctedRownames
 
+## 
+
 ## check - how does the nms look now?
 
 envData = read.csv("sulariEnv.csv", row.names=1)
 
+
 ## get rid of controls
 notControls=!(row.names(comData) %in% c("C1.1", "C1.2", "C2.1", "C2.2"))
 
-comData <- comData[notControls,]
+comDataNotControls <- comData[notControls,]
 
-comNMS <- metaMDS(comData, try=40)
+comNMS <- metaMDS(comDataNotControls, try=40)
 
 write.csv(comNMS$points, file='comNMS.csv')
+
+#comDataCorrected <- read.csv(file="comdat_corrected.csv", row.names=1)
+## can we use the order from the env matrix to fix the order on this?:
+
+rightOrder <- c(rownames(envData),"C1.1","C1.2","C2.1","C2.2")
+
+comDataCorrected <- comData[rightOrder,]
+
+rownames(comDataCorrected) ## seems ok
+
+## write out the new comdata
+write.csv(comDataCorrected, file="comdat_corrected.csv")
+
+## let's use this as our main community matrix from now on.
 
 ## python:
 import pandas as pd
 import matplotlib.pyplot as plt; plt.ion()
 from matplotlib.patches import Patch
+import matplotlib
 
 nmsPts = pd.read_csv("comNMS.csv", index_col=0)
 
 envData = pd.read_csv("sulariEnv.csv", index_col='SampleID')
+
 comData = pd.read_csv("../sulariData/comdat.csv",
                       index_col=0)
 
@@ -12339,7 +12362,7 @@ comData = pd.read_csv("../sulariData/comdat.csv",
 
 nmsPts.loc[envData.index.to_list()]
 
-nmsPts.index.to_list()
+nmsPts.index.to_list() ## looks right
 
 nmsPts = nmsPts.loc[envData.index.to_list()]
 
@@ -12363,8 +12386,42 @@ ax.legend(handles=[Forest_patch, Arableland_patch, Grassland_patch])
 
 ## okay, looks better. save the community matrix and ps object out, commit and synch up all machines.
 
-.to_csv("../sulariData/comdat.csv",
-                      index_col=0)
+## just checking, does the pH data back us up on this?
+
+landTypeShapesDict = {
+'Arableland': "o",
+'Forest'    : "v",
+'Grassland' : "s",
+}
+
+pHmin = envData['pH'].min() ## 3.647
+pHmax = envData['pH'].max() ## 7.312
+norm=matplotlib.colors.Normalize(pHmin, pHmax)
+
+plt.close('all')
+
+fig, ax = plt.subplots(figsize=(8,8))
+for i in envData.Land_type.unique():
+  env_i = envData[envData['Land_type'] == i]
+  plots_i = env_i.index.to_list()
+  nmsPts_i = nmsPts.loc[plots_i]
+  sizes = env_i['soil_respiration']*50
+  ax.scatter(x=nmsPts_i["MDS1"],
+             y=nmsPts_i["MDS2"],
+             #s=140,
+             s=sizes,
+             c=env_i['pH'],
+             cmap='Spectral',
+             edgecolors='black',
+             marker=landTypeShapesDict[i],
+             norm=norm,
+            )
+
+fig.colorbar(plt.cm.ScalarMappable(norm=matplotlib.colors.Normalize(pHmin, pHmax), cmap='Spectral'),
+             ax=ax, orientation='vertical', label='pH')
+
+## yup. need to correct this in the notebook.
+
 
 ## in case we didn't really want to do this, we are on commit: bfb875a7b961fea762d15533bb06373a7d069a8f
 

@@ -8996,11 +8996,12 @@ conda activate spatialDirt
 soil
 
 R
-
 library(Hmsc)
 library(phyloseq)
 
-rm(list=ls()) ## merge the spatial and env data:
+## clear the table
+rm(list=ls()) 
+## merge the spatial and env data:
 xycoords = read.csv("sulariSpatial.csv", row.names=1)
 envData <- read.csv("sulariEnv.csv", row.names="SampleID")
 aa <- merge(x=envData, y=xycoords, by=0, )
@@ -9014,7 +9015,6 @@ envData <- aa; rm(aa)
 #plot(envData$soil_T, envData$Temperature)
 ## anyway use "Temperature" for now
 varsOfInterest = c("PlotID","soil_respiration","co2flow","Land_type","pH","N","C","Temperature","waterCont","xx","yy")
-
 XData<-data.frame(envData[,varsOfInterest])
 XData$Land_type <- as.factor(XData$Land_type)
 ## we can only use complete cases
@@ -9024,6 +9024,9 @@ load("psCleanedUp.rda")
 psCleanedUp = prune_samples(!(rownames(sample_data(psCleanedUp)) %in% c("C1.1","C1.2","C2.1","C2.2")), psCleanedUp)
 psCleanedUp = prune_taxa( colSums(otu_table(psCleanedUp)) > 0, psCleanedUp)
 bactRaw <- otu_table(psCleanedUp)@.Data
+## need to reorder our array, to match proper order,
+## as used in the environmental data, etc:
+bactRaw <- bactRaw[rownames(envData),]
 bactRaw = bactRaw[ccases,]  ## complete cases only
 XData['BacteriaDepth'] <- log(rowSums(bactRaw))
 bact.pa<-ifelse(bactRaw>0,1,0)
@@ -9031,7 +9034,7 @@ rowsumsInv = 1/rowSums(bactRaw)
 nASVs <- dim(bactRaw)[2]
 scalarMat = matrix( rep(rowsumsInv, nASVs), ncol = nASVs)
 bact.rel <- bactRaw * scalarMat
-
+rownames(bact.rel)
 ##################### thresholds!! ###########
 ## larger, prev model had 1315 spp, x2 in hurdle model, threshold.prev=0.05, threshold.abu=0.002
 ## we'll do a much harsher subset for the moment. If sampling is cheap, soften it
@@ -9047,7 +9050,6 @@ sum(bact.pa)
 dim(bactData) ## 166 OTUs remain, out of 
 dim(bact.pa) ## 3313 OTUs
 ################################################
-
 Y <- bactData
 ny <- dim(Y)[1]
 ns <- dim(Y)[2]
@@ -9133,7 +9135,7 @@ m_readsOnly_PA = Hmsc(Y=Ypa,
                       YScale=TRUE 
 )
 
-#saveRDS(m_readsOnly_PA, file="m_readsOnly_PA.rds")
+saveRDS(m_readsOnly_PA, file="./unsampledHMSCmodels/m_readsOnly_PA.rds")
 #save(m_readsOnly_PA, file="m_readsOnly_PA.rda")
 
 ## 1.2, hurdle of reads only, abundance:
@@ -9145,7 +9147,7 @@ m_readsOnly_abu = Hmsc(Y=Yabu,
                       YScale=TRUE 
 )
 
-#saveRDS(m_readsOnly_abu, file="m_readsOnly_abu.rds")
+saveRDS(m_readsOnly_abu, file="./unsampledHMSCmodels/m_readsOnly_abu.rds")
 #save(m_readsOnly_abu, file="m_readsOnly_abu.rda")
 
 ## 2.1, hurdle of spatial only, no env, PA:
@@ -9158,7 +9160,7 @@ m_spatialOnly_PA = Hmsc(Y=Ypa,
 )
 
 #save(m_spatialOnly_PA, file="m_spatialOnly_PA.rda")
-#saveRDS(m_spatialOnly_PA, file="m_spatialOnly_PA.rds")
+saveRDS(m_spatialOnly_PA, file="./unsampledHMSCmodels/m_spatialOnly_PA.rds")
 
 ## 2.2, hurdle of spatial only, no env, abundance:
 m_spatialOnly_abu = Hmsc(Y=Yabu,
@@ -9169,8 +9171,7 @@ m_spatialOnly_abu = Hmsc(Y=Yabu,
          YScale=TRUE 
 )
 #save(m_spatialOnly_abu, file="m_spatialOnly_abu.rda")
-
-saveRDS(m_spatialOnly_abu, file="m_spatialOnly_abu.rds")
+saveRDS(m_spatialOnly_abu, file="./unsampledHMSCmodels/m_spatialOnly_abu.rds")
 
 ## 3.1 hurdle of env only, no spatial, PA:
 m_environmentalOnly_PA = Hmsc(Y=Ypa,
@@ -9182,8 +9183,7 @@ m_environmentalOnly_PA = Hmsc(Y=Ypa,
 )
 
 #save(m_environmentalOnly_PA, file="m_environmentalOnly_PA.rda")
-
-saveRDS(m_environmentalOnly_PA, file="m_environmentalOnly_PA.rds")
+saveRDS(m_environmentalOnly_PA, file="./unsampledHMSCmodels/m_environmentalOnly_PA.rds")
 
 ## 3.2, hurdle of env only, no spatial, abundance:
 m_environmentalOnly_Abu = Hmsc(Y=Yabu,
@@ -9195,7 +9195,7 @@ m_environmentalOnly_Abu = Hmsc(Y=Yabu,
 )
 #save(m_environmentalOnly_hurdleAbu, file="m_environmentalOnly_hurdleAbu.rda")
 
-saveRDS(m_environmentalOnly_Abu, file="m_environmentalOnly_Abu.rds")
+saveRDS(m_environmentalOnly_Abu, file="./unsampledHMSCmodels/m_environmentalOnly_abu.rds")
 
 ## 4. model was a full model, spatial+env, but using the log-normal posterior with all zeros.
 ##    turned out to be uninformative in any way ( = impossible to sample to convergence with
@@ -9213,9 +9213,8 @@ m_full_PA = Hmsc(Y=Ypa,
          YScale=TRUE 
 )
 
-save(m_full_PA, file="m_full_PA.rda")
-
-saveRDS(m_full_PA, file="m_full_PA.rds")
+#save(m_full_PA, file="m_full_PA.rda")
+saveRDS(m_full_PA, file="./unsampledHMSCmodels/m_full_PA.rds")
 
 ## 5.2. hurdle abundance 
 m_full_abu = Hmsc(Y=Yabu,
@@ -9227,8 +9226,14 @@ m_full_abu = Hmsc(Y=Yabu,
 )
 #save(m_full_abu, file="m_full_abu.rda")
 
-saveRDS(m_full_abu, file="m_full_abu.rds")
+saveRDS(m_full_abu, file="./unsampledHMSCmodels/m_full_abu.rds")
 
+
+## note, the lines below were for each model required
+## its own script for sampling, with an ".rda" file
+
+## now (28.4.25) they are not relevant, using the .rds files
+## and a script that accepts command line arguments, around line 12000 below
 
 ###############################################
 
@@ -12037,18 +12042,14 @@ Rscript sampleModels.R m_readsOnly_PA.rds 20 1000 8 2
 
 cd unsampledHMSCmodels
 
-nohup Rscript sampleModels.R m_readsOnly_PA.rds 20 1000 8 2 | tee sampling_m_readsOnly_PA.log
-
-nohup Rscript ../sampleModels.R m_readsOnly_PA.rds           20 1000 8 2 &> sampling_m_readsOnly_PA.log &
-
-nohup Rscript ../sampleModels.R m_readsOnly_abu.rds          20 1000 8 2 &> sampling_m_readsOnly_abu.log &
-
-nohup Rscript ../sampleModels.R m_spatialOnly_PA.rds         20 1000 8 2 &> sampling_m_spatialOnly_PA.log &
-nohup Rscript ../sampleModels.R m_spatialOnly_abu.rds        20 1000 8 2 &> sampling_m_spatialOnly_abu.log &
-nohup Rscript ../sampleModels.R m_environmentalOnly_PA.rds   20 1000 8 2 &> sampling_m_environmentalOnly_PA.log &
-nohup Rscript ../sampleModels.R m_environmentalOnly_abu.rds  20 1000 8 2 &> sampling_m_environmentalOnly_abu.log &
-nohup Rscript ../sampleModels.R m_full_PA.rds                20 1000 8 2 &> sampling_m_full_PA.log &
-nohup Rscript ../sampleModels.R m_full_abu.rds               20 1000 8 2 &> sampling_m_full_abu.log &
+nohup Rscript ../sampleModels.R m_readsOnly_PA.rds           20 1000 8 2 &> sampling_m_readsOnly_PA.log & ## 42735
+nohup Rscript ../sampleModels.R m_readsOnly_abu.rds          20 1000 8 2 &> sampling_m_readsOnly_abu.log & ## 42812
+nohup Rscript ../sampleModels.R m_spatialOnly_PA.rds         20 1000 8 2 &> sampling_m_spatialOnly_PA.log & ## 42888
+nohup Rscript ../sampleModels.R m_spatialOnly_abu.rds        20 1000 8 2 &> sampling_m_spatialOnly_abu.log & ## 42910
+nohup Rscript ../sampleModels.R m_environmentalOnly_PA.rds   20 1000 8 2 &> sampling_m_environmentalOnly_PA.log & ## 42935
+nohup Rscript ../sampleModels.R m_environmentalOnly_abu.rds  20 1000 8 2 &> sampling_m_environmentalOnly_abu.log & ## 43332
+nohup Rscript ../sampleModels.R m_full_PA.rds                20 1000 8 2 &> sampling_m_full_PA.log & ## 43140
+nohup Rscript ../sampleModels.R m_full_abu.rds               20 1000 8 2 &> sampling_m_full_abu.log & ## 43164
 
 
 unsampModFolder="/home/daniel/Documents/projects/carbon4d/fichtelgebirgeSoils/spatialAnalysis/unsampledHMSCmodels"
@@ -12422,9 +12423,10 @@ fig.colorbar(plt.cm.ScalarMappable(norm=matplotlib.colors.Normalize(pHmin, pHmax
 
 ## yup. need to correct this in the notebook.
 
-
 ## in case we didn't really want to do this, we are on commit: bfb875a7b961fea762d15533bb06373a7d069a8f
 
-
-
 ## check, did that work? Repeat the NMS as before:
+
+## time to rerun models with the cleaned up data?
+
+## back up to lines 12031 and "current model setup" (line 8986)

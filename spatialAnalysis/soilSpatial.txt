@@ -12430,3 +12430,26 @@ fig.colorbar(plt.cm.ScalarMappable(norm=matplotlib.colors.Normalize(pHmin, pHmax
 ## time to rerun models with the cleaned up data?
 
 ## back up to lines 12031 and "current model setup" (line 8986)
+
+## and sampling is done. move files out, make sure they are ignored by git (too big)
+
+cd unsampledHMSCmodels
+
+cp *sampled.rds ../sampledHMSmodels/
+
+soil; cd ..
+
+echo "spatialAnalysis/sampledHMSmodels/" >> .gitignore
+
+## back these up on the desktop...
+
+cd /home/daniel/Documents/projects/carbon4d/fichtelgebirgeSoils/spatialAnalysis/sampledHMSmodels
+
+tar -cvzf sampledSpatial02.05.25.tgz *sampled.rds
+
+## locally:
+getFile=/home/daniel/Documents/projects/carbon4d/fichtelgebirgeSoils/spatialAnalysis/sampledHMSmodels/sampledSpatial02.05.25.tgz
+putFile=/media/vol/fichtelberg/hmscBackups/spatial/
+rsync -av daniel@132.180.113.114:$getFile $putFile
+
+

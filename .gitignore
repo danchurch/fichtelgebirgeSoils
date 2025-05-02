@@ -19,3 +19,4 @@ spatialAnalysis/m_spatTemp_Env_PA_sampled.rds
 
 m_spatTemp_Env_PA_crossValPreds.rds
 m_spatTemp_Env_abu_crossValPreds.rds
+spatialAnalysis/sampledHMSmodels/

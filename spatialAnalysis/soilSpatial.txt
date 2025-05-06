@@ -12026,7 +12026,9 @@ modelSampled = sampleMcmc(model2samp,
                      )
 
 
+##!!! change this to saveRDS next time!!!##
 sampledFileName=paste0(file_path_sans_ext(args[1]),"_sampled.rds")
+##!!! change the above to saveRDS next time!!!##
 save(modelSampled, file=sampledFileName)
 print(sampledFileName)
 print(paste("Finish time is", Sys.time()))
@@ -12034,6 +12036,8 @@ print(paste("Finish time is", Sys.time()))
 
 
 #########################################
+
+##!!! change the above to saveRDS next time!!!##
 
 ## so should run like this:
 Rscript sampleModels.R m_readsOnly_PA.rds 20 1000 8 2
@@ -12451,5 +12455,38 @@ tar -cvzf sampledSpatial02.05.25.tgz *sampled.rds
 getFile=/home/daniel/Documents/projects/carbon4d/fichtelgebirgeSoils/spatialAnalysis/sampledHMSmodels/sampledSpatial02.05.25.tgz
 putFile=/media/vol/fichtelberg/hmscBackups/spatial/
 rsync -av daniel@132.180.113.114:$getFile $putFile
+
+#### model validation 5.2025 #####
+
+## time to check the sampling depths and start cross-validation process.
+## since the cross-validation takes days, start with that and check
+## sampling depth after the validation scripts are running
+
+## from our spatial temporal models, we have this script:
+
+############### getCrossValFit.r ###################
+library(Hmsc)
+modelfile = commandArgs(trailingOnly=TRUE)[1]
+print(paste("starting",modelfile))
+load(modelfile)
+partition = createPartition(modelSampled, nfolds = 2, column = "sample")
+preds = computePredictedValues(modelSampled, partition=partition, nParallel = 2)
+MF = evaluateModelFit(hM=modelSampled, predY=preds)
+saveRDS(preds, file=sub("_sampled.rds", "_crossValPreds.rds",modelfile))
+saveRDS(MF, file=sub("_sampled.rds", "_crossValModelFit.rds",modelfile))
+print(paste("finish time is", Sys.time()))
+################ end script ###################
+
+## I accidentally saved 
+
+## on the optiplex, where the models are stored: ##
+
+cd /home/daniel/Documents/projects/carbon4d/fichtelgebirgeSoils/spatialAnalysis/sampledHMSmodels
+
+for i in *.rds; do
+  echo $i
+  logname=${i/\sampled\.rds/_crossval.log}
+  nohup Rscript ../getCrossValFit.r $i  &> $logname &
+done
 
 

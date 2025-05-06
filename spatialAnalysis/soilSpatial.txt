@@ -12477,7 +12477,8 @@ saveRDS(MF, file=sub("_sampled.rds", "_crossValModelFit.rds",modelfile))
 print(paste("finish time is", Sys.time()))
 ################ end script ###################
 
-## I accidentally saved 
+## I accidentally saved my sampled models as dataobjects with "save", not 
+## serialized "saveRDS". So using the "load" command to bring them into memory. 
 
 ## on the optiplex, where the models are stored: ##
 
@@ -12489,4 +12490,38 @@ for i in *.rds; do
   nohup Rscript ../getCrossValFit.r $i  &> $logname &
 done
 
+
+#### check depth of sampling ####
+
+## while the cross-validation runs, we can check out depth of the samplers
+
+## get one model:
+
+library(Hmsc)
+
+list.files("sampledHMSmodels/", "sampled.rds")
+
+modelName = "m_readsOnly_PA_sampled.rds"
+
+load(paste("sampledHMSmodels",modelName,sep="/"))
+
+
+m_coda = convertToCodaObject(modelSampled)
+
+m_essBeta = effectiveSize(m_coda$Beta)
+
+hist(m_essBeta, main="effective sample size for beta", breaks=30)
+
+mean(m_essBeta) ## 6574. No problems there. 
+
+m_geBeta <- gelman.diag(m_coda$Beta,multivariate=FALSE)$psrf
+
+dim(m_geBeta)  ## looks fine, everything seems close to one.
+
+betaMixFileName=gsub('sampled.rds', 'beta_mixing.pdf', modelName)
+pdf(file=betaMixFileName)
+plot(m_coda$Beta)
+dev.off() 
+
+## these also seem fine, looks like convergence in all cases. 
 

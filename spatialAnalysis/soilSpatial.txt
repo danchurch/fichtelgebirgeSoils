@@ -12493,8 +12493,10 @@ done
 
 #### check depth of sampling ####
 
-## while the cross-validation runs, we can check out depth of the samplers
+## for each model we want to generate a summary with effective sample size
+## for omega and beta. 
 
+## while the cross-validation runs, we can check out depth of the samplers
 ## get one model:
 
 library(Hmsc)
@@ -12502,7 +12504,6 @@ library(Hmsc)
 list.files("sampledHMSmodels/", "sampled.rds")
 
 modelName = "m_readsOnly_PA_sampled.rds"
-
 load(paste("sampledHMSmodels",modelName,sep="/"))
 
 
@@ -12516,6 +12517,8 @@ mean(m_essBeta) ## 6574. No problems there.
 
 m_geBeta <- gelman.diag(m_coda$Beta,multivariate=FALSE)$psrf
 
+m_geBeta
+
 dim(m_geBeta)  ## looks fine, everything seems close to one.
 
 betaMixFileName=gsub('sampled.rds', 'beta_mixing.pdf', modelName)
@@ -12525,3 +12528,63 @@ dev.off()
 
 ## these also seem fine, looks like convergence in all cases. 
 
+## look at omega 
+m_coda$temp = m_coda$Omega[[1]]
+
+for(i in 1:length(m_coda$temp)){
+  m_coda$temp[[i]] = m_coda$temp[[i]][,1:1000]
+}
+
+es.omega = effectiveSize(m_coda$temp)
+ge.omega = gelman.diag(m_coda$temp,multivariate=FALSE)$psrf
+
+par(mfrow=c(1,2))
+hist(es.omega, main=paste("ess omega", modelName))
+hist(ge.omega[,1], main=paste("psrf omega", modelName))
+mean(es.omega)
+
+## if we want to get the info for all models, to plot side-by-side?
+## because of the rda/rds model name issue, we have to loop through 
+## them one-by-one, and add them to a list as we go: 
+
+rm(list=ls())
+modFileNames = list.files("sampledHMSmodels/", "sampled.rds")
+essBetas = list()
+essBetaMeans = list()
+geBetas = list()
+essOmegas = list()
+essOmegaMeans = list()
+geOmegas = list()
+i <- 0
+for (modelName in modFileNames){
+  i <- i+1
+  print(modelName)
+  load(paste("sampledHMSmodels",modelName,sep="/"))
+  m_coda = convertToCodaObject(modelSampled)
+  essBetas[[i]] = effectiveSize(m_coda$Beta)
+  essBetaMeans[[i]] = mean(essBetas[[i]])
+  geBetas[[i]] <- gelman.diag(m_coda$Beta,multivariate=FALSE)$psrf
+  betaMixFileName=gsub('sampled.rds', 'beta_mixing.pdf', modelName)
+  print("made it pdf printing")
+  pdf(file=betaMixFileName)
+    plot(m_coda$Beta)
+  dev.off() 
+  m_coda$temp = m_coda$Omega[[1]]
+  for(i in 1:length(m_coda$temp)){
+    m_coda$temp[[i]] = m_coda$temp[[i]][,1:1000]
+  }
+  essOmegas[[i]] = effectiveSize(m_coda$temp)
+  essOmegaMeans = mean(essOmegas[[i]])
+  geOmegas[[i]] = gelman.diag(m_coda$temp,multivariate=FALSE)$psrf
+}
+save(essBetas, file="essBetas.rda")
+save(essBetaMeans, file="essBetaMeans.rda")
+save(geBetas, file="geBetas.rda")
+save(essOmegas, file="essOmegas.rda")
+save(essOmegaMeans, file="essOmegaMean.rda")
+save(geOmegas, file="geOmegas.rda")
+
+
+hist(es.omega, main=paste("ess omega", modelName))
+hist(ge.omega[,1], main=paste("psrf omega", modelName))
+hist(m_essBeta, main="effective sample size for beta", breaks=30)

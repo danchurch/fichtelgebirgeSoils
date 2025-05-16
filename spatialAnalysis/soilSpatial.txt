@@ -12559,6 +12559,7 @@ i <- 0
 for (modelName in modFileNames){
   i <- i+1
   print(modelName)
+  print(i)
   load(paste("sampledHMSmodels",modelName,sep="/"))
   m_coda = convertToCodaObject(modelSampled)
   essBetas[[i]] = effectiveSize(m_coda$Beta)
@@ -12570,12 +12571,14 @@ for (modelName in modFileNames){
     plot(m_coda$Beta)
   dev.off() 
   m_coda$temp = m_coda$Omega[[1]]
-  for(i in 1:length(m_coda$temp)){
-    m_coda$temp[[i]] = m_coda$temp[[i]][,1:1000]
+  for(j in 1:length(m_coda$temp)){
+    m_coda$temp[[j]] = m_coda$temp[[j]][,1:1000]
   }
   essOmegas[[i]] = effectiveSize(m_coda$temp)
   essOmegaMeans = mean(essOmegas[[i]])
   geOmegas[[i]] = gelman.diag(m_coda$temp,multivariate=FALSE)$psrf
+  rm(m_coda)
+  print(str(essBetas))
 }
 save(essBetas, file="essBetas.rda")
 save(essBetaMeans, file="essBetaMeans.rda")
@@ -12584,7 +12587,32 @@ save(essOmegas, file="essOmegas.rda")
 save(essOmegaMeans, file="essOmegaMean.rda")
 save(geOmegas, file="geOmegas.rda")
 
+## not working. Why?
 
-hist(es.omega, main=paste("ess omega", modelName))
-hist(ge.omega[,1], main=paste("psrf omega", modelName))
-hist(m_essBeta, main="effective sample size for beta", breaks=30)
+str(essOmegas)
+
+str(essBetaMeans)
+
+str(geBetas)
+
+modFileNames = list.files("sampledHMSmodels/", "sampled.rds")
+i = 0
+for (modelName in modFileNames){
+  i <- i+1
+  print(modelName)
+  print(i)
+  load(paste("sampledHMSmodels",modelName,sep="/"))
+  #print(ls())
+  #print(modelSampled)
+  #rm(modelSampled)
+}
+
+load(paste("sampledHMSmodels",modFileNames[1],sep="/"))
+
+
+m_coda = convertToCodaObject(modelSampled)
+essBetas[[1]] = effectiveSize(m_coda$Beta)
+essBetaMeans[[1]] = mean(essBetas[[1]])
+geBetas[[1]] <- gelman.diag(m_coda$Beta,multivariate=FALSE)$psrf
+
+betaMixFileName=gsub('sampled.rds', 'beta_mixing.pdf', modelName)

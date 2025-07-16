@@ -12499,13 +12499,29 @@ done
 ## while the cross-validation runs, we can check out depth of the samplers
 ## get one model:
 
+conda activate spatialDirt
+
+soil
+
+R
+
 library(Hmsc)
+
+#setwd("/home/daniel/Documents/projects/carbon4d/fichtelgebirgeSoils/spatialAnalysis")
 
 list.files("sampledHMSmodels/", "sampled.rds")
 
-modelName = "m_readsOnly_PA_sampled.rds"
-load(paste("sampledHMSmodels",modelName,sep="/"))
+modelName = "m_environmentalOnly_abu_sampled.rds" 
+#modelName = "m_environmentalOnly_PA_sampled.rds"
+#modelName = "m_full_abu_sampled.rds"              
+#modelName = "m_full_PA_sampled.rds"
+#modelName = "m_readsOnly_abu_sampled.rds"         
+#modelName = "m_readsOnly_PA_sampled.rds"
+#modelName = "m_spatialOnly_abu_sampled.rds"       
+#modelName = "m_spatialOnly_PA_sampled.rds"
 
+
+load(paste("sampledHMSmodels",modelName,sep="/"))
 
 m_coda = convertToCodaObject(modelSampled)
 
@@ -12513,7 +12529,7 @@ m_essBeta = effectiveSize(m_coda$Beta)
 
 hist(m_essBeta, main="effective sample size for beta", breaks=30)
 
-mean(m_essBeta) ## 6574. No problems there. 
+mean(m_essBeta) ## for example with env only abu model, 7773. No problems there. 
 
 m_geBeta <- gelman.diag(m_coda$Beta,multivariate=FALSE)$psrf
 
@@ -12525,6 +12541,9 @@ betaMixFileName=gsub('sampled.rds', 'beta_mixing.pdf', modelName)
 pdf(file=betaMixFileName)
 plot(m_coda$Beta)
 dev.off() 
+
+## on optiplex:
+evince 
 
 ## these also seem fine, looks like convergence in all cases. 
 
@@ -12548,6 +12567,7 @@ mean(es.omega)
 ## them one-by-one, and add them to a list as we go: 
 
 rm(list=ls())
+
 modFileNames = list.files("sampledHMSmodels/", "sampled.rds")
 essBetas = list()
 essBetaMeans = list()
@@ -12567,19 +12587,20 @@ for (modelName in modFileNames){
   geBetas[[i]] <- gelman.diag(m_coda$Beta,multivariate=FALSE)$psrf
   betaMixFileName=gsub('sampled.rds', 'beta_mixing.pdf', modelName)
   print("made it pdf printing")
-  pdf(file=betaMixFileName)
-    plot(m_coda$Beta)
-  dev.off() 
+  #pdf(file=betaMixFileName)
+  #  plot(m_coda$Beta)
+  #dev.off() 
   m_coda$temp = m_coda$Omega[[1]]
   for(j in 1:length(m_coda$temp)){
     m_coda$temp[[j]] = m_coda$temp[[j]][,1:1000]
   }
   essOmegas[[i]] = effectiveSize(m_coda$temp)
-  essOmegaMeans = mean(essOmegas[[i]])
+  essOmegaMeans[[i]] = mean(essOmegas[[i]])
   geOmegas[[i]] = gelman.diag(m_coda$temp,multivariate=FALSE)$psrf
   rm(m_coda)
   print(str(essBetas))
 }
+
 save(essBetas, file="essBetas.rda")
 save(essBetaMeans, file="essBetaMeans.rda")
 save(geBetas, file="geBetas.rda")
@@ -12587,32 +12608,27 @@ save(essOmegas, file="essOmegas.rda")
 save(essOmegaMeans, file="essOmegaMean.rda")
 save(geOmegas, file="geOmegas.rda")
 
-## not working. Why?
+## for instance, the ess of Betas, for all models:
 
-str(essOmegas)
+dev.new()
+i=2
+modFileNames[[i]]
+essOmegaMeans[[i]]
+prettyModelName=gsub('_sampled.rds', '', modFileNames[[i]])
+hist(essBetas[[i]], main=paste("effecive sample size of", prettyModelName), xlab="ess")
+abline(v= essBetaMeans[[i]], lty=2)
 
-str(essBetaMeans)
+## now, if we want to plots of ess from all models...
+## they are in a good order, paired by model type, abu first then PA
 
-str(geBetas)
+dev.new()
 
-modFileNames = list.files("sampledHMSmodels/", "sampled.rds")
-i = 0
-for (modelName in modFileNames){
-  i <- i+1
-  print(modelName)
-  print(i)
-  load(paste("sampledHMSmodels",modelName,sep="/"))
-  #print(ls())
-  #print(modelSampled)
-  #rm(modelSampled)
+par(mfrow = c(4,2))
+
+for (i in 1:8){
+prettyModelName=gsub('_sampled.rds', '', modFileNames[[i]])
+hist(essBetas[[i]], main=paste("effecive sample size of", prettyModelName), xlab="ess")
+abline(v= essBetaMeans[[i]], lty=2)
 }
 
-load(paste("sampledHMSmodels",modFileNames[1],sep="/"))
-
-
-m_coda = convertToCodaObject(modelSampled)
-essBetas[[1]] = effectiveSize(m_coda$Beta)
-essBetaMeans[[1]] = mean(essBetas[[1]])
-geBetas[[1]] <- gelman.diag(m_coda$Beta,multivariate=FALSE)$psrf
-
-betaMixFileName=gsub('sampled.rds', 'beta_mixing.pdf', modelName)
+## standardize the x ranges on these. 

@@ -12479,6 +12479,9 @@ print(paste("finish time is", Sys.time()))
 ## I accidentally saved my sampled models as dataobjects with "save", not 
 ## serialized "saveRDS". So using the "load" command to bring them into memory. 
 
+## clear out old results, when rerunning:
+rm *_crossVal*
+
 ## on the optiplex, where the models are stored: ##
 
 cd /home/daniel/Documents/projects/carbon4d/fichtelgebirgeSoils/spatialAnalysis/sampledHMSmodels
@@ -12488,6 +12491,8 @@ for i in *.rds; do
   logname=${i/\sampled\.rds/_crossval.log}
   nohup Rscript ../getCrossValFit.r $i  &> $logname &
 done
+
+## rerunning on 19.12.2025, 15:00 ##
 
 
 #### check depth of sampling ####
@@ -12646,15 +12651,3 @@ conda activate spatialDirt
 ## open  a notebook without a browser on the remote:
 jupyter notebook --no-browser --port=8080
 
-## okay, that was the easy part. Now, what the hell was I up to 6 months ago?
-
-## very confused by the file structures in the various computers
-## time to clean up and synch up?
-
-## the newest work appears to be on the optiplex. We need to keep 
-## the models, the sampled models, cross-validations, etc.
-
-## we have to move the big sampled models, cross-validations, etc
-## with rsync, and keep them in .gitignore files 
-
-## where to start...Try pulling pushing on all three computers 

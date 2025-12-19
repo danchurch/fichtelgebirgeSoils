@@ -161,7 +161,6 @@ BiocManager::install("phyloseq")
 $sudo apt install liblapack-dev libopenblas-dev
 
 
-
 ## I think that took care of most of the complex installs
 
 ## oh wait, let's get the jupyter notebook setup going...
@@ -214,15 +213,15 @@ ssh -L 8080:localhost:8080 daniel@132.180.113.114
 
 conda activate spatialDirt
 
+## have an alias on both computers to get to the working 
+## directory:
 soil
 
 jupyter notebook --no-browser --port=8080
 
-## then open browser to:
-http://localhost:8080/notebooks/spatialAnalysisSulariData.ipynb
+## then open browser to the suggested link.
 
 ## looks good, but I think we are missing the R kernels on the optiplex
-
 
 ## using R 4.4.2 for system, but changed below for conda env
 
@@ -12632,3 +12631,30 @@ abline(v= essBetaMeans[[i]], lty=2)
 }
 
 ## standardize the x ranges on these. 
+
+#### dec 18 2025, wake up my brain on this again ####
+
+## to get the notebook running, open up tcp forwarding on the remote 
+## machine we want to use:
+
+ssh -L 8080:localhost:8080 test@132.180.112.115
+## aliases = "nanoCompTCP", or "optiplexTCP"
+
+## get conda env on remote
+conda activate spatialDirt
+
+## open  a notebook without a browser on the remote:
+jupyter notebook --no-browser --port=8080
+
+## okay, that was the easy part. Now, what the hell was I up to 6 months ago?
+
+## very confused by the file structures in the various computers
+## time to clean up and synch up?
+
+## the newest work appears to be on the optiplex. We need to keep 
+## the models, the sampled models, cross-validations, etc.
+
+## we have to move the big sampled models, cross-validations, etc
+## with rsync, and keep them in .gitignore files 
+
+## where to start...Try pulling pushing on all three computers 

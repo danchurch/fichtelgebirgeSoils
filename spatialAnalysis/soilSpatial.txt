@@ -12524,6 +12524,7 @@ modelName = "m_environmentalOnly_abu_sampled.rds"
 #modelName = "m_spatialOnly_abu_sampled.rds"       
 #modelName = "m_spatialOnly_PA_sampled.rds"
 
+head(modelSampled$XData)
 
 load(paste("sampledHMSmodels",modelName,sep="/"))
 
@@ -12559,6 +12560,7 @@ for(i in 1:length(m_coda$temp)){
 }
 
 es.omega = effectiveSize(m_coda$temp)
+
 ge.omega = gelman.diag(m_coda$temp,multivariate=FALSE)$psrf
 
 par(mfrow=c(1,2))
@@ -12573,12 +12575,14 @@ mean(es.omega)
 rm(list=ls())
 
 modFileNames = list.files("sampledHMSmodels/", "sampled.rds")
+
 essBetas = list()
 essBetaMeans = list()
 geBetas = list()
 essOmegas = list()
 essOmegaMeans = list()
 geOmegas = list()
+
 i <- 0
 for (modelName in modFileNames){
   i <- i+1
@@ -12612,7 +12616,7 @@ save(essOmegas, file="essOmegas.rda")
 save(essOmegaMeans, file="essOmegaMean.rda")
 save(geOmegas, file="geOmegas.rda")
 
-## for instance, the ess of Betas, for all models:
+## how to use this to visualize this? 
 
 dev.new()
 i=2
@@ -12622,20 +12626,39 @@ prettyModelName=gsub('_sampled.rds', '', modFileNames[[i]])
 hist(essBetas[[i]], main=paste("effecive sample size of", prettyModelName), xlab="ess")
 abline(v= essBetaMeans[[i]], lty=2)
 
+## make a function out of this:
+
+plot_essBeta <- function(i){
+    prettyModelName=gsub('_sampled.rds', '', modFileNames[[i]])
+    hist(essBetas[[i]], main=paste("effecive sample size of Beta for \n", prettyModelName), xlab="ess")
+    abline(v= essBetaMeans[[i]], lty=2)
+    }
+
+plot_essOmega <- function(i){
+    prettyModelName=gsub('_sampled.rds', '', modFileNames[[i]])
+    hist(essOmegas[[i]], main=paste("effecive sample size of Omega for \n", prettyModelName), xlab="ess")
+    abline(v= essOmegaMeans[[i]], lty=2)
+    }
+
+plot_essBeta(1)
+plot_essOmega(1)
+
 ## now, if we want to plots of ess from all models...
 ## they are in a good order, paired by model type, abu first then PA
 
 dev.new()
-
 par(mfrow = c(4,2))
-
 for (i in 1:8){
-prettyModelName=gsub('_sampled.rds', '', modFileNames[[i]])
-hist(essBetas[[i]], main=paste("effecive sample size of", prettyModelName), xlab="ess")
-abline(v= essBetaMeans[[i]], lty=2)
+    plot_essBeta(i)
 }
 
-## standardize the x ranges on these. 
+dev.new()
+par(mfrow = c(4,2))
+for (i in 1:8){
+    plot_essOmega(i)
+}
+
+## 
 
 #### dec 18 2025, wake up my brain on this again ####
 
@@ -12650,4 +12673,34 @@ conda activate spatialDirt
 
 ## open  a notebook without a browser on the remote:
 jupyter notebook --no-browser --port=8080
+
+## and then sucked back into other projects...this never ends...
+
+
+##### 12 March 2026 ####
+
+## here we are again. Can we start this up again, for the 50th time?
+
+## where the hell was I? 
+
+## I think we had just finishing rewriting the models 
+## for the millionth time and had resampled them 
+## and was plotting the results. 
+
+## it looks like on both computers, optiplex and nanocomp,
+## we have the same sampled models. That's good. 
+
+## then it is a question of reviewing the explanatory and
+## predictive power of the models...I think we did this...
+
+## yes, twice. For some reason, we reran the cross validations
+## in Dec 2025. They are only on the optiplex. I think these
+## are the ones we need to work with.
+
+## to avoid confusion, up this folder:
+
+getFolder=/home/daniel/Documents/projects/carbon4d/fichtelgebirgeSoils/spatialAnalysis/sampledHMSmodels/
+putFolder=/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis/sampledHMSmodels/
+rsync -auvz -e "ssh -i /home/test/.ssh/nano2opti" daniel@132.180.113.114:$getFolder $putFolder
+
 

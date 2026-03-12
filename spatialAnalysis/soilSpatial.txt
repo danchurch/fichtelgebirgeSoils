@@ -12609,6 +12609,8 @@ for (modelName in modFileNames){
   print(str(essBetas))
 }
 
+?effectiveSize
+
 save(essBetas, file="essBetas.rda")
 save(essBetaMeans, file="essBetaMeans.rda")
 save(geBetas, file="geBetas.rda")
@@ -12623,30 +12625,38 @@ i=2
 modFileNames[[i]]
 essOmegaMeans[[i]]
 prettyModelName=gsub('_sampled.rds', '', modFileNames[[i]])
-hist(essBetas[[i]], main=paste("effecive sample size of", prettyModelName), xlab="ess")
+hist(essBetas[[i]], 
+     main=paste("effecive sample size of", prettyModelName), 
+     xlab=paste("ess, mean gelman diag=",mean(geBetas[[i]][,1])))
 abline(v= essBetaMeans[[i]], lty=2)
 
 ## make a function out of this:
 
 plot_essBeta <- function(i){
     prettyModelName=gsub('_sampled.rds', '', modFileNames[[i]])
-    hist(essBetas[[i]], main=paste("effecive sample size of Beta for \n", prettyModelName), xlab="ess")
+    hist(essBetas[[i]], main=paste("effecive sample size of Beta for \n", prettyModelName), 
+    xlab=paste("ess, mean gelman diag=", round(mean(geBetas[[i]][,1]),4)))
     abline(v= essBetaMeans[[i]], lty=2)
     }
 
 plot_essOmega <- function(i){
     prettyModelName=gsub('_sampled.rds', '', modFileNames[[i]])
-    hist(essOmegas[[i]], main=paste("effecive sample size of Omega for \n", prettyModelName), xlab="ess")
+    hist(essOmegas[[i]], main=paste("effecive sample size of Omega for \n", prettyModelName),
+    xlab=paste("ess, mean gelman diag=", round(mean(geOmegas[[i]][,1]),4)))
     abline(v= essOmegaMeans[[i]], lty=2)
     }
 
 plot_essBeta(1)
+
 plot_essOmega(1)
+
+geBetas[[i]]
 
 ## now, if we want to plots of ess from all models...
 ## they are in a good order, paired by model type, abu first then PA
 
 dev.new()
+
 par(mfrow = c(4,2))
 for (i in 1:8){
     plot_essBeta(i)
@@ -12658,7 +12668,7 @@ for (i in 1:8){
     plot_essOmega(i)
 }
 
-## 
+## update notebook with this.
 
 #### dec 18 2025, wake up my brain on this again ####
 
@@ -12673,6 +12683,8 @@ conda activate spatialDirt
 
 ## open  a notebook without a browser on the remote:
 jupyter notebook --no-browser --port=8080
+
+jupyter lab --no-browser --port=8080
 
 ## and then sucked back into other projects...this never ends...
 
@@ -12693,14 +12705,68 @@ jupyter notebook --no-browser --port=8080
 ## then it is a question of reviewing the explanatory and
 ## predictive power of the models...I think we did this...
 
-## yes, twice. For some reason, we reran the cross validations
+## yes, twice. For some reason, we also reran the cross validations
 ## in Dec 2025. They are only on the optiplex. I think these
 ## are the ones we need to work with.
 
-## to avoid confusion, up this folder:
+## to avoid confusion, synch up this folder:
 
 getFolder=/home/daniel/Documents/projects/carbon4d/fichtelgebirgeSoils/spatialAnalysis/sampledHMSmodels/
 putFolder=/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatialAnalysis/sampledHMSmodels/
 rsync -auvz -e "ssh -i /home/test/.ssh/nano2opti" daniel@132.180.113.114:$getFolder $putFolder
 
+## and continue from above. It looks like we need to visualize 
+## our cross validations.
 
+## how can we get our explanatory power again?:
+modFileNames = list.files("sampledHMSmodels/", "sampled.rds")
+modelNames = gsub("_sampled.rds", "", modFileNames)
+predlist <- list()
+modelFitList <- list()
+for (i in modFileNames) {
+  print(i)
+  load(paste0("sampledHMSmodels/",i))
+  preds = computePredictedValues(modelSampled)
+  MF = evaluateModelFit(modelSampled, predY=preds)
+  predlist[[i]] <- preds
+  modelFitList[[i]] <- MF
+}
+names(predlist) <- modFileNames
+names(modelFitList) <- modFileNames
+
+?computePredictedValues
+
+?evaluateModelFit
+
+nSpecies <- length(modelFitList[[1]][[1]])
+
+str(modelFitList)
+
+## we have four presence/absence submodels:
+modFileNames[grep("_PA_", modFileNames)]
+
+## plot the PA results. There are three metrics for them
+## so 4 models x 3 metrics = 12 
+
+modFileNames
+
+paGFmat <- matrix(ncol=12, nrow=nSpecies)
+
+paGFmat[,1]  <- modelFitList$m_readsOnly_PA_sampled.rds$RMSE
+paGFmat[,2]  <- modelFitList$m_spatialOnly_PA_sampled.rds$RMSE
+paGFmat[,3]  <- modelFitList$m_environmentalOnly_PA_sampled.rds$RMSE
+paGFmat[,4]  <- modelFitList$m_full_PA_sampled.rds$RMSE
+#####
+paGFmat[,5]  <- modelFitList$m_readsOnly_PA_sampled.rds$AUC
+paGFmat[,6]  <- modelFitList$m_spatialOnly_PA_sampled.rds$AUC
+paGFmat[,7]  <- modelFitList$m_environmentalOnly_PA_sampled.rds$AUC
+paGFmat[,8]  <- modelFitList$m_full_PA_sampled.rds$AUC
+#####
+paGFmat[,9]  <- modelFitList$m_readsOnly_PA_sampled.rds$TjurR2
+paGFmat[,10] <- modelFitList$m_spatialOnly_PA_sampled.rds$TjurR2
+paGFmat[,11] <- modelFitList$m_environmentalOnly_PA_sampled.rds$TjurR2
+paGFmat[,12] <- modelFitList$m_full_PA_sampled.rds$TjurR2
+
+paGFdf <- as.data.frame(paGFmat)
+
+colnames(paGFdf) <- c("readAbundanceOnlyAUC","noTempAUC","spTempAUC","readAbundanceOnlyTjurR2","noTempTjurR2","spTempTjurR2")

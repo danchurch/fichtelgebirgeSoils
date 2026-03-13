@@ -12716,7 +12716,7 @@ putFolder=/media/vol1/daniel/sulariArne/soilAnalysis/fichtelgebirgeSoils/spatial
 rsync -auvz -e "ssh -i /home/test/.ssh/nano2opti" daniel@132.180.113.114:$getFolder $putFolder
 
 ## and continue from above. It looks like we need to visualize 
-## our cross validations.
+## our explanatory power and cross validations.
 
 ## how can we get our explanatory power again?:
 modFileNames = list.files("sampledHMSmodels/", "sampled.rds")
@@ -12769,4 +12769,104 @@ paGFmat[,12] <- modelFitList$m_full_PA_sampled.rds$TjurR2
 
 paGFdf <- as.data.frame(paGFmat)
 
-colnames(paGFdf) <- c("readAbundanceOnlyAUC","noTempAUC","spTempAUC","readAbundanceOnlyTjurR2","noTempTjurR2","spTempTjurR2")
+colnames(paGFdf) <- c(
+"reads_RMSE","spatial_RMSE","environmental_RMSE","full_RMSE", 
+"reads_AUC","spatial_AUC","environmental_AUC","full_AUC",
+"reads_TjurR2", "spatial_TjurR2", "environmental_TjurR2", "full_TjurR2")
+
+head(paGFdf)
+
+par(cex.axis = .75, mar=c(10,4,4,2))
+boxplot(paGFdf, main=("model fit of P/A component of hurdle models of full spatial design"), las=2)
+
+## this doesn't look that great. And usually it is the PA component that is more reliable. 
+## hmm...check the abundance models:
+
+
+modFileNames[grep("_abu_", modFileNames)]
+
+## there just two metrics, RMSE and R2, for these
+## so 4 x 2 matrix
+
+nSpecies <- length(modelFitList[[2]][[1]])
+abuGFmat <- matrix(ncol=8, nrow=nSpecies)
+abuGFmat[,5] <- modelFitList$m_readsOnly_abu_sampled.rds$RMSE
+abuGFmat[,6] <- modelFitList$m_spatialOnly_abu_sampled.rds$RMSE
+abuGFmat[,7] <- modelFitList$m_environmentalOnly_abu_sampled.rds$RMSE
+abuGFmat[,8] <- modelFitList$m_full_abu_sampled.rds$RMSE
+####
+abuGFmat[,1] <- modelFitList$m_readsOnly_abu_sampled.rds$R2
+abuGFmat[,2] <- modelFitList$m_spatialOnly_abu_sampled.rds$R2
+abuGFmat[,3] <- modelFitList$m_environmentalOnly_abu_sampled.rds$R2
+abuGFmat[,4] <- modelFitList$m_full_abu_sampled.rds$R2
+colnames(abuGFmat) <- c( "reads_RMSE","spatial_RMSE","environmental_RMSE","full_RMSE", 
+"reads_R2","spatial_R2","environmental_R2","full_R2")
+abuGFdf <- as.data.frame(abuGFmat)
+
+
+head(abuGFdf)
+
+dev.new()
+
+par(cex.axis = .75, mar=c(10,4,4,2))
+boxplot(abuGFdf, main=("model fit of Abundance component of hurdle models of full spatial design"), las=2)
+
+## as expected, it doesn't seem like the full model is behaving much better on
+## average than the "null" that just takes read abundances into account.
+
+## some species are predicted really well. I guess we will need to focus on 
+## those. Not sure if they are the "important" ones. 
+
+## hmm... not sure if we built ourselves a good model. All the multivariate 
+## indicators are that we have good predictors, but it's not summing to a 
+## good general model of the community, as far as I can tell. 
+## maybe it is due to dropping all the uncommon species?
+## this probably means we lost a lost of the ones that are unique
+## just one habitat, etc.
+
+## move forward with the diagnostics. Cross validation is probably 
+## even worse...let's see
+
+setwd("sampledHMSmodels")
+
+
+
+bb <- data.frame()
+
+
+
+bb[1,] <- rep(5,3)
+
+bb[,'New'] <- c(1,2,3)
+
+## look at the presence/absence models:
+
+
+PAcrossvalFiles <- list.files(pattern="PA_crossValModel")
+modelNames <- sub("m_", "", PAcrossvalFiles) |> sub("_PA_crossValModelFit.rds", "", x=_) 
+
+nSpecies <- 166
+crosspaGFmatRMSE <- matrix(ncol=0, nrow=nSpecies)
+crosspaGFmatAUC  <- matrix(ncol=0, nrow=nSpecies)
+crosspaGFmatTjurR2 <- matrix(ncol=0, nrow=nSpecies)
+for (i in PAcrossvalFiles){
+  print(i)
+  loadedModel <- readRDS(i)
+  crosspaGFmatRMSE <- cbind(crosspaGFmatRMSE, loadedModel$RMSE)
+  crosspaGFmatAUC <- cbind(crosspaGFmatAUC, loadedModel$AUC)
+  crosspaGFmatTjurR2 <- cbind(crosspaGFmatTjurR2, loadedModel$TjurR2)
+}
+colnames(crosspaGFmatRMSE)   <- paste(modelNames, "RMSE")
+colnames(crosspaGFmatAUC)    <- paste(modelNames, "AUC")
+colnames(crosspaGFmatTjurR2) <- paste(modelNames, "TjurR2")
+crosspaGFdf <- as.data.frame(cbind(crosspaGFmatRMSE, crosspaGFmatAUC, crosspaGFmatTjurR2))
+
+head(crosspaGFdf)
+
+par(cex.axis = .75, mar=c(10,4,4,2))
+boxplot(crosspaGFdf, main=("cross-validation of PA component of hurdle models of full spatial design"), las=2)
+
+## correct order
+
+colnames(crosspaGFdf) <- 
+

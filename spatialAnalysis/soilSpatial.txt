@@ -12746,7 +12746,7 @@ str(modelFitList)
 modFileNames[grep("_PA_", modFileNames)]
 
 ## plot the PA results. There are three metrics for them
-## so 4 models x 3 metrics = 12 
+## SO 4 models x 3 metrics = 12 
 
 modFileNames
 
@@ -12861,12 +12861,14 @@ colnames(crosspaGFmatAUC)    <- paste(modelNames, "AUC")
 colnames(crosspaGFmatTjurR2) <- paste(modelNames, "TjurR2")
 crosspaGFdf <- as.data.frame(cbind(crosspaGFmatRMSE, crosspaGFmatAUC, crosspaGFmatTjurR2))
 
-head(crosspaGFdf)
+## reorder to read more nicely
+crosspaGFdf <- crosspaGFdf[,c("readsOnly RMSE", "spatialOnly RMSE", "environmentalOnly RMSE", "full RMSE",
+"readsOnly AUC", "spatialOnly AUC", "environmentalOnly AUC", "full AUC",
+"readsOnly TjurR2", "spatialOnly TjurR2", "environmentalOnly TjurR2", "full TjurR2")]
+
+
 
 par(cex.axis = .75, mar=c(10,4,4,2))
-boxplot(crosspaGFdf, main=("cross-validation of PA component of hurdle models of full spatial design"), las=2)
+boxplot(crosspaGFdf, main=("cross-validation of PA of hurdle models of full spatial design"), las=2)
 
-## correct order
-
-colnames(crosspaGFdf) <- 
-
+## update notebook...

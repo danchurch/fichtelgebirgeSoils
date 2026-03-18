@@ -12872,3 +12872,40 @@ par(cex.axis = .75, mar=c(10,4,4,2))
 boxplot(crosspaGFdf, main=("cross-validation of PA of hurdle models of full spatial design"), las=2)
 
 ## update notebook...
+
+## and the abundances models?:
+
+AbuCrossvalFiles <- list.files(pattern="abu_crossValModelFit")
+
+modelNames <- sub("m_", "", AbuCrossvalFiles) |> sub("_abu_crossValModelFit.rds", "", x=_) 
+
+nSpecies <- 166
+crossAbuGFmat_RMSE <- matrix(ncol=0, nrow=nSpecies)
+crossAbuGFmat_R2  <- matrix(ncol=0, nrow=nSpecies)
+
+for (i in AbuCrossvalFiles){
+  print(i)
+  loadedModel <- readRDS(i)
+  crossAbuGFmat_RMSE <- cbind(crossAbuGFmat_RMSE, loadedModel$RMSE)
+  crossAbuGFmat_R2 <- cbind(crossAbuGFmat_R2, loadedModel$R2)
+}
+
+colnames(crossAbuGFmat_RMSE) <- paste0(modelNames, "_RMSE")
+colnames(crossAbuGFmat_R2)  <- paste0(modelNames, "_R2")
+crossAbuGFdf <- as.data.frame(cbind(crossAbuGFmat_RMSE, crossAbuGFmat_R2))
+
+head(crossAbuGFdf)
+
+crossAbuGFdf <- crossAbuGFdf[,c("readsOnly_RMSE","spatialOnly_RMSE","environmentalOnly_RMSE","full_RMSE",
+                                "readsOnly_R2","spatialOnly_R2","environmentalOnly_R2","full_R2")]
+
+crossAbuGFdf
+
+dev.new()
+
+par(cex.axis = .75, mar=c(10,4,4,2), mfrow=c(1,2))
+boxplot(crossAbuGFdf[,c("readsOnly_RMSE","spatialOnly_RMSE","environmentalOnly_RMSE","full_RMSE")], las=2)
+boxplot(crossAbuGFdf[,c("readsOnly_R2","spatialOnly_R2","environmentalOnly_R2","full_R2")], las=2)
+mtext("cross-validation of Abundance sub-models of full spatial design", side = 3, line = - 2, outer = TRUE)
+
+

@@ -12675,8 +12675,10 @@ for (i in 1:8){
 ## to get the notebook running, open up tcp forwarding on the remote 
 ## machine we want to use:
 
-ssh -L 8080:localhost:8080 test@132.180.112.115
+ssh -L 8080:localhost:8080 test@132.180.112.115 ## nanocomp
 ## aliases = "nanoCompTCP", or "optiplexTCP"
+
+ssh -L 8080:localhost:8080 daniel@132.180.113.114 ## optiplex
 
 ## get conda env on remote
 conda activate spatialDirt
@@ -12867,7 +12869,6 @@ crosspaGFdf <- crosspaGFdf[,c("readsOnly RMSE", "spatialOnly RMSE", "environment
 "readsOnly TjurR2", "spatialOnly TjurR2", "environmentalOnly TjurR2", "full TjurR2")]
 
 
-
 par(cex.axis = .75, mar=c(10,4,4,2))
 boxplot(crosspaGFdf, main=("cross-validation of PA of hurdle models of full spatial design"), las=2)
 
@@ -12908,4 +12909,51 @@ boxplot(crossAbuGFdf[,c("readsOnly_RMSE","spatialOnly_RMSE","environmentalOnly_R
 boxplot(crossAbuGFdf[,c("readsOnly_R2","spatialOnly_R2","environmentalOnly_R2","full_R2")], las=2)
 mtext("cross-validation of Abundance sub-models of full spatial design", side = 3, line = - 2, outer = TRUE)
 
+#### full spatial design, network analysis ####
+
+R
+
+library(Hmsc)
+library(corrplot)
+library(NetCoMi)
+library(phyloseq)
+
+
+## 
+## on optiplex:
+
+path2models <- "/home/daniel/Documents/projects/carbon4d/fichtelgebirgeSoils/spatialAnalysis/sampledHMSmodels"
+
+## let's use our full models, even though it isn't perfect. Start with PA
+
+load(file.path(path2models, "m_full_PA_sampled.rds"))
+m <- modelSampled 
+
+## get species associations
+OmegaCor = computeAssociations(m)
+
+str(OmegaCor, max.level=1)
+
+
+supportLevel = 0.95
+sigAssociations = ((OmegaCor[[1]]$support>supportLevel) + (OmegaCor[[1]]$support<(1-supportLevel))>0)*OmegaCor[[1]]$mean
+
+m$ranLevels
+
+str(sigAssociations)
+
+head(sigAssociations)
+
+postBeta = getPostEstimate(m, parName = "Beta")
+
+par(mar=c(10,4,4,2), xaxt="n")
+
+plotBeta(m, post = postBeta, 
+         param = "Support",
+         supportLevel = 0.95,
+         spNamesNumbers = c(T,F), 
+         covNamesNumbers = c(T,F),
+         cex = c(1.5, 0.7, 0.8),
+         mar = c(15,4,4,2),
+         main="Environmental Predictors for all abundant ASVs")
 

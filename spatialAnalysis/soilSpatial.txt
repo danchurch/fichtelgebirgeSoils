@@ -12988,6 +12988,26 @@ mem.sel
 
 plot(mem.sel$MEM.select, SpORcoords = xyJit00)
 
+## on visual inspection, only the two first ones
+## look interesting to me, like they are somehow
+## related to the mountains
+
+## add these to the environmental frame
+
+str(mem.sel)
+
+summary(mem.sel)
+
+envData$PCNM1 <- mem.sel$MEM.select$MEM10
+envData$PCNM2 <- mem.sel$MEM.select$MEM7
+
+## save this again:
+write.csv(envData, file="sulariEnv.csv", row.names=T)  
+envData <- read.csv(file="sulariEnv.csv", row.names=1)  
+
+## update notebook, rewrite models, resample models, rerun cross-validations
+## oh jeez. 
+
 #### full spatial design, network analysis ####
 
 R
@@ -13036,7 +13056,81 @@ plotBeta(m, post = postBeta,
 
 ### side note - add elevation data ###
 
+envData <- read.csv("sulariEnv.csv", row.names=1) 
+
 ## we didn't include elevation in our models. Seems obvious.
 ## got it here
 
-read.csv('/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/Carbon4D_DB - SensorsR_weekly_chamber.csv')
+aa <- read.csv('../sulariData/Carbon4D_DB - SensorsR_weekly_chamber.csv')[,c("plot_id", "lat","lon", "height", "landuse", "Hoehe_DGM")]
+
+
+aa$plot_id %in% envData$PlotID
+
+aa$plot_id[!(aa$plot_id %in% envData$PlotID)] ## P0214, P0180 in their data, not in mine. 
+
+envData$PlotID[!(envData$PlotID %in% aa$plot_id)] ## "P0200" "P0166" "P0219" in my data, not in theirs. 
+
+which(envData$PlotID %in% c("P0200","P0166","P0219"))
+
+envData[c(23,78,80),] ## not sure why these are missing. Maybe Betty has an answer. 
+
+## fix the hoehe_DGM:
+
+aa$height_DGM <- as.numeric(sub(",", ".", aa$Hoehe_DGM))
+
+## do these correlate pretty well?
+bb <- aa[1:67,]
+plot(bb$height,bb$height_DGM)
+rm(bb)
+## yes. And the DGM heights are available for all plots,
+## unlike the "height" variable, which is only 67 points. 
+
+elev <- aa[,c("plot_id","height_DGM")]
+elev <- unique(elev)
+
+## for the moment, work with these. 
+envData$PlotID
+envData[!(envData$PlotID %in% elev$plot_id),]
+
+envData$sequencerSample <- as.numeric(sub("S","", rownames(envData)))
+
+bb <- merge(envData, elev, by.x="PlotID", by.y = "plot_id", all.x = T)
+bb <- bb[order(bb$sequencerSample),]
+rownames(bb) <- paste0("S", bb$sequencerSample)
+
+## okay, this reduces the number of plots with complete data:
+sum(complete.cases(envData)) ## 88 plots with complete data.
+sum(complete.cases(bb)) ## we are down to 85 plots with complete data
+
+## let's fill it in with online DEMs. 
+## try https://glandnav.com/tools/gps-elevation-finder
+## it's predicted elevations match ours pretty well
+
+bb[bb$PlotID == "P0200", "height_DGM"] <- 594
+bb[bb$PlotID == "P0166", "height_DGM"] <- 598
+bb[bb$PlotID == "P0219", "height_DGM"] <- 669
+
+head(bb, n=3) 
+
+bb$sequencerSample <- NULL
+
+bb$sample <- rownames(bb)
+
+bb <- (bb[,c("sample","PlotID","Date","soil_respiration","srpuc",
+             "MBC","season","Land_type","pH",
+             "N","C","CNR","Temperature",
+             "Moisture","Latitude","Longitude","waterCont",
+             "co2flow","soil_T","height_DGM")])
+
+
+write.csv(bb, file="sulariEnv.csv", row.names=F)  
+
+envData <- read.csv(file="sulariEnv.csv", row.names=1)  
+
+## for reference, git commit is:
+## 34a65b853b869be369eba921f63a6ef537f043d5
+
+## okay. Now add the PCNMs and rerun the model...
+
+#### end of adding elevation data ###
+

@@ -12909,6 +12909,85 @@ boxplot(crossAbuGFdf[,c("readsOnly_RMSE","spatialOnly_RMSE","environmentalOnly_R
 boxplot(crossAbuGFdf[,c("readsOnly_R2","spatialOnly_R2","environmentalOnly_R2","full_R2")], las=2)
 mtext("cross-validation of Abundance sub-models of full spatial design", side = 3, line = - 2, outer = TRUE)
 
+## the spatial model not adding any information is weird.
+## check our alpha for the spatial effects, since the spatial 
+## model is so weird:
+
+path2models <- "/home/daniel/Documents/projects/carbon4d/fichtelgebirgeSoils/spatialAnalysis/sampledHMSmodels"
+load(file.path(path2models, "m_full_PA_sampled.rds"))
+m <- modelSampled 
+m.coda = convertToCodaObject(m) 
+
+str(m.coda$Alpha, max.level=1)  
+
+plot(m.coda$Alpha[[1]][[1]])  
+
+summary(m.coda$Alpha[[1]])
+
+## so the alpha is basically zero. This could be because
+## the sampling chains all got stuck at zero, 
+## or because there really is no spatial signal.
+## I have trouble believing the latter. 
+
+## let's try bringing in our PCNMs from earlier
+## I think we have to introduce these as 
+## "fixed" effects, somewhere in the model.
+## Probably just as environmental predictors (beta)
+
+## this would simplify the random effects 
+## issue anyway.
+
+## let's recover our PCNMs as per before:
+
+library(vegan)
+library(ade4)
+library(adespatial)
+library(sp)
+library(spdep)
+
+comData <- read.csv("comdat_corrected.csv", row.names=1)
+comData <- comData[!row.names(comData) %in% c("C1.1","C1.2","C2.1","C2.2"),]
+envData <- read.csv("sulariEnv.csv", row.names=1) 
+xycoords = read.csv("sulariSpatial.csv", row.names=1)
+
+com.hell <- decostand(comData, method='hellinger')
+pca.hell <- dudi.pca(df = com.hell, scale = FALSE, scannf = FALSE, nf = 4)
+
+## where are the coordinates for these sites again?
+
+## there are repeats, and we need to jitter these, as a temporary solution
+
+dupRows <- rownames(xycoords)[duplicated(xycoords)]
+
+xycoords_jit <- xycoords
+for (i in dupRows){
+    xycoords_jit[i,'xx'] <- jitter(xycoords[i,"xx"],1,2)
+    xycoords_jit[i,'yy'] <- jitter(xycoords[i,"yy"],1,2)
+}
+
+## sanity check
+any(duplicated(xycoords[,c('xx','yy')]))
+any(duplicated(xycoords_jit[,c('xx','yy')]))
+
+#rownames(xycoords_jit) <- NULL ## necessary?
+
+colnames(xycoords_jit) <- c('x','y')
+mx <- min(xycoords_jit[,1])
+my <- min(xycoords_jit[,2])
+xyJit00 <- cbind(xycoords_jit[,1] - mx, xycoords_jit[,2] - my)
+
+#s.label(xyJit00)
+
+nb <- chooseCN(coordinates(xyJit00), type = 1, plot.nb = FALSE)
+lw <- nb2listw(nb, style = 'S', zero.policy = TRUE) #"S" provided the widest variation weights.
+mem.sel <- mem.select(pca.hell$tab, listw = lw)
+
+mem.sel$summary
+
+mem.sel
+
+plot(mem.sel$MEM.select, SpORcoords = xyJit00)
+
 #### full spatial design, network analysis ####
 
 R
@@ -12918,14 +12997,11 @@ library(corrplot)
 library(NetCoMi)
 library(phyloseq)
 
-
 ## 
 ## on optiplex:
 
-path2models <- "/home/daniel/Documents/projects/carbon4d/fichtelgebirgeSoils/spatialAnalysis/sampledHMSmodels"
-
 ## let's use our full models, even though it isn't perfect. Start with PA
-
+path2models <- "/home/daniel/Documents/projects/carbon4d/fichtelgebirgeSoils/spatialAnalysis/sampledHMSmodels"
 load(file.path(path2models, "m_full_PA_sampled.rds"))
 m <- modelSampled 
 
@@ -12957,3 +13033,10 @@ plotBeta(m, post = postBeta,
          mar = c(15,4,4,2),
          main="Environmental Predictors for all abundant ASVs")
 
+
+### side note - add elevation data ###
+
+## we didn't include elevation in our models. Seems obvious.
+## got it here
+
+read.csv('/home/daniel/Documents/projects/fichtelSoils/fichtelgebirgeSoils/sulariData/Carbon4D_DB - SensorsR_weekly_chamber.csv')

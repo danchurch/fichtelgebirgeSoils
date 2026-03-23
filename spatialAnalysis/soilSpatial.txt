@@ -8250,24 +8250,42 @@ R
 library(Hmsc)
 library(phyloseq)
 
-rm(list=ls()) ## merge the spatial and env data:
-xycoords = read.csv("sulariSpatial.csv", row.names=1)
-envData <- read.csv("sulariEnv.csv", row.names="SampleID")
-aa <- merge(x=envData, y=xycoords, by=0, )
+## cleanup
+rm(list=ls())  
+## merge the spatial and env data:
 
+xycoords = read.csv("sulariSpatial.csv", row.names=1)
+envData <- read.csv("sulariEnv.csv", row.names=1)
+aa <- merge(x=envData, y=xycoords, by=0, )
 row.names(aa) <- aa$Row.names
 aa[1] <- NULL
 aa <- aa[rownames(envData),]
 envData <- aa; rm(aa)
-varsOfInterest = c("PlotID","soil_respiration","Land_type","pH","N","C","Temperature","waterCont","xx","yy")
+varsOfInterest = c("PlotID",
+                   "soil_respiration",
+                   "Land_type",
+                   "pH",
+                   "N",
+                   "C",
+                   "Temperature",
+                   "waterCont",
+                   "height_DGM",
+                   "PCNM1","PCNM2",
+                   "xx","yy")
 XData<-data.frame(envData[,varsOfInterest])
 XData$Land_type <- as.factor(XData$Land_type)
 ## we can only use complete cases
 ccases <- complete.cases(XData) ## 112 samples, we only lose 8 
+## rownames(XData)[!ccases] 
 XData = XData[ccases,] 
+
 load("psCleanedUp.rda")
 psCleanedUp = prune_samples(!(rownames(sample_data(psCleanedUp)) %in% c("C1.1","C1.2","C2.1","C2.2")), psCleanedUp)
+
+
 psCleanedUp = prune_taxa( colSums(otu_table(psCleanedUp)) > 0, psCleanedUp)
+
+
 bactRaw <- otu_table(psCleanedUp)@.Data
 bactRaw = bactRaw[ccases,]  ## complete cases only
 XData['BacteriaDepth'] <- log(rowSums(bactRaw))
@@ -8276,6 +8294,7 @@ rowsumsInv = 1/rowSums(bactRaw)
 nASVs <- dim(bactRaw)[2]
 scalarMat = matrix( rep(rowsumsInv, nASVs), ncol = nASVs)
 bact.rel <- bactRaw * scalarMat
+
 ##################### thresholds!! ###########
 ## larger, prev model had 1315 spp, x2 in hurdle model, threshold.prev=0.05, threshold.abu=0.002
 ## we'll do a much harsher subset for the moment. If sampling is cheap, soften it
@@ -8290,7 +8309,9 @@ sum(bactData > 0)
 sum(bact.pa)
 dim(bactData) ## 166 OTUs remain, out of 
 dim(bact.pa) ## 3313 OTUs
+
 ################################################
+
 Y <- bactData
 ny <- dim(Y)[1]
 ns <- dim(Y)[2]
@@ -8298,10 +8319,38 @@ Yabu <- Y
 Yabu[Y==0] <- NA ## to avoid zeroes?
 Yabu = log(Yabu) ## take log of abundances. They basically decided on the same transformations as Sulari and I.
 Ypa = 1*(Y>0)
-all(rownames(XData) == rownames(Y)) ## check check
+
+all(rownames(XData) == rownames(Y)) ## nope...why?
+
+rownames(XData) 
+
+rownames(Y)
+
+rownames(XData)[rownames(XData) != rownames(Y)]
+## not c("S40","S41","S44","S45","S118","S119")
+
+all(rownames(XData) %in% rownames(Y)) ## yes
+all(rownames(Y) %in% rownames(XData)) ## yes
+
+## order is out..
+## so all plots are in both X and Y... but order is wrong...
+## I think these are the plots that were mislabeled. 
+## I thought we reordered these accordingly, 
+
+sample_names(psCleanedUp) ## nope
+
+## it probably doesn't matter. But let's try to fix it.
+## two issues here - environmental data needs to be
+## updated with the pcnms and elevation
+## and order should be fixed. 
+
+aa <- sample_data(psCleanedUp)
+
+
 sample.id = row.names(Y)
 samplePlotid = XData$PlotID
 studyDesign = data.frame("sample"=as.factor(sample.id), "site_spatial"=as.factor(samplePlotid))
+
 plot_coords <- XData[,c("PlotID","xx","yy")]
 plot_coords <- plot_coords[!duplicated(plot_coords),] ## remove duplicated plot rows
 rownames(plot_coords) <- plot_coords$PlotID 
@@ -8995,15 +9044,21 @@ conda activate spatialDirt
 soil
 
 R
+
 library(Hmsc)
 library(phyloseq)
 
 ## clear the table
-rm(list=ls()) 
+#rm(list=ls()) 
+
 ## merge the spatial and env data:
 xycoords = read.csv("sulariSpatial.csv", row.names=1)
+
 envData <- read.csv("sulariEnv.csv", row.names="SampleID")
+
 aa <- merge(x=envData, y=xycoords, by=0, )
+
+
 row.names(aa) <- aa$Row.names
 aa[1] <- NULL
 aa <- aa[rownames(envData),]
@@ -12955,7 +13010,7 @@ pca.hell <- dudi.pca(df = com.hell, scale = FALSE, scannf = FALSE, nf = 4)
 
 ## where are the coordinates for these sites again?
 
-## there are repeats, and we need to jitter these, as a temporary solution
+## there are repeats, and we need to jitter these
 
 dupRows <- rownames(xycoords)[duplicated(xycoords)]
 
@@ -13130,7 +13185,8 @@ envData <- read.csv(file="sulariEnv.csv", row.names=1)
 ## for reference, git commit is:
 ## 34a65b853b869be369eba921f63a6ef537f043d5
 
-## okay. Now add the PCNMs and rerun the model...
+## okay. Now add the PCNMs and rerun the model...for the hundredth time...
+## going up to line 8986, a
 
 #### end of adding elevation data ###
 

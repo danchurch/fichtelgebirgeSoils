@@ -9051,24 +9051,34 @@ library(phyloseq)
 ## clear the table
 #rm(list=ls()) 
 
+
 ## merge the spatial and env data:
 xycoords = read.csv("sulariSpatial.csv", row.names=1)
-
-envData <- read.csv("sulariEnv.csv", row.names="SampleID")
-
+envData <- read.csv("sulariEnv.csv", row.names=1)
 aa <- merge(x=envData, y=xycoords, by=0, )
-
-
 row.names(aa) <- aa$Row.names
 aa[1] <- NULL
 aa <- aa[rownames(envData),]
 envData <- aa; rm(aa)
+
 ## side note: why do we have two types of temperature data? 
 ## Temperature is in the auger_co2 sheet, it is the "sensor_temp" value for depth 0 from this core
 ## they are highly correlated:
 #plot(envData$soil_T, envData$Temperature)
 ## anyway use "Temperature" for now
-varsOfInterest = c("PlotID","soil_respiration","co2flow","Land_type","pH","N","C","Temperature","waterCont","xx","yy")
+varsOfInterest = c("PlotID",
+                   "soil_respiration",
+                   "co2flow",
+                   "Land_type",
+                   "pH",
+                   "N",
+                   "C",
+                   "Temperature",
+                   "waterCont",
+                   "height_DGM",
+                   "PCNM1","PCNM2",
+                   "xx","yy")
+
 XData<-data.frame(envData[,varsOfInterest])
 XData$Land_type <- as.factor(XData$Land_type)
 ## we can only use complete cases
@@ -9088,6 +9098,7 @@ rowsumsInv = 1/rowSums(bactRaw)
 nASVs <- dim(bactRaw)[2]
 scalarMat = matrix( rep(rowsumsInv, nASVs), ncol = nASVs)
 bact.rel <- bactRaw * scalarMat
+
 rownames(bact.rel)
 ##################### thresholds!! ###########
 ## larger, prev model had 1315 spp, x2 in hurdle model, threshold.prev=0.05, threshold.abu=0.002
@@ -9104,6 +9115,7 @@ sum(bact.pa)
 dim(bactData) ## 166 OTUs remain, out of 
 dim(bact.pa) ## 3313 OTUs
 ################################################
+
 Y <- bactData
 ny <- dim(Y)[1]
 ns <- dim(Y)[2]
@@ -9112,6 +9124,7 @@ Yabu[Y==0] <- NA ## remove zeroes from the model
 Yabu = log(Yabu) ## take log of abundances. They basically decided on the same transformations as Sulari and I.
 Ypa = 1*(Y>0)
 all(rownames(XData) == rownames(Y)) ## check check
+
 sample.id = row.names(Y)
 samplePlotid = XData$PlotID
 studyDesign = data.frame("sample"=as.factor(sample.id), "site_spatial"=as.factor(samplePlotid))
@@ -9119,9 +9132,19 @@ plot_coords <- XData[,c("PlotID","xx","yy")]
 plot_coords <- plot_coords[!duplicated(plot_coords),] ## remove duplicated plot rows
 rownames(plot_coords) <- plot_coords$PlotID 
 plot_coords$PlotID <- NULL
-varsOfmodel1 <- c("BacteriaDepth","soil_respiration","co2flow","Land_type","pH","N","C","Temperature","waterCont")
+varsOfmodel1 <- c("BacteriaDepth",
+                  "soil_respiration",
+                   "co2flow",
+                   "Land_type",
+                   "pH",
+                   "N",
+                   "C",
+                   "Temperature",
+                   "waterCont", 
+                   "height_DGM",
+                   "PCNM1","PCNM2")
 XData1 <- XData[,c(varsOfmodel1)]
-XFormula1 = ~ BacteriaDepth + soil_respiration + co2flow + Land_type + pH + N + C + Temperature + waterCont
+XFormula1 = ~ BacteriaDepth + soil_respiration + co2flow + Land_type + pH + N + C + Temperature + waterCont + height_DGM + PCNM1 + PCNM2
 XData0 <- XData[,"BacteriaDepth",drop=FALSE]
 XFormula0 = ~ BacteriaDepth
 rL.sample = HmscRandomLevel(units = sample.id)
@@ -13189,4 +13212,10 @@ envData <- read.csv(file="sulariEnv.csv", row.names=1)
 ## going up to line 8986, a
 
 #### end of adding elevation data ###
+
+## 23.3.26 restarted sampling of models on optiplex. 
+## Now with elevation and PCNM variables
+## these sampled models will be the new models,
+## if the sampling works.
+
 

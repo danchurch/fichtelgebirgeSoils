@@ -13218,3 +13218,14 @@ envData <- read.csv(file="sulariEnv.csv", row.names=1)
 ## these sampled models will be the new models,
 ## if the sampling works.
 
+## we need to remember how to do predictions...
+## rerun from line 2869 on. 
+
+## plan:
+
+## revalidate latest models
+## do network diagrams
+## pick out interesting bacteria
+## predictions
+## be done.
+
